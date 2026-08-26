@@ -1,0 +1,15 @@
+# Dev CLI config: make Terraform use our locally-installed provider binary
+# instead of downloading from a registry.
+#
+# Usage (from this repo):
+#   go install                       # builds terraform-provider-dtcloud into GOPATH/bin
+#   export TF_CLI_CONFIG_FILE=$(pwd)/dev.tfrc
+#   cd examples/ssh-key && terraform plan
+#
+# Adjust the path below if your GOPATH/bin differs (see `go env GOPATH`).
+provider_installation {
+  dev_overrides {
+    "dtcloudnow/dtcloud" = "/home/volkan/go/bin"
+  }
+  direct {}
+}

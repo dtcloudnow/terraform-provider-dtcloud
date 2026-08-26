@@ -1,0 +1,28 @@
+# Terraform working files. terraform.tfstate can contain secrets in plain text,
+# so this file is the difference between a clean repo and a leak.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Go build output
+terraform-provider-dtcloud
+dist/
+vendor/
+go.work
+go.work.sum
+
+# Local environment — credentials live in ~/.dtcloud-dev.env, never here
+*.env
+.env
+
+# Editors
+.idea/
+.vscode/
