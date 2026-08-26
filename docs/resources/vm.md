@@ -37,6 +37,7 @@ resource "dtcloud_vm" "web" {
     device_type           = "disk"
     destination_type      = "volume"
     delete_on_termination = true
+    volume_type           = "standard"
     uuid                  = "img-ubuntu-22-04"
   }
 }
@@ -85,9 +86,7 @@ unreachable instance.
 * `destination_type` - (Required) One of `volume`, `local`.
 * `delete_on_termination` - (Required) Whether the device is deleted along with the VM.
 * `uuid` - (Optional) ID of the source image, volume or backup. Omit for `blank`.
-* `volume_type` - (Optional) Storage policy / volume type. Optional only because the API
-  accepts its absence for unrelated reasons — set it in practice, so the disk lands on the
-  storage class you meant.
+* `volume_type` - (Required) Storage policy / volume type the disk is created on.
 
 ### script
 
@@ -97,11 +96,18 @@ unreachable instance.
 * `hostname` - (Optional) Hostname to set inside the guest.
 * `disable_root` - (Optional) Disable direct root login.
 
-~> **The three optional fields are optional because of Windows.** Windows template images do
-not use them. On a Linux image, if you supply a `script` block at all, supply `username`,
-`hostname` and `disable_root` with it — leaving them out there gives you a guest configured
-differently from what you asked for. The provider cannot enforce this, because whether they
-apply depends on the image you booted.
+~> **`username`, `hostname` and `disable_root` are optional only because of Windows.** Windows
+template images ignore them. On a **Linux** image all three are expected: leave one out and the
+guest is configured with the platform's defaults instead of yours — no error, just a machine
+that is not what your configuration describes.
+<br /><br />
+The provider cannot turn this into a schema rule, because whether the fields apply depends on
+`os`, a sibling field, and Terraform validates one field at a time. Instead it **warns during
+`apply`**, naming the fields you left out, while there is still time to act:
+<br /><br />
+`Warning: Incomplete script block for a Linux image`
+<br />
+`script.os is "linux" but username, hostname not set. ...`
 
 ## Attributes Reference
 

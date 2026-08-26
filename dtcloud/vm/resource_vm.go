@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	dtgo "github.com/dtcloudnow/dt-go"
@@ -213,20 +214,23 @@ func ResourceDtcloudVM() *schema.Resource {
 						Description: "ID of the source image, volume or backup. Omitted for blank devices.",
 					},
 					"volume_type": {
-						Type:        schema.TypeString,
-						Optional:    true,
-						ForceNew:    true,
-						Description: "Storage policy / volume type.",
+						Type:         schema.TypeString,
+						Required:     true,
+						ForceNew:     true,
+						ValidateFunc: validation.NoZeroValues,
+						Description:  "Storage policy / volume type the disk is created on.",
 					},
 				},
 			},
 		},
 		"script": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			ForceNew:    true,
-			MaxItems:    1,
-			Description: "Initial credentials applied to the guest at first boot.",
+			Type:     schema.TypeList,
+			Optional: true,
+			ForceNew: true,
+			MaxItems: 1,
+			Description: "Initial credentials applied to the guest at first boot. On a Linux " +
+				"image, set username, hostname and disable_root as well — they are optional only " +
+				"because Windows template images ignore them.",
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"os": {
@@ -247,19 +251,19 @@ func ResourceDtcloudVM() *schema.Resource {
 						Type:        schema.TypeString,
 						Optional:    true,
 						ForceNew:    true,
-						Description: "Account to create.",
+						Description: "Account to create. Required in practice on Linux images; ignored by Windows template images.",
 					},
 					"hostname": {
 						Type:        schema.TypeString,
 						Optional:    true,
 						ForceNew:    true,
-						Description: "Hostname to set inside the guest.",
+						Description: "Hostname to set inside the guest. Required in practice on Linux images; ignored by Windows template images.",
 					},
 					"disable_root": {
 						Type:        schema.TypeBool,
 						Optional:    true,
 						ForceNew:    true,
-						Description: "Disable direct root login.",
+						Description: "Disable direct root login. Required in practice on Linux images; ignored by Windows template images.",
 					},
 				},
 			},
@@ -299,8 +303,56 @@ type createVMResponse struct {
 	ID string `json:"id"`
 }
 
+// warnIncompleteLinuxScript flags a `script` block that a Linux guest will not
+// be fully configured by.
+//
+// `username`, `hostname` and `disable_root` are optional in the schema only
+// because Windows template images ignore them. On a Linux image all three are
+// expected, and leaving one out silently gives you a guest configured
+// differently from what you asked for — no error, just a machine that is not
+// what the configuration describes.
+//
+// The schema cannot express this: the rule depends on `os`, a sibling field, and
+// SDKv2 validation only ever sees one field at a time. So it is a warning at
+// apply time, which is the last point the user can still act on it, rather than
+// a rule nobody enforces.
+func warnIncompleteLinuxScript(d *schema.ResourceData) diag.Diagnostics {
+	raw := d.Get("script").([]interface{})
+	if len(raw) == 0 || raw[0] == nil {
+		return nil
+	}
+	script := raw[0].(map[string]interface{})
+	if script["os"].(string) != "linux" {
+		return nil
+	}
+
+	missing := []string{}
+	if script["username"].(string) == "" {
+		missing = append(missing, "username")
+	}
+	if script["hostname"].(string) == "" {
+		missing = append(missing, "hostname")
+	}
+	if _, set := d.GetOkExists("script.0.disable_root"); !set {
+		missing = append(missing, "disable_root")
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+
+	return diag.Diagnostics{{
+		Severity: diag.Warning,
+		Summary:  "Incomplete script block for a Linux image",
+		Detail: "script.os is \"linux\" but " + strings.Join(missing, ", ") +
+			" not set. These are optional only because Windows template images ignore " +
+			"them; on Linux the guest is configured with the platform's defaults instead " +
+			"of yours. Set them, or drop the script block if you are provisioning another way.",
+	}}
+}
+
 func resourceDtcloudVMCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
+	warnings := warnIncompleteLinuxScript(d)
 
 	opts := dtgo.CreateVirtualMachineParams{
 		Name:               d.Get("name").(string),
@@ -348,7 +400,7 @@ func resourceDtcloudVMCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
-	return resourceDtcloudVMRead(ctx, d, meta)
+	return append(warnings, resourceDtcloudVMRead(ctx, d, meta)...)
 }
 
 func resourceDtcloudVMRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

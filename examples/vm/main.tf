@@ -32,6 +32,11 @@ variable "security_group_id" {
   description = "Security group bound to the VM's interface. Required."
 }
 
+variable "volume_type" {
+  type        = string
+  description = "Storage policy the boot disk is created on. Required."
+}
+
 resource "dtcloud_ssh_key" "example" {
   name       = "terraform-vm-example"
   public_key = file("~/.ssh/id_rsa.pub")
@@ -60,6 +65,7 @@ resource "dtcloud_vm" "example" {
     device_type           = "disk"
     destination_type      = "volume"
     delete_on_termination = true
+    volume_type           = var.volume_type
     uuid                  = var.image_id
   }
 }

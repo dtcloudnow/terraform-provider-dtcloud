@@ -595,6 +595,7 @@ resource "dtcloud_vm" "test" {
     device_type           = "disk"
     destination_type      = "volume"
     delete_on_termination = true
+    volume_type           = "standard"
     uuid                  = "img-0001"
   }
 }
@@ -638,6 +639,7 @@ resource "dtcloud_vm" "host" {
     device_type           = "disk"
     destination_type      = "volume"
     delete_on_termination = true
+    volume_type           = "standard"
     uuid                  = "img-0001"
   }
 }

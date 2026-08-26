@@ -49,6 +49,7 @@ resource "dtcloud_vm" "web" {
     device_type           = "disk"
     destination_type      = "volume"
     delete_on_termination = true
+    volume_type           = "standard"
     uuid                  = var.image_id
   }
 }
