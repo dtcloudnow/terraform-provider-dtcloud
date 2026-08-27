@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -41,15 +42,24 @@ func Provider() *schema.Provider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"dtcloud_ssh_key": sshkey.DataSourceDtcloudSSHKey(),
-			"dtcloud_vm":      vm.DataSourceDtcloudVM(),
-			"dtcloud_vms":     vm.DataSourceDtcloudVMs(),
+			"dtcloud_ssh_key":  sshkey.DataSourceDtcloudSSHKey(),
+			"dtcloud_ssh_keys": sshkey.DataSourceDtcloudSSHKeys(),
+
+			"dtcloud_vm":               vm.DataSourceDtcloudVM(),
+			"dtcloud_vms":              vm.DataSourceDtcloudVMs(),
+			"dtcloud_vm_history":       vm.DataSourceDtcloudVMHistory(),
+			"dtcloud_vm_history_entry": vm.DataSourceDtcloudVMHistoryEntry(),
+
+			"dtcloud_network":  network.DataSourceDtcloudNetwork(),
+			"dtcloud_networks": network.DataSourceDtcloudNetworks(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":              sshkey.ResourceDtcloudSSHKey(),
 			"dtcloud_vm":                   vm.ResourceDtcloudVM(),
 			"dtcloud_vm_volume_attachment": vm.ResourceDtcloudVMVolumeAttachment(),
 			"dtcloud_vm_network_interface": vm.ResourceDtcloudVMNetworkInterface(),
+
+			"dtcloud_network": network.ResourceDtcloudNetwork(),
 		},
 	}
 

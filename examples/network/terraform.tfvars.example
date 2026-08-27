@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+cidr = "10.99.0.0/24"
