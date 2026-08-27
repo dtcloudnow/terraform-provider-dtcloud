@@ -47,6 +47,15 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "ram", "512 MB"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "created_at", "2026-07-08T10:35:17Z"),
 
+					// The event log. `status` is missing from the list and only
+					// the detail endpoint has it — which is why there are two.
+					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.#", "2"),
+					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.0.activity", "Start"),
+					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.1.id", "hist-1"),
+					resource.TestCheckNoResourceAttr("data.dtcloud_vm_history.test", "entries.0.status"),
+					resource.TestCheckResourceAttr("data.dtcloud_vm_history_entry.first", "activity", "Create"),
+					resource.TestCheckResourceAttr("data.dtcloud_vm_history_entry.first", "status", "Success"),
+
 					// Read pulls these from their own endpoints, not from details.
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "primary_ip", "10.0.0.10"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "network_interface.#", "1"),
@@ -162,9 +171,15 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 				ImportStateVerify: true,
 				// Only these are readable back from the details endpoint; the
 				// rest live in config alone (see the note in resource_vm.go).
+				// key_name and network are deliberately NOT ignored: both are
+				// recovered from the API (`sshKey`, and the interface list),
+				// and this step is what proves it. What is left cannot be
+				// recovered — block_device because the image id is never
+				// reported and image names are not unique, user_data and script
+				// because nothing echoes them back, and the last three because
+				// they only exist in configuration.
 				ImportStateVerifyIgnore: []string{
-					"key_name", "network", "block_device",
-					"user_data", "security_groups", "script",
+					"block_device", "user_data", "script",
 					"is_gpu_image", "enable_hot_plug", "graceful_shutdown",
 				},
 			},

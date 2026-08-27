@@ -184,6 +184,21 @@ and it should not be sent.
 ~> The provider currently sends it on every interface, including physical ones. Set it only
 on virtual networks until that is fixed.
 
+### What drift Terraform can see
+
+*Drift* is when reality stops matching what Terraform recorded — someone renamed the VM in the
+console, resized it, swapped its key. On the next `plan` Terraform refreshes from the API,
+notices the difference and offers to put it back.
+
+It can only notice what the API reports. Here that is: `name`, `flavor_id`, `state`,
+`key_name` and everything under Attributes Reference. A key swapped outside Terraform shows up
+as a proposed **replacement**, because `key_name` is `ForceNew` — which is the honest answer
+when the way into the machine has changed.
+
+What it cannot see: `block_device`, `user_data`, `script` and `is_gpu_image`. Nothing reports
+them, so a change made to them outside Terraform stays invisible and `plan` says "no changes".
+That is an API limitation, not a choice — see the import table above for why each one.
+
 ### `network_interface` and `volume` are a snapshot
 
 They reflect the VM's last refresh. An attachment created by a separate resource in the same
@@ -196,6 +211,22 @@ The API accepts a `vmCount`, but this resource does not expose it — one Terraf
 must map to one instance, otherwise only the first would be tracked. Use Terraform's own
 `count` or `for_each`.
 
+## Timeouts
+
+* `create` - Defaults to **20 minutes**.
+* `update` - Defaults to **10 minutes**.
+* `delete` - Defaults to **15 minutes**.
+
+Creating waits for the VM to reach `ACTIVE`; a resize stops and restarts it, so an update can legitimately take several minutes.
+
+Override them with a `timeouts` block:
+
+```hcl
+timeouts {
+  create = "30m"
+}
+```
+
 ## Import
 
 VMs can be imported by ID:
@@ -204,7 +235,20 @@ VMs can be imported by ID:
 terraform import dtcloud_vm.web 9f1c2b3a-0000-4a1b-8c2d-1234567890ab
 ```
 
-`name`, `flavor_id`, `state` and the computed attributes are recovered on import. The
-boot-time arguments (`network`, `block_device`, `key_name`, `user_data`, `script`,
-`is_gpu_image`) are not returned by any endpoint — declare them in your configuration to match
-the instance, or Terraform will plan a replacement.
+**Recovered on import:** `name`, `flavor_id`, `state`, `key_name`, the `network` blocks
+(network id, security groups and port security) and every computed attribute.
+
+**Not recovered — write these into your configuration to match the instance, or the first plan
+will propose a replacement:**
+
+| Argument | Why not |
+|----------|---------|
+| `block_device` | The image id is never reported — only the image *name*, and names are not unique on the platform, so it cannot be resolved back. `source_type`, `device_type` and `destination_type` are not reported either. |
+| `user_data` | Nothing echoes it back. |
+| `script` | Nothing echoes it back — which is right, since it carries a password. |
+| `is_gpu_image` | Exists only in configuration. |
+
+-> **`network` is rebuilt as an unpinned IPv4 request.** `fixed_ip` comes back as
+`{ ip_version = 4 }` with no address, because that is what the great majority of
+configurations say. If yours pins an `ip_address`, write it in before applying — `network` is
+`ForceNew`, so any difference means a rebuild.

@@ -47,6 +47,19 @@ read this resource's attributes instead.
 ~> Detaching a volume that is mounted inside the guest can lose data. Terraform will not stop
 the VM or unmount anything first.
 
+## Timeouts
+
+* `create` - Defaults to **10 minutes**.
+* `delete` - Defaults to **10 minutes**.
+
+Override them with a `timeouts` block:
+
+```hcl
+timeouts {
+  create = "30m"
+}
+```
+
 ## Import
 
 ```

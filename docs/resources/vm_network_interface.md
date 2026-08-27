@@ -65,6 +65,20 @@ places concurrently.
 ~> The `network_interface` list on `dtcloud_vm` is a snapshot from that resource's last refresh.
 An interface attached here in the same `apply` will not appear there until the next refresh.
 
+## Timeouts
+
+* `create` - Defaults to **10 minutes**.
+* `update` - Defaults to **10 minutes**.
+* `delete` - Defaults to **10 minutes**.
+
+Override them with a `timeouts` block:
+
+```hcl
+timeouts {
+  create = "30m"
+}
+```
+
 ## Import
 
 ```

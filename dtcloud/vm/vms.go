@@ -194,6 +194,7 @@ func readVMAttachments(ctx context.Context, client *dtgo.Client, d *schema.Resou
 	} else {
 		d.Set("network_interface", flattenNetworkInterfaces(interfaces))
 		d.Set("primary_ip", primaryIPOf(interfaces))
+		recoverNetworkBlocks(d, interfaces)
 	}
 
 	volumes, _, err := client.VirtualMachine.GetVmVolumeAttachments(ctx, vmID, nil)
@@ -543,4 +544,46 @@ func resolveFlavorID(ctx context.Context, client *dtgo.Client, flavorName string
 		match = f.ID
 	}
 	return match
+}
+
+// recoverNetworkBlocks fills in the `network` blocks after an import.
+//
+// The blocks are ForceNew and the create call is the only place they are ever
+// sent, so an import that leaves them empty makes the first plan propose to
+// destroy the VM it has just adopted. They are recoverable after all: the
+// interface list reports the network id, the security group ids, and — as
+// `spoofingProtection` — port security.
+//
+// Only on import. During normal operation the blocks already hold what the
+// configuration asked for, and overwriting them with what the platform reports
+// would invent differences: a fixed_ip the user pinned versus one the subnet
+// allocated is the obvious one, and any difference here means a rebuild.
+//
+// fixed_ip is reconstructed as an unpinned IPv4 request rather than with the
+// address the interface actually holds, because that is what the overwhelming
+// majority of configurations say. Pin an address and the import will want a
+// rebuild — write the block to match before applying.
+func recoverNetworkBlocks(d *schema.ResourceData, interfaces dtgo.GetVmNetworkInterfaces) {
+	// readVMAttachments is shared with the data source, whose schema has no
+	// `network` at all — so this has to cope with the field being absent, not
+	// merely empty. A bare type assertion panicked here.
+	existing, ok := d.Get("network").([]interface{})
+	if !ok || len(existing) > 0 {
+		return
+	}
+
+	blocks := make([]interface{}, 0, len(interfaces))
+	for _, iface := range interfaces {
+		groups := make([]interface{}, 0, len(iface.SecurityGroups))
+		for _, g := range iface.SecurityGroups {
+			groups = append(groups, g.ID)
+		}
+		blocks = append(blocks, map[string]interface{}{
+			"uuid":                  iface.ID,
+			"security_groups":       groups,
+			"port_security_enabled": iface.SpoofingProtection,
+			"fixed_ip":              []interface{}{map[string]interface{}{"ip_version": 4}},
+		})
+	}
+	d.Set("network", blocks)
 }

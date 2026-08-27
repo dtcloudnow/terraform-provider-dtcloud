@@ -422,6 +422,12 @@ func resourceDtcloudVMRead(ctx context.Context, d *schema.ResourceData, meta int
 	setVMAttributes(d, details)
 	d.Set("state", powerStateOf(details.Status))
 
+	// key_name is reported, as `sshKey`. Setting it here is what makes it
+	// survive an import and what makes a key swapped outside Terraform show up
+	// in a plan — it is ForceNew, so that plan proposes a rebuild, which is the
+	// honest answer when the way into the machine has changed.
+	d.Set("key_name", details.SSHKey)
+
 	// The details endpoint reports the flavor by name only; resolve it so that
 	// flavor_id survives an import and so an out-of-band resize shows in a plan.
 	if id := resolveFlavorID(ctx, client, details.Flavor.Name); id != "" {

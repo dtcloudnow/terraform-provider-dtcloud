@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored;
+# this file is not, so keep real values out of it.
+#
+# Look the ids up with:
+#   dtctl flavor list
+#   dtctl image list
+#   terraform console  ->  data.dtcloud_networks
+
+flavor_id         = "1706f897-0000-0000-0000-000000000000"
+image_id          = "bb69ba12-0000-0000-0000-000000000000"
+network_id        = "0166bbb6-0000-0000-0000-000000000000"
+security_group_id = "88188ec9-0000-0000-0000-000000000000"
+volume_type       = "default"
+
+# Optional — leave empty to skip the extra interface and disk.
+extra_network_id = ""
+extra_volume_id  = ""

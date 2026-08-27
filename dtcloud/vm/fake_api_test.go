@@ -126,6 +126,10 @@ func (f *fakeVMAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.details(w, id)
 	case r.Method == http.MethodGet && len(seg) == 2 && seg[1] == "networks":
 		f.listIfaces(w, id)
+	case r.Method == http.MethodGet && len(seg) == 2 && seg[1] == "history":
+		f.history(w, id)
+	case r.Method == http.MethodGet && len(seg) == 4 && seg[1] == "history" && seg[3] == "detail":
+		f.historyDetail(w, id, seg[2])
 	case r.Method == http.MethodGet && len(seg) == 2 && seg[1] == "volumes":
 		f.listVolumes(w, id)
 	case r.Method == http.MethodPost && len(seg) == 2 && seg[1] == "actions":
@@ -160,8 +164,9 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 			// Pointers so that a missing field and an explicit null are
 			// distinguishable — the real API rejects null here, and the fake
 			// has to reject it too or the offline tests miss the bug.
-			SecurityGroups *[]string      `json:"security_groups"`
-			FixedIps       *[]interface{} `json:"fixed_ips"`
+			SecurityGroups      *[]string      `json:"security_groups"`
+			FixedIps            *[]interface{} `json:"fixed_ips"`
+			PortSecurityEnabled bool           `json:"port_security_enabled"`
 		} `json:"networks"`
 		BlockDeviceMapping []struct {
 			BootIndex int `json:"boot_index"`
@@ -208,12 +213,17 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		Name:      body.Name,
 		Flavor:    body.FlavorRef,
 		pollsLeft: f.buildPolls,
+		// The boot interface keeps what create asked for. The real API reports
+		// the security groups and port security back on the interface list —
+		// checked live — and an import relies on exactly that to rebuild the
+		// `network` block.
 		ifaces: []*fakeIface{{
 			PortID:    fmt.Sprintf("port-boot-%d", f.nextPort),
 			NetworkID: body.Networks[0].UUID,
 			PrimaryIP: "10.0.0.10",
 			IsPublic:  true,
-			PortSec:   true,
+			PortSec:   body.Networks[0].PortSecurityEnabled,
+			SecGroups: derefStrings(body.Networks[0].SecurityGroups),
 		}},
 		volumes: []*fakeVol{{ID: "vol-boot", Name: body.Name + "-boot", Size: 20}},
 	}
@@ -370,6 +380,42 @@ func (f *fakeVMAPI) withVM(w http.ResponseWriter, id string, fn func(*fakeVM)) b
 	}
 	fn(v)
 	return true
+}
+
+// history is an event log. The list leaves `status` out — only the detail
+// endpoint reports it, which is the whole reason there are two data sources.
+func (f *fakeVMAPI) history(w http.ResponseWriter, id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.vms[id]; !ok {
+		acctest.NotFound(w, "vm not found")
+		return
+	}
+	acctest.WriteJSON(w, http.StatusOK, []map[string]any{
+		{"id": "hist-2", "dateAndTime": acctest.FakeCreatedAt, "activity": "Start", "initiator": "volkan"},
+		{"id": "hist-1", "dateAndTime": acctest.FakeCreatedAt, "activity": "Create", "initiator": "volkan"},
+	})
+}
+
+func (f *fakeVMAPI) historyDetail(w http.ResponseWriter, id, historyID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.vms[id]; !ok {
+		acctest.NotFound(w, "vm not found")
+		return
+	}
+	if historyID != "hist-1" && historyID != "hist-2" {
+		acctest.NotFound(w, "history entry not found")
+		return
+	}
+	activity := "Create"
+	if historyID == "hist-2" {
+		activity = "Start"
+	}
+	acctest.WriteJSON(w, http.StatusOK, map[string]any{
+		"id": historyID, "dateAndTime": acctest.FakeCreatedAt,
+		"activity": activity, "initiator": "volkan", "status": "Success",
+	})
 }
 
 func (f *fakeVMAPI) listIfaces(w http.ResponseWriter, id string) {
@@ -603,6 +649,15 @@ resource "dtcloud_vm" "test" {
 data "dtcloud_vm" "test" {
   id = dtcloud_vm.test.id
 }
+
+data "dtcloud_vm_history" "test" {
+  vm_id = dtcloud_vm.test.id
+}
+
+data "dtcloud_vm_history_entry" "first" {
+  vm_id      = dtcloud_vm.test.id
+  history_id = "hist-1"
+}
 `, endpoint, name, flavor, state, fakeVMKeyName)
 }
 
@@ -649,3 +704,13 @@ resource "dtcloud_vm" "host" {
 
 // TestAccDtcloudVMVolumeAttachment covers attach → read → import → detach, and
 // checks the attachment shows up on the VM's own volume list.
+
+// derefStrings unwraps the pointer-to-slice the create body uses to tell "field
+// absent" from "empty array" — the distinction the API's Joi.array() cares
+// about.
+func derefStrings(v *[]string) []string {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
