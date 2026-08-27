@@ -34,6 +34,20 @@ In addition to the arguments above, the following attributes are exported:
 * `created_at` - When the SSH key was created, in RFC 3339 format.
 * `user_id` - The ID of the user that owns the SSH key.
 
+## Timeouts
+
+* `create` - Defaults to **2 minutes**.
+
+Creating a key is synchronous, so this is a guard against a hung request rather than a wait for anything.
+
+Override them with a `timeouts` block:
+
+```hcl
+timeouts {
+  create = "30m"
+}
+```
+
 ## Import
 
 SSH keys can be imported using their `name`:

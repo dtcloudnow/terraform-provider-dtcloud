@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -67,6 +68,8 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodPost && path == "":
 		f.create(w, r)
+	case r.Method == http.MethodGet && path == "":
+		f.list(w)
 	case r.Method == http.MethodGet && strings.HasSuffix(path, "/details"):
 		name := strings.TrimSuffix(strings.TrimPrefix(path, "/"), "/details")
 		f.details(w, name)
@@ -75,6 +78,22 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		acctest.WriteJSON(w, http.StatusNotFound, map[string]any{"errorMessage": "no such route"})
 	}
+}
+
+// list answers the way the real endpoint does: name and created, nothing else.
+// Fingerprints and public keys are details-only, which is exactly why the
+// plural data source cannot report them.
+func (f *fakeAPI) list(w http.ResponseWriter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := []map[string]any{}
+	for name := range f.keys {
+		out = append(out, map[string]any{"name": name, "created": fakeCreatedAt})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i]["name"].(string) < out[j]["name"].(string)
+	})
+	acctest.WriteJSON(w, http.StatusOK, out)
 }
 
 func (f *fakeAPI) create(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +207,10 @@ resource "dtcloud_ssh_key" "test" {
 data "dtcloud_ssh_key" "test" {
   name = dtcloud_ssh_key.test.name
 }
+
+data "dtcloud_ssh_keys" "all" {
+  depends_on = [dtcloud_ssh_key.test]
+}
 `, endpoint, name, publicKey)
 }
 
@@ -219,6 +242,12 @@ func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 			{
 				Config: testConfig(server.URL, keyName, testPublicKey),
 				Check: resource.ComposeAggregateTestCheckFunc(
+					// The plural data source: the list endpoint reports a name
+					// and a created timestamp and nothing else, so anything more
+					// has to come from the singular lookup.
+					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "ssh_keys.#", "1"),
+					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "ssh_keys.0.name", keyName),
+					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "names.0", keyName),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "id", keyName),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "name", keyName),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "public_key", testPublicKey),
