@@ -3,7 +3,7 @@
 Terraform provider for the DT cloud (CMP), built on the [`dt-go`](../dt-go) SDK
 which talks to `cloud-web-api`.
 
-Current scope: SSH keys, virtual machines and networks.
+Current scope: SSH keys, virtual machines, networks and volumes.
 
 | Resources                      | Data sources               |
 |--------------------------------|----------------------------|
@@ -12,9 +12,13 @@ Current scope: SSH keys, virtual machines and networks.
 | `dtcloud_vm_volume_attachment` | `dtcloud_vm`               |
 | `dtcloud_vm_network_interface` | `dtcloud_vms`              |
 | `dtcloud_network`              | `dtcloud_vm_history`       |
-|                                | `dtcloud_vm_history_entry` |
+| `dtcloud_volume`               | `dtcloud_vm_history_entry` |
 |                                | `dtcloud_network`          |
 |                                | `dtcloud_networks`         |
+|                                | `dtcloud_volume`           |
+|                                | `dtcloud_volumes`          |
+|                                | `dtcloud_volume_snapshots` |
+|                                | `dtcloud_storage_policies` |
 
 ## Dependency chain
 

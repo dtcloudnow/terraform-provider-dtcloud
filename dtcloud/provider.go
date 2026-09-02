@@ -7,6 +7,7 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/volume"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -52,6 +53,11 @@ func Provider() *schema.Provider {
 
 			"dtcloud_network":  network.DataSourceDtcloudNetwork(),
 			"dtcloud_networks": network.DataSourceDtcloudNetworks(),
+
+			"dtcloud_volume":           volume.DataSourceDtcloudVolume(),
+			"dtcloud_volumes":          volume.DataSourceDtcloudVolumes(),
+			"dtcloud_volume_snapshots": volume.DataSourceDtcloudVolumeSnapshots(),
+			"dtcloud_storage_policies": volume.DataSourceDtcloudStoragePolicies(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":              sshkey.ResourceDtcloudSSHKey(),
@@ -60,6 +66,8 @@ func Provider() *schema.Provider {
 			"dtcloud_vm_network_interface": vm.ResourceDtcloudVMNetworkInterface(),
 
 			"dtcloud_network": network.ResourceDtcloudNetwork(),
+
+			"dtcloud_volume": volume.ResourceDtcloudVolume(),
 		},
 	}
 

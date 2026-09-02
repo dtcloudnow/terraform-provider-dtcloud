@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+# Name of the storage policy, not its id. Leave unset to take the first policy
+# this project has quota for:
+#   data.dtcloud_storage_policies.available.names[0]
+storage_policy = ""
+
+# Set to build the bootable-volume example too. Leave empty to skip it.
+image_id = ""
