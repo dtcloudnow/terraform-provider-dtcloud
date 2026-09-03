@@ -7,7 +7,7 @@ subcategory: "Storage"
 
 Lists the snapshots taken of one volume.
 
-Read-only on purpose. Snapshots have their own service and their own routes; creating one here
+Read-only on purpose. Snapshots are managed by [`dtcloud_snapshot`](../resources/snapshot.md); creating one here
 would put two resources in charge of the same object.
 
 What this is for is **seeing what a destroy would take with it**. Deleting a volume cascades,

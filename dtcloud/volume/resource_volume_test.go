@@ -111,7 +111,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 						api.mu.Lock()
 						defer api.mu.Unlock()
 						// The description is applied as a follow-up update,
-						// because createVolumeSchema has no description field.
+						// because create accepts no description field.
 						if api.updates != 1 {
 							return fmt.Errorf("expected one update call to set the description, saw %d", api.updates)
 						}
@@ -260,7 +260,7 @@ resource "dtcloud_volume" "boot" {
 
 // TestAccDtcloudVolume_clone pins the second create shape. The clone route
 // answers with the raw OpenStack volume, keyed `id`, where create answers with
-// the client-panel object keyed `volumeId`.
+// a built response keyed `volumeId`.
 func TestAccDtcloudVolume_clone(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -437,7 +437,7 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 				// with something the reader can act on. The platform will not
 				// delete an in-use volume under any circumstances — the web
 				// console enforces the same rule — so the provider checks first
-				// rather than letting Cinder answer with its generic
+				// rather than letting the platform answer with its generic
 				// five-condition complaint half-way through a destroy.
 				//
 				// It must not detach on its own either. Pulling a disk out of a
@@ -524,7 +524,7 @@ func TestAccDtcloudVolume_shrinkRejected(t *testing.T) {
 // grow-only rule: it must reject a shrink and it must stay out of the way of a
 // destroy.
 //
-// Found live. Someone grows a disk in the web console; the configuration still
+// Someone grows a disk outside Terraform; the configuration still
 // says the old size. From then on the refresh reports the larger size, every
 // plan looks like a shrink, and CustomizeDiff rejects it — including the plan
 // `terraform destroy` builds. The resource becomes impossible to destroy
@@ -576,7 +576,7 @@ resource "dtcloud_volume" "oob" {
 	})
 }
 
-// TestAccDtcloudVolume_validation covers the Joi rules that are worth catching
+// TestAccDtcloudVolume_validation covers the API rules worth catching
 // during plan rather than as a 406 part-way through an apply.
 func TestAccDtcloudVolume_validation(t *testing.T) {
 	api := newFakeVolumeAPI()
@@ -610,7 +610,7 @@ resource "dtcloud_volume" "bad" {
 				ExpectError: regexp.MustCompile(`must not contain any of`),
 			},
 			{
-				// createVolumeSchema: size.min(1)
+				// The API's minimum size.
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_volume" "bad" {
   name           = "tf-acc-vol"
@@ -621,7 +621,7 @@ resource "dtcloud_volume" "bad" {
 				ExpectError: regexp.MustCompile(`expected size to be in the range \(1 - 8192\)`),
 			},
 			{
-				// createVolumeSchema: size.max(8192)
+				// The API's maximum size.
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_volume" "bad" {
   name           = "tf-acc-vol"
@@ -646,4 +646,107 @@ resource "dtcloud_volume" "bad" {
 			},
 		},
 	})
+}
+
+// TestAccDtcloudVolume_fromSnapshot covers the third create path.
+//
+// `source_snapshot_id` does not go to the volume create endpoint, which accepts
+// no snapshot id. It goes to the snapshot service, and the response is the raw
+// volume object keyed `id` — the clone shape from a third endpoint, with
+// nothing typed for createdVolumeID to prefer.
+//
+// The restore itself is exercised rather than asserted about from the outside:
+// if the provider sent the request to POST /volumes instead, `creates` would
+// move and `restores` would not.
+func TestAccDtcloudVolume_fromSnapshot(t *testing.T) {
+	api := newFakeVolumeAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	config := acctest.ProviderConfig(server.URL) + `
+resource "dtcloud_volume" "restored" {
+  name               = "tf-acc-restored"
+  size               = 20
+  storage_policy     = "standard"
+  source_snapshot_id = "snap-0001"
+}
+`
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: acctest.ProviderFactories(),
+		CheckDestroy:      checkTerraformOwnedGone(api),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("dtcloud_volume.restored", "name", "tf-acc-restored"),
+					resource.TestCheckResourceAttr("dtcloud_volume.restored", "size", "20"),
+					resource.TestCheckResourceAttr("dtcloud_volume.restored", "status", "available"),
+					// The id came out of a body keyed `id`, not `volumeId`.
+					resource.TestCheckResourceAttrSet("dtcloud_volume.restored", "id"),
+					func(*terraform.State) error {
+						api.mu.Lock()
+						defer api.mu.Unlock()
+						if api.restores != 1 {
+							return fmt.Errorf("expected one snapshot-to-volume call, saw %d", api.restores)
+						}
+						if api.creates != 0 || api.clones != 0 {
+							return fmt.Errorf("the restore went to the wrong endpoint: %d creates, %d clones", api.creates, api.clones)
+						}
+						return nil
+					},
+				),
+			},
+			{
+				// A restored volume is an ordinary volume; nothing on it points
+				// back at the snapshot. So `source_snapshot_id` cannot be read
+				// back and the re-plan has to stay empty on the strength of the
+				// resource never trying to.
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccDtcloudVolume_sourcesAreMutuallyExclusive pins the ConflictsWith wiring
+// on all three create-time sources. Each pair is a different endpoint, and a
+// configuration naming two of them has no defensible meaning.
+func TestAccDtcloudVolume_sourcesAreMutuallyExclusive(t *testing.T) {
+	api := newFakeVolumeAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	pairs := []struct {
+		name string
+		hcl  string
+	}{
+		{"image and snapshot", `image_id = "img-1"
+  source_snapshot_id = "snap-0001"`},
+		{"clone and snapshot", `source_volume_id = "vol-9999"
+  source_snapshot_id = "snap-0001"`},
+		{"image and clone", `image_id = "img-1"
+  source_volume_id = "vol-9999"`},
+	}
+
+	for _, pair := range pairs {
+		t.Run(pair.name, func(t *testing.T) {
+			resource.UnitTest(t, resource.TestCase{
+				ProviderFactories: acctest.ProviderFactories(),
+				Steps: []resource.TestStep{
+					{
+						Config: acctest.ProviderConfig(server.URL) + fmt.Sprintf(`
+resource "dtcloud_volume" "test" {
+  name           = "tf-acc-conflict"
+  size           = 20
+  storage_policy = "standard"
+  %s
+}
+`, pair.hcl),
+						ExpectError: regexp.MustCompile(`(?s)conflicts with`),
+					},
+				},
+			})
+		})
+	}
 }

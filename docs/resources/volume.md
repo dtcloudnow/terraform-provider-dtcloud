@@ -40,11 +40,22 @@ resource "dtcloud_volume" "boot" {
 A copy of an existing volume:
 
 ```hcl
-resource "dtcloud_volume" "restore" {
+resource "dtcloud_volume" "copy" {
   name             = "app-data-copy"
   size             = 100
   storage_policy   = "standard"
   source_volume_id = dtcloud_volume.data.id
+}
+```
+
+A volume restored from a snapshot:
+
+```hcl
+resource "dtcloud_volume" "restored" {
+  name               = "app-data-restored"
+  size               = 100
+  storage_policy     = "standard"
+  source_snapshot_id = dtcloud_snapshot.nightly.id
 }
 ```
 
@@ -69,9 +80,16 @@ resource "dtcloud_vm_volume_attachment" "data" {
 * `description` - (Optional) Free-text description. Must not contain `<`, `>`, `&`, `"` or `'`.
   **Write-only** — see below.
 * `image_id` - (Optional) Create the volume from this image, making it bootable. Changing it
-  recreates the volume. Conflicts with `source_volume_id`.
+  recreates the volume.
 * `source_volume_id` - (Optional) Create the volume as a clone of this one. Changing it
-  recreates the volume. Conflicts with `image_id`.
+  recreates the volume.
+* `source_snapshot_id` - (Optional) Restore the volume from this
+  [snapshot](snapshot.md). `size` must be at least the snapshot's size. Changing it recreates
+  the volume.
+
+The three are mutually exclusive — set at most one, or none for a blank volume. Each goes to a
+different endpoint, but the resource that comes out is the same in every case: an ordinary
+volume with no memory of where its contents came from. See **What does not round-trip** below.
 
 ## Attributes Reference
 
@@ -96,7 +114,7 @@ resource "dtcloud_vm_volume_attachment" "data" {
 
 ### `size` can only be grown
 
-Neither the API nor OpenStack underneath it can shrink a volume. A configuration that lowers
+The platform cannot shrink a volume. A configuration that lowers
 `size` is **refused when you apply it**:
 
 ```
@@ -150,8 +168,7 @@ when `delete_on_termination` is set. It cannot be detached, and it is not manage
 
 ### `description` is write-only
 
-The API accepts a description and stores it, but the details endpoint builds its response field
-by field and does not include one. So a description:
+The API accepts a description and stores it, but never reports it back. So a description:
 
 * cannot be read back, and therefore **cannot drift** — an out-of-band change is invisible;
 * does **not** survive `terraform import`;
@@ -175,12 +192,11 @@ wait that only watches the status returns immediately, having done nothing.
 
 For one and the same detached volume, this resource reports `is_detachable = false` while
 [`dtcloud_volumes`](../data-sources/volumes.md) reports `true`. That is the API's own
-disagreement, not the provider's: the details endpoint asks a helper that returns `false`
-outright when there is no attached server, and the list endpoint falls through to `true` in the
-same situation. Each page reports what the endpoint it read said.
+disagreement, not the provider's: the two endpoints compute the field differently when there is
+no attached machine. Each page reports what the endpoint it read said.
 
 Treat it as meaningful only for an **attached** volume, which is the only case it was designed
-to answer. Confirmed live on DEV.
+to answer.
 
 ### `storage_policy` is a name
 
@@ -192,8 +208,14 @@ change that could never converge. `dtcloud_storage_policies` exposes both `id` a
 ### Deleting takes the snapshots with it
 
 Once the volume is detached, `terraform destroy` deletes it with cascade enabled, so **every
-snapshot of that volume is deleted too**. Check what is there first with
-[`dtcloud_volume_snapshots`](../data-sources/volume_snapshots.md).
+snapshot of that volume is deleted too** — including snapshots Terraform manages as
+[`dtcloud_snapshot`](snapshot.md) resources, which it will not warn you about, since from its
+point of view those resources were never touched.
+
+Check what is there first with
+[`dtcloud_volume_snapshots`](../data-sources/volume_snapshots.md). If the snapshots are in your
+configuration, the reference in their `volume_id` already orders the destroy correctly:
+Terraform removes them first and the cascade finds nothing left to take.
 
 ## Timeouts
 
@@ -229,7 +251,9 @@ written into your configuration by hand or the next plan will propose a change:
   into `image_id` would propose a replacement.
 * `source_volume_id` - never reported. A clone is indistinguishable from any other volume once
   it exists.
+* `source_snapshot_id` - never reported, for the same reason. A restored volume is an ordinary
+  volume; nothing on it points back at the snapshot.
 
-Since all three force a replacement or are write-only, an import followed by a plan that wants
+Since all of them force a replacement or are write-only, an import followed by a plan that wants
 to change them is a sign the configuration needs the values filled in, not that the volume is
 wrong.

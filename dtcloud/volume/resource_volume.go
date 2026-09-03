@@ -20,13 +20,12 @@ import (
 //
 // What can change in place: `name` and `description` (POST on the volume),
 // `size` (osExtend) and `storage_policy` (osRetype).
-// ForceNew: `image_id` and `source_volume_id` — both are create-time sources
-// for the volume's contents and there is no endpoint that re-seeds an existing
-// volume from either.
+// ForceNew: `image_id`, `source_volume_id` and `source_snapshot_id` — all three
+// are create-time sources for the volume's contents and there is no endpoint
+// that re-seeds an existing volume from any of them.
 //
-// `size` is grow-only. Neither OpenStack nor the API can shrink a volume, and
-// making that a ForceNew would quietly destroy the data to satisfy the plan, so
-// it is rejected during plan instead.
+// `size` is grow-only: the platform cannot shrink a volume, and making that a
+// ForceNew would quietly destroy the data to satisfy the plan.
 func ResourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDtcloudVolumeCreate,
@@ -71,13 +70,14 @@ func ResourceDtcloudVolume() *schema.Resource {
 					"reports it back, so it does not drift, does not survive import, and cannot be cleared.",
 			},
 
-			// The two create-time sources for the volume's contents. Exactly one
-			// of them, or neither for a blank volume.
+			// The three create-time sources for the volume's contents. Exactly
+			// one of them, or none for a blank volume. Each goes to a different
+			// endpoint; see resourceDtcloudVolumeCreate.
 			"image_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				ForceNew:      true,
-				ConflictsWith: []string{"source_volume_id"},
+				ConflictsWith: []string{"source_volume_id", "source_snapshot_id"},
 				ValidateFunc:  validation.NoZeroValues,
 				Description:   "Create the volume from this image, making it bootable. Changing it recreates the volume.",
 			},
@@ -85,9 +85,18 @@ func ResourceDtcloudVolume() *schema.Resource {
 				Type:          schema.TypeString,
 				Optional:      true,
 				ForceNew:      true,
-				ConflictsWith: []string{"image_id"},
+				ConflictsWith: []string{"image_id", "source_snapshot_id"},
 				ValidateFunc:  validation.NoZeroValues,
 				Description:   "Create the volume as a clone of this one. Changing it recreates the volume.",
+			},
+			"source_snapshot_id": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"image_id", "source_volume_id"},
+				ValidateFunc:  validation.NoZeroValues,
+				Description: "Restore the volume from this snapshot. `size` must be at least the " +
+					"snapshot's size. Changing it recreates the volume.",
 			},
 
 			"status": {
@@ -138,25 +147,11 @@ func ResourceDtcloudVolume() *schema.Resource {
 			"image_metadata": imageMetadataSchema(),
 		},
 
-		// The grow-only rule is enforced in Update, not here. That is a
-		// deliberate move away from this package's usual preference for
-		// plan-time errors, and it cost a live debugging session to learn why.
-		//
-		// A CustomizeDiff cannot tell the two shrink-shaped situations apart:
-		//
-		//   the user lowered the number    state 40, config 20
-		//   reality grew outside Terraform state 40, config 20
-		//
-		// They are identical from inside the callback. So a rule that rejects
-		// the first also rejects the second — and the second includes the plan
-		// Terraform builds while refreshing for a destroy. A volume somebody
-		// grew in the web console became impossible to destroy: every plan was
-		// refused, and the only way out was editing the configuration to a size
-		// nobody had chosen. Confirmed live on DEV, and reproduced by
-		// TestAccDtcloudVolume_shrinkRuleDoesNotBlockDestroy.
-		//
-		// Update never runs during a destroy, so putting the check there keeps
-		// the refusal and gives the resource back its escape hatch.
+		// The grow-only rule lives in Update, not in a CustomizeDiff. At plan
+		// time "the user lowered the number" and "the volume was grown outside
+		// Terraform" are the same diff, so a plan-time refusal would also
+		// reject the plan Terraform builds for a destroy, leaving such a volume
+		// impossible to remove. Update never runs during a destroy.
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
@@ -166,17 +161,17 @@ func ResourceDtcloudVolume() *schema.Resource {
 	}
 }
 
-// createdVolumeID digs the new volume's id out of a create or clone response.
+// createdVolumeID reads the new volume's id out of a create, clone or restore
+// response. The three paths answer with different shapes and different id
+// keys:
 //
-// The two paths answer differently, because the route builds one response and
-// passes the other straight through from OpenStack:
+//	create   ->  a built response, keyed `volumeId`
+//	clone    ->  the raw volume object, keyed `id`
+//	restore  ->  the raw volume object, keyed `id`
 //
-//	POST /volumes        ->  the client-panel object, keyed `volumeId`
-//	POST /{id}/clone     ->  the raw OpenStack volume, keyed `id`
-//
-// dt-go types each one, so `typed` is usually filled in. The raw body is parsed
-// as a fallback for the case the typed decode came back empty — which is how
-// the equivalent asymmetry on networks was found.
+// The typed value is used when present; the raw body is parsed as a fallback,
+// because a resource that starts life with an empty id is one Terraform will
+// create a second time on the next apply.
 func createdVolumeID(typed string, body string) (string, error) {
 	if typed != "" {
 		return typed, nil
@@ -215,9 +210,22 @@ func resourceDtcloudVolumeCreate(ctx context.Context, d *schema.ResourceData, me
 		err     error
 	)
 
-	if source := d.Get("source_volume_id").(string); source != "" {
-		// Clone takes name, size and storagePolicy only — imageRef is not part
-		// of cloneVolumeSchema, and ConflictsWith has already ruled it out.
+	if source := d.Get("source_snapshot_id").(string); source != "" {
+		// Restoring goes through the snapshot service rather than the volume
+		// create endpoint, which accepts no snapshot id. Only the raw body
+		// comes back, which is what createdVolumeID's fallback parser is for.
+		restore := dtgo.CreateVolumeFromSnapshotParams{
+			Name:          params.Name,
+			Size:          params.Size,
+			StoragePolicy: params.StoragePolicy,
+		}
+		body, err = client.Snapshot.CreateVolumeFromSnapshot(ctx, source, restore, nil)
+		if err != nil {
+			return diag.Errorf("Error creating volume from snapshot %q: %s", source, err)
+		}
+	} else if source := d.Get("source_volume_id").(string); source != "" {
+		// Clone takes name, size and storage policy only; ConflictsWith has
+		// already ruled out an image.
 		var resp dtgo.UpdateVolume
 		resp, body, err = client.Volume.CloneVolume(ctx, source, params, nil)
 		if err != nil {
@@ -244,8 +252,8 @@ func resourceDtcloudVolumeCreate(ctx context.Context, d *schema.ResourceData, me
 		return diag.Errorf("Error waiting for volume %q to become available: %s", id, err)
 	}
 
-	// The create call has no description parameter — createVolumeSchema does not
-	// accept one — so a description is applied as a follow-up update.
+	// The create endpoint accepts no description, so one is applied by a
+	// follow-up update.
 	if description := d.Get("description").(string); description != "" {
 		update := dtgo.UpdateVolumeParams{Name: params.Name, Description: description}
 		if _, _, err := client.Volume.UpdateVolume(ctx, id, update, nil); err != nil {
@@ -286,14 +294,12 @@ func resourceDtcloudVolumeRead(ctx context.Context, d *schema.ResourceData, meta
 	d.Set("last_modified", details.LastModified)
 	d.Set("image_metadata", flattenImageMetadata(details.VolumeImageMetadata))
 
-	// `description` is deliberately not set. getVolumeDetailsForClient builds
-	// its response field by field and leaves the description out, so there is
-	// nothing to read it from — setting it here from anything would be
-	// inventing a value. `image_id` and `source_volume_id` are likewise not
-	// recovered: neither is reported, and image_metadata.image_id is the id of
-	// the image the *contents* came from, which a cloned volume inherits from
-	// its source. Writing that into image_id would propose a replacement on the
-	// next plan.
+	// `description` is deliberately not set: the details endpoint does not
+	// report one, so setting it from anything would be inventing a value. The
+	// three source arguments are likewise not recovered — none is reported, and
+	// image_metadata.image_id describes where the *contents* came from, which a
+	// cloned or restored volume inherits from its source. Writing that into
+	// image_id would propose a replacement on the next plan.
 
 	return nil
 }
@@ -303,9 +309,8 @@ func resourceDtcloudVolumeUpdate(ctx context.Context, d *schema.ResourceData, me
 	id := d.Id()
 
 	if d.HasChanges("name", "description") {
-		// Both are sent every time. The endpoint treats them independently and
-		// dt-go marks each omitempty, so sending the current name alongside a
-		// changed description costs nothing and keeps the two in step.
+		// Both are sent every time, so the request does not depend on which one
+		// Terraform happened to notice had changed.
 		params := dtgo.UpdateVolumeParams{
 			Name:        d.Get("name").(string),
 			Description: d.Get("description").(string),
@@ -319,8 +324,8 @@ func resourceDtcloudVolumeUpdate(ctx context.Context, d *schema.ResourceData, me
 		oldRaw, newRaw := d.GetChange("size")
 		oldSize, newSize := oldRaw.(int), newRaw.(int)
 
-		// Grow-only. See the note on the resource for why this lives here and
-		// not in a CustomizeDiff: the plan-time version also blocked destroys.
+		// Grow-only. See the note on the resource for why this is here and not
+		// in a CustomizeDiff.
 		if newSize < oldSize {
 			return diag.Errorf(
 				"size cannot be reduced from %d to %d: volumes can only be grown. "+
@@ -334,10 +339,9 @@ func resourceDtcloudVolumeUpdate(ctx context.Context, d *schema.ResourceData, me
 			return diag.Errorf("Error extending volume %q to %d GB: %s", id, newSize, err)
 		}
 
-		// Waiting on the size, not the status. The volume is already
-		// `available` when the extend is accepted and stays that way for a
-		// while, so a status-only wait would return having done nothing — the
-		// bug that shipped once on VM resize.
+		// Waiting on the size, not the status: the volume is already at rest
+		// when the extend is accepted and stays that way for a while, so a
+		// status-only wait would return having done nothing.
 		settled := func(v dtgo.GetVolumeDetails) bool { return v.Size >= newSize }
 		if err := waitForVolume(ctx, client, id, d.Timeout(schema.TimeoutUpdate), settled); err != nil {
 			return diag.Errorf("Error waiting for volume %q to reach %d GB: %s", id, newSize, err)
@@ -370,15 +374,8 @@ func resourceDtcloudVolumeDelete(ctx context.Context, d *schema.ResourceData, me
 	// An attached volume cannot be deleted. Not slowly, not eventually — the
 	// platform refuses outright while the status is `in-use`, and the web
 	// console enforces the same rule. Reading the volume first turns that into
-	// a message naming the machine, instead of Cinder's answer arriving
-	// mid-destroy:
-	//
-	//   Invalid volume: Volume  must not be migrating, attached, belong to a
-	//   group, have snapshots or be disassociated from snapshots after volume
-	//   transfer.
-	//
-	// which lists five conditions without saying which one applied. Observed
-	// live on DEV.
+	// a message naming the machine. The platform's own refusal lists several
+	// unrelated conditions without saying which one applied.
 	//
 	// Detaching here is deliberately not done. This resource does not own the
 	// attachment, and pulling a disk out of a running machine to make a destroy

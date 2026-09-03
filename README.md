@@ -1,9 +1,8 @@
 # terraform-provider-dtcloud
 
-Terraform provider for the DT cloud (CMP), built on the [`dt-go`](../dt-go) SDK
-which talks to `cloud-web-api`.
+Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines, networks and volumes.
+Current scope: SSH keys, virtual machines, networks, volumes and snapshots.
 
 | Resources                      | Data sources               |
 |--------------------------------|----------------------------|
@@ -13,17 +12,19 @@ Current scope: SSH keys, virtual machines, networks and volumes.
 | `dtcloud_vm_network_interface` | `dtcloud_vms`              |
 | `dtcloud_network`              | `dtcloud_vm_history`       |
 | `dtcloud_volume`               | `dtcloud_vm_history_entry` |
-|                                | `dtcloud_network`          |
+| `dtcloud_snapshot`             | `dtcloud_network`          |
 |                                | `dtcloud_networks`         |
 |                                | `dtcloud_volume`           |
 |                                | `dtcloud_volumes`          |
 |                                | `dtcloud_volume_snapshots` |
 |                                | `dtcloud_storage_policies` |
+|                                | `dtcloud_snapshot`         |
+|                                | `dtcloud_snapshots`        |
 
 ## Dependency chain
 
 ```
-terraform-provider-dtcloud  ->  dt-go  ->  cloud-web-api
+terraform-provider-dtcloud  ->  dt-go  ->  DT Cloud API
 ```
 
 ## Local development build

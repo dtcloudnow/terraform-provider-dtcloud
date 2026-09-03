@@ -11,7 +11,7 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/acctest"
 )
 
-// noHTML is the Joi rule from createVolumeSchema / updateVolumeSchema.
+// noHTML is the character rule the API applies to name and description.
 var noHTML = regexp.MustCompile(`^[^<>&"']*$`)
 
 // settleReads is how many details reads a status change takes to land, so that
@@ -24,11 +24,8 @@ const settleReads = 2
 // status reporting its old size or policy, so a waiter watching only the status
 // returns early.
 //
-// This delay is synthetic and larger than anything observed. A 1 GB extend on
-// DEV landed before the first poll, about a second after the action was
-// accepted — so a live run would not have caught a status-only waiter at that
-// size. The fake exaggerates on purpose: it models the case the waiter has to
-// survive, not the one that happens to be fast today.
+// Larger than anything the platform actually does. The fake models the case
+// the waiter has to survive rather than the one that happens to be fast today.
 //
 // The number has to keep the stale value visible for longer than a broken
 // provider takes to stop looking. A status-only wait costs two reads —
@@ -55,8 +52,7 @@ type fakeVolume struct {
 	Size          int
 	Bootable      string
 	Type          string
-	// Held but never reported: getVolumeDetailsForClient builds its response
-	// field by field and leaves the description out entirely.
+	// Held but never reported: the details endpoint leaves it out entirely.
 	Description string
 	ImageID     string
 	ImageName   string
@@ -140,7 +136,7 @@ type imageMeta struct {
 // Go sorts map keys alphabetically when encoding, which would move `created`
 // to the front and hide the class of bug where a field that fails to decode
 // takes everything declared after it down with it. This order is the order
-// getVolumeDetailsForClient builds its object in.
+// the API sends them in.
 type detailsResponse struct {
 	ID                  string     `json:"id"`
 	Name                string     `json:"name"`
@@ -158,7 +154,7 @@ type detailsResponse struct {
 	IsDetachable        bool       `json:"isDetachable"`
 }
 
-// fakeVolumeAPI stands in for cloud-web-api's /openstack/volumes routes.
+// fakeVolumeAPI stands in for the volume endpoints.
 //
 // The rules it enforces are the real API's, not the ones this provider finds
 // convenient. In particular it reproduces:
@@ -169,7 +165,7 @@ type detailsResponse struct {
 //   - details never carrying a description, however many times one is written;
 //   - extend and retype leaving the volume at `available` with its old value
 //     for several reads;
-//   - `.or(...)` on the actions body, and the create schema's bounds.
+//   - at least one action key being required, and the create size bounds.
 type fakeVolumeAPI struct {
 	mu      sync.Mutex
 	volumes map[string]*fakeVolume
@@ -177,17 +173,31 @@ type fakeVolumeAPI struct {
 
 	creates  int
 	clones   int
+	restores int
 	extends  int
 	retypes  int
 	updates  int
 	detailsN int
 
 	policies []map[string]string
+
+	restorableSnapshots map[string]restorableSnapshot
+}
+
+// restorableSnapshot is the one thing this fake needs from the snapshots
+// service: something for source_snapshot_id to point at. The snapshot service
+// has its own fake; this is only the far end of the restore call.
+type restorableSnapshot struct {
+	ID   string
+	Size int
 }
 
 func newFakeVolumeAPI() *fakeVolumeAPI {
 	return &fakeVolumeAPI{
 		volumes: map[string]*fakeVolume{},
+		restorableSnapshots: map[string]restorableSnapshot{
+			"snap-0001": {ID: "snap-0001", Size: 20},
+		},
 		policies: []map[string]string{
 			{"id": "type-0001", "name": "standard"},
 			{"id": "type-0002", "name": "fast"},
@@ -214,6 +224,20 @@ func (f *fakeVolumeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// source_snapshot_id does not go to the volume create endpoint, which
+	// accepts no snapshot id. It goes to the snapshot service, and what comes
+	// back is the raw volume object keyed `id` — the clone shape, from a third
+	// endpoint.
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/openstack/snapshots/") &&
+		strings.HasSuffix(r.URL.Path, "/snapshot-to-volume") {
+		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/openstack/snapshots/"), "/snapshot-to-volume")
+		f.snapshotToVolume(w, r, id)
+		return
+	}
+
 	path := strings.TrimPrefix(r.URL.Path, "/openstack/volumes")
 	seg := []string{}
 	for _, s := range strings.Split(strings.Trim(path, "/"), "/") {
@@ -221,9 +245,6 @@ func (f *fakeVolumeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			seg = append(seg, s)
 		}
 	}
-
-	f.mu.Lock()
-	defer f.mu.Unlock()
 
 	switch {
 	case r.Method == http.MethodGet && len(seg) == 0:
@@ -260,7 +281,7 @@ func (f *fakeVolumeAPI) get(w http.ResponseWriter, id string) *fakeVolume {
 	return v
 }
 
-// validationError is the 406 the Joi middleware produces.
+// validationError reproduces the API's rejection body.
 func validationError(w http.ResponseWriter, message string) {
 	acctest.WriteJSON(w, http.StatusNotAcceptable, map[string]any{"errorMessage": message})
 }
@@ -277,7 +298,7 @@ func (f *fakeVolumeAPI) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// createVolumeSchema, in the order it declares things.
+	// Validation, in the order the API applies it.
 	if body.Name == "" {
 		validationError(w, "'name' is required")
 		return
@@ -326,7 +347,7 @@ func (f *fakeVolumeAPI) create(w http.ResponseWriter, r *http.Request) {
 	f.volumes[v.ID] = v
 	f.creates++
 
-	// createVolumeForClient builds this object itself, and keys the id
+	// The create response is built by the API and keys the id
 	// `volumeId`. Nothing here is called `id`.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"volumeId":         v.ID,
@@ -356,8 +377,8 @@ func (f *fakeVolumeAPI) clone(w http.ResponseWriter, r *http.Request, sourceID s
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
 		return
 	}
-	// cloneVolumeSchema: name, size and storagePolicy, all required. imageRef
-	// is not a member — Joi rejects unknown keys.
+	// Clone requires name, size and storagePolicy. imageRef
+	// is not accepted here — unknown keys are rejected.
 	if body.Name == "" || body.StoragePolicy == "" || body.Size == 0 {
 		validationError(w, "'name', 'size' and 'storagePolicy' are required")
 		return
@@ -399,6 +420,66 @@ func (f *fakeVolumeAPI) clone(w http.ResponseWriter, r *http.Request, sourceID s
 	})
 }
 
+// snapshotToVolume is POST /openstack/snapshots/{id}/snapshot-to-volume.
+//
+// Restore requires name, size and storagePolicy; the size is
+// also floored at the snapshot's, because a volume cannot be smaller than the
+// data being restored into it.
+func (f *fakeVolumeAPI) snapshotToVolume(w http.ResponseWriter, r *http.Request, snapshotID string) {
+	snap, ok := f.restorableSnapshots[snapshotID]
+	if !ok {
+		acctest.NotFound(w, fmt.Sprintf("Snapshot %s could not be found.", snapshotID))
+		return
+	}
+
+	var body struct {
+		Name          string `json:"name"`
+		Size          int    `json:"size"`
+		StoragePolicy string `json:"storagePolicy"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
+		return
+	}
+	if body.Name == "" || body.Size == 0 || body.StoragePolicy == "" {
+		validationError(w, "'name', 'size' and 'storagePolicy' are required")
+		return
+	}
+	if body.Size < snap.Size {
+		acctest.WriteJSON(w, http.StatusInternalServerError, map[string]any{
+			"errorMessage": fmt.Sprintf("Volume size %d is smaller than snapshot size %d", body.Size, snap.Size),
+		})
+		return
+	}
+
+	v := &fakeVolume{
+		ID:            f.nextID("vol"),
+		Name:          body.Name,
+		StoragePolicy: body.StoragePolicy,
+		Size:          body.Size,
+		Type:          "HDD",
+		Bootable:      "false",
+		Status:        "creating",
+		pendingStatus: "available",
+		statusDelay:   settleReads,
+	}
+	f.volumes[v.ID] = v
+	f.restores++
+
+	// The raw OpenStack volume, keyed `id`. Nothing here is called `volumeId`.
+	acctest.WriteJSON(w, http.StatusOK, map[string]any{
+		"id":          v.ID,
+		"status":      v.Status,
+		"size":        v.Size,
+		"created_at":  acctest.FakeCreatedAt,
+		"updated_at":  acctest.FakeCreatedAt,
+		"name":        v.Name,
+		"description": "",
+		"volume_type": v.StoragePolicy,
+		"snapshot_id": snap.ID,
+	})
+}
+
 func (f *fakeVolumeAPI) details(w http.ResponseWriter, id string) {
 	v := f.get(w, id)
 	if v == nil {
@@ -421,7 +502,7 @@ func (f *fakeVolumeAPI) details(w http.ResponseWriter, id string) {
 		LastModified: acctest.FakeCreatedAt,
 		Type:         v.Type,
 		// false while detached, and it disagrees with the list route on the
-		// very same volume — see the note on list(). Confirmed live.
+		// very same volume — see the note on list().
 		IsDetachable: v.AttachedToID != "",
 	}
 	if v.ImageID != "" {
@@ -466,15 +547,15 @@ func (f *fakeVolumeAPI) list(w http.ResponseWriter) {
 			"type":         v.Type,
 			// Always true for a detached volume, where the details route says
 			// false for the same one. Not a bug in this fake: the two handlers
-			// compute it differently. getVolumeDetailsForClient asks
-			// getAttachedVmInfoHelper, which returns false outright when there
-			// is no server; getVolumesForClient writes
+			// compute it differently. The details endpoint reports false
+			// outright when there is no attached machine; the list endpoint
+			// writes
 			// `vm?.hci_info.disks ? ... : true`, and with no VM the optional
 			// chain is undefined, so it falls through to true.
 			//
 			// The provider reports whichever endpoint it read from, which is
 			// why the resource and the plural data source disagree in the
-			// tests. Confirmed live on DEV, 2026-08-29.
+			// tests.
 			"isDetachable": true,
 		})
 	}
@@ -515,7 +596,7 @@ func (f *fakeVolumeAPI) update(w http.ResponseWriter, r *http.Request, id string
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
 		return
 	}
-	// updateVolumeSchema: both optional, both subject to the no-HTML rule.
+	// Both optional, both subject to the character rule.
 	for field, value := range map[string]string{"name": body.Name, "description": body.Description} {
 		if value != "" && !noHTML.MatchString(value) {
 			validationError(w, fmt.Sprintf(
@@ -561,7 +642,7 @@ func (f *fakeVolumeAPI) actions(w http.ResponseWriter, r *http.Request, id strin
 		return
 	}
 
-	// actionsVolumeSchema ends in .or(...): at least one action key, or 406.
+	// At least one action key, or the request is rejected.
 	if body.OsExtend == nil && body.OsRetype == nil && body.OsUploadImage == nil && body.Revert == nil {
 		validationError(w, "must contain at least one of 'osExtend', 'osDetach', 'osAttach', 'osForceDetach', 'osUploadImage', 'revert', 'osRetype'")
 		return
@@ -580,10 +661,10 @@ func (f *fakeVolumeAPI) actions(w http.ResponseWriter, r *http.Request, id strin
 		// waiter that only watches the status returns straight away with the
 		// wrong size, and the apply then fails on an inconsistent result.
 		//
-		// Leaving the status alone is what the platform does. Observed live on
-		// DEV: an extend on an attached volume was accepted with a 200 and the
-		// status stayed `in-use` throughout — it never passed through
-		// `available`, which is why volumeSettled has to accept both.
+		// Leaving the status alone is what the platform does: an extend on an
+		// attached volume is accepted and the status stays `in-use` throughout,
+		// never passing through `available`. That is why volumeSettled has to
+		// accept both.
 		v.pendingSize = body.OsExtend.NewSize
 		v.sizeDelay = valueSettleReads
 
@@ -608,11 +689,11 @@ func (f *fakeVolumeAPI) delete(w http.ResponseWriter, id string) {
 		return
 	}
 
-	// An in-use volume cannot be deleted. Observed live on DEV, 2026-09-01:
+	// An in-use volume cannot be deleted. The API answers with:
 	// the request comes back 400 and the volume is untouched.
 	//
 	// The body is copied from that response rather than invented, down to the
-	// double space where Cinder's format string failed to interpolate the
+	// double space where the platform's format string failed to interpolate the
 	// volume id, and the list of five conditions that never says which one
 	// applied. That unhelpfulness is the reason the provider reads the volume
 	// and writes its own message instead of passing this one through.
@@ -666,7 +747,7 @@ func (f *fakeVolumeAPI) attachTo(name, vmName, vmID, vmStatus string) {
 // see delete().
 //
 // The real thing passes through `detaching` on the way, and does not always
-// arrive: observed live on DEV, a guest still holding the filesystem left the
+// arrive: a guest still holding the filesystem leaves the
 // volume in `detaching` for about two and a half minutes and then put it back
 // to `in-use`. That failure mode belongs to dtcloud_vm_volume_attachment, which
 // owns detaching, so it is not modelled here — this package never detaches

@@ -1,0 +1,214 @@
+package snapshot
+
+import (
+	"context"
+	"regexp"
+	"time"
+
+	dtgo "github.com/dtcloudnow/dt-go"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+// ResourceDtcloudSnapshot manages a point-in-time copy of a volume.
+//
+// In place: name and description. Everything else is fixed when the copy is
+// taken — size and storage policy come from the source volume, and a snapshot
+// cannot be re-pointed at another one, so volume_id is ForceNew.
+//
+// The source volume may be attached to a running machine; the API allows that,
+// and this resource must not refuse an in-use source.
+//
+// Restoring is not here: it produces a volume, and a volume has one owner —
+// source_snapshot_id on dtcloud_volume.
+func ResourceDtcloudSnapshot() *schema.Resource {
+	s := map[string]*schema.Schema{
+		"name": {
+			Type:     schema.TypeString,
+			Required: true,
+			ValidateFunc: validation.All(
+				validation.NoZeroValues,
+				validation.StringMatch(regexp.MustCompile(noHTMLPattern),
+					`must not contain any of < > & " '`),
+			),
+			Description: "Name of the snapshot. Can be changed in place.",
+		},
+		"volume_id": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ForceNew:     true,
+			ValidateFunc: validation.NoZeroValues,
+			Description: "ID of the volume to snapshot. The volume may be attached to a running " +
+				"machine. Changing it takes a new snapshot and destroys this one.",
+		},
+		"description": {
+			Type:     schema.TypeString,
+			Optional: true,
+			// Deliberately no NoZeroValues: omitting the argument and setting
+			// it to "" both mean "no description", so neither may be an error.
+			ValidateFunc: validation.StringMatch(regexp.MustCompile(noHTMLPattern),
+				`must not contain any of < > & " '`),
+			Description: "Free-text description. Removing it from the configuration clears it " +
+				"on the platform — the API expresses that as a JSON null, since it rejects an " +
+				"empty string outright.",
+		},
+	}
+	for name, attr := range snapshotAttributesSchema() {
+		s[name] = attr
+	}
+
+	return &schema.Resource{
+		CreateContext: resourceDtcloudSnapshotCreate,
+		ReadContext:   resourceDtcloudSnapshotRead,
+		UpdateContext: resourceDtcloudSnapshotUpdate,
+		DeleteContext: resourceDtcloudSnapshotDelete,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Schema: s,
+
+		Timeouts: &schema.ResourceTimeout{
+			// Creating copies the whole volume, so the default is generous.
+			Create: schema.DefaultTimeout(30 * time.Minute),
+			Update: schema.DefaultTimeout(15 * time.Minute),
+			Delete: schema.DefaultTimeout(20 * time.Minute),
+		},
+	}
+}
+
+func resourceDtcloudSnapshotCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*config.CombinedConfig).DTClient()
+
+	params := dtgo.CreateSnapshotParams{
+		Name:     d.Get("name").(string),
+		VolumeID: d.Get("volume_id").(string),
+	}
+
+	resp, body, err := client.Snapshot.CreateSnapshot(ctx, params, nil)
+	if err != nil {
+		return diag.Errorf("Error creating snapshot of volume %q: %s", params.VolumeID, err)
+	}
+
+	id, err := createdSnapshotID(resp.Snapshot.ID, body)
+	if err != nil {
+		return diag.Errorf("Error reading the created snapshot's id: %s", err)
+	}
+	d.SetId(id)
+
+	if err := waitForSnapshot(ctx, client, id, d.Timeout(schema.TimeoutCreate), nil); err != nil {
+		return diag.Errorf("Error waiting for snapshot %q to become available: %s", id, err)
+	}
+
+	// The create endpoint accepts only a name and a volume id, so a description
+	// has to be applied by a follow-up update.
+	if description := d.Get("description").(string); description != "" {
+		update := dtgo.UpdateSnapshotParams{Name: params.Name, Description: description}
+		if _, _, err := client.Snapshot.UpdateSnapshot(ctx, id, update, nil); err != nil {
+			return diag.Errorf("Error setting the description on snapshot %q: %s", id, err)
+		}
+		settled := func(s dtgo.GetSnapshotDetails) bool {
+			return s.Snapshot.Description == description
+		}
+		if err := waitForSnapshot(ctx, client, id, d.Timeout(schema.TimeoutCreate), settled); err != nil {
+			return diag.Errorf("Error waiting for the description on snapshot %q to be applied: %s", id, err)
+		}
+	}
+
+	return resourceDtcloudSnapshotRead(ctx, d, meta)
+}
+
+func resourceDtcloudSnapshotRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	conf := meta.(*config.CombinedConfig)
+	client := conf.DTClient()
+
+	details, _, err := client.Snapshot.GetSnapshotDetails(ctx, d.Id(), nil)
+	if err != nil {
+		if dterr.IsNotFound(err) {
+			d.SetId("")
+			return nil
+		}
+		return diag.Errorf("Error retrieving snapshot %q: %s", d.Id(), err)
+	}
+	if details.Snapshot.ID == "" {
+		d.SetId("")
+		return nil
+	}
+
+	d.Set("name", details.Snapshot.Name)
+	d.Set("volume_id", details.Snapshot.VolumeID)
+
+	// Unlike a volume's, a snapshot's description is reported back, so it
+	// drifts like any other argument and survives an import.
+	d.Set("description", details.Snapshot.Description)
+
+	setSnapshotAttributes(ctx, d, conf, details)
+
+	return nil
+}
+
+func resourceDtcloudSnapshotUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*config.CombinedConfig).DTClient()
+
+	if !d.HasChanges("name", "description") {
+		return resourceDtcloudSnapshotRead(ctx, d, meta)
+	}
+
+	name := d.Get("name").(string)
+	description := d.Get("description").(string)
+
+	// An empty description in the configuration means "remove it".
+	//
+	// The API expresses "no description" as a JSON null; an empty string is
+	// rejected outright. dtgo.UpdateSnapshotParams.ClearDescription is what
+	// sends the null, since a plain Go string cannot.
+
+	// Both fields go on every update, so the request does not depend on which
+	// one Terraform happened to notice had changed.
+	params := dtgo.UpdateSnapshotParams{
+		Name:             name,
+		Description:      description,
+		ClearDescription: description == "",
+	}
+	if _, _, err := client.Snapshot.UpdateSnapshot(ctx, d.Id(), params, nil); err != nil {
+		return diag.Errorf("Error updating snapshot %q: %s", d.Id(), err)
+	}
+
+	// Wait on the values that were asked for rather than on the status. In
+	// practice an update is applied promptly, but the API does not guarantee
+	// it, and a status-only wait would be satisfied by a snapshot that had
+	// never left `available` and still carried the old values.
+	settled := func(s dtgo.GetSnapshotDetails) bool {
+		return s.Snapshot.Name == name && s.Snapshot.Description == description
+	}
+	if err := waitForSnapshot(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate), settled); err != nil {
+		return diag.Errorf("Error waiting for snapshot %q to be updated: %s", d.Id(), err)
+	}
+
+	return resourceDtcloudSnapshotRead(ctx, d, meta)
+}
+
+func resourceDtcloudSnapshotDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	client := meta.(*config.CombinedConfig).DTClient()
+
+	if _, err := client.Snapshot.DeleteSnapshot(ctx, d.Id(), nil); err != nil {
+		// Already gone is a successful destroy, not a failure.
+		if dterr.IsNotFound(err) {
+			d.SetId("")
+			return nil
+		}
+		// The platform refuses to delete a snapshot that a volume still
+		// depends on, or one that is still being created. The API's own
+		// message is passed through, since it names the reason.
+		return diag.Errorf("Error deleting snapshot %q: %s", d.Id(), err)
+	}
+
+	if err := waitForSnapshotGone(ctx, client, d.Id(), d.Timeout(schema.TimeoutDelete)); err != nil {
+		return diag.Errorf("Error waiting for snapshot %q to be deleted: %s", d.Id(), err)
+	}
+
+	d.SetId("")
+	return nil
+}

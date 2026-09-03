@@ -3,21 +3,16 @@
 // A volume is a block device that exists on its own. Attaching one to a VM is a
 // separate resource (dtcloud_vm_volume_attachment), because the attachment has
 // its own lifecycle: a volume can be detached and re-attached elsewhere without
-// the volume itself changing. This package therefore never calls the attach or
-// forceDetach routes — it owns creation, sizing and retyping, nothing else.
+// the volume itself changing. This package owns creation, sizing and retyping,
+// and never attaches or detaches.
 //
-// Two things about this API are worth knowing before reading anything here.
+// Two API behaviours shape the code here:
 //
-// First, the two create paths answer differently. `POST /volumes` returns an
-// object the client panel builds itself, keyed `volumeId`; `POST /{id}/clone`
-// returns the raw OpenStack volume, keyed `id`. See createdVolumeID.
-//
-// Second, and more dangerous: `osExtend` and `osRetype` are accepted while the
-// volume is `available` and it *stays* `available` for a while afterwards. A
-// waiter that only watches the status returns immediately having done nothing —
-// the same bug that shipped once on VM resize. So the waits here are on the
-// value that was asked for, the size or the storage policy, and the status is
-// only used to tell settled from in-flight.
+//   - The create paths answer with different shapes and different id keys. See
+//     createdVolumeID.
+//   - Extend and retype are accepted while the volume is at rest and it stays
+//     at rest afterwards, still reporting the old value. Waits are therefore on
+//     the size or the policy that was requested, never on the status alone.
 package volume
 
 import (
@@ -33,24 +28,22 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// noHTMLPattern is the Joi rule the API applies to `name` and `description`:
-// strictNoHtmlRegex = /^[^<>&"']*$/. Enforcing it in the schema turns a 406 in
-// the middle of an apply into an error during plan.
+// noHTMLPattern mirrors the character rule the API applies to name and
+// description. Enforcing it in the schema turns a rejected request halfway
+// through an apply into an error during plan.
 const noHTMLPattern = `^[^<>&"']*$`
 
-// Size bounds from createVolumeSchema. Clone declares no bounds, but a clone
-// that ignores them would only fail deeper in OpenStack, so the same range is
-// applied to both.
+// Size bounds the API accepts on create. Clone declares none, but the same
+// range is applied to both, since a clone outside it fails later anyway.
 const (
 	minVolumeSizeGB = 1
 	maxVolumeSizeGB = 8192
 )
 
 // volumeSettled reports whether a status means the platform has finished.
-//
-// `available` and `in-use` are the two resting states — the route's own socket
-// configuration uses exactly this pair as its success condition. Everything
-// else is in flight.
+// `available` and `in-use` are the two resting states; everything else is in
+// flight. An attached volume never passes through `available`, so omitting
+// `in-use` here would hang any change made to a disk that is in use.
 func volumeSettled(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "available", "in-use":
@@ -59,10 +52,9 @@ func volumeSettled(status string) bool {
 	return false
 }
 
-// attachedToDescription names the machine holding a volume, as well as the
-// details response allows. The name is the useful half and the id is the
-// searchable one, so both go in when both are reported; an attachment made
-// outside Terraform sometimes carries only the id.
+// attachedToDescription names the machine holding a volume. Both the name and
+// the id go in when both are reported; an attachment made outside Terraform
+// sometimes carries only the id.
 func attachedToDescription(v dtgo.GetVolumeDetails) string {
 	switch {
 	case v.AttachedTo != "" && v.AttachedToID != "":
@@ -75,21 +67,15 @@ func attachedToDescription(v dtgo.GetVolumeDetails) string {
 	return "a virtual machine"
 }
 
-// volumeFailed reports whether a status means the platform gave up.
-//
-// Matched as a substring because the failure statuses are a family —
-// `error`, `error_deleting`, `error_extending`, `error_restoring` — and
-// enumerating them was the mistake that made the VM waiters fail on states
-// nobody had listed.
+// volumeFailed reports whether a status means the platform gave up. Matched as
+// a substring because the failure statuses are a family (`error`,
+// `error_deleting`, `error_extending`, ...) rather than a fixed set.
 func volumeFailed(status string) bool {
 	return strings.Contains(strings.ToLower(status), "error")
 }
 
-// parseSizeGB reads the size the *list* endpoint reports.
-//
-// The list route builds it as `volume.size + ' GB'`, so it arrives as "20 GB"
-// where the details route sends the number 20. dt-go types the two fields
-// accordingly and leaves the difference to the caller.
+// parseSizeGB reads the size the list endpoint reports, which arrives as
+// "20 GB" where the details endpoint sends the number 20.
 func parseSizeGB(raw string) int {
 	field := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(raw), "GB"))
 	n, err := strconv.Atoi(strings.TrimSpace(field))
@@ -99,9 +85,9 @@ func parseSizeGB(raw string) int {
 	return n
 }
 
-// parseBootable reads OpenStack's stringly-typed boolean. Anything unparseable
-// is false, which is the safe reading: treating an unknown value as bootable
-// would be a claim the API never made.
+// parseBootable reads the API's stringly-typed boolean. Anything unparseable
+// is false, since treating an unknown value as bootable would claim more than
+// the API said.
 func parseBootable(raw string) bool {
 	b, err := strconv.ParseBool(strings.TrimSpace(raw))
 	if err != nil {
@@ -110,9 +96,8 @@ func parseBootable(raw string) bool {
 	return b
 }
 
-// imageMetadataSchema describes where a volume's contents came from. It is
-// populated only for volumes built from an image; for a blank volume the
-// details response omits the object and this stays an empty list.
+// imageMetadataSchema describes where a volume's contents came from. Populated
+// only for volumes built from an image; empty otherwise.
 func imageMetadataSchema() *schema.Schema {
 	return &schema.Schema{
 		Type:        schema.TypeList,
@@ -138,10 +123,8 @@ func imageMetadataSchema() *schema.Schema {
 // flattenImageMetadata returns a one-element list, or an empty one when the
 // volume was not built from an image.
 //
-// The details route sets `volume_image_metadata` from OpenStack and marks it
-// omitempty in dt-go, so a blank volume decodes to the zero struct rather than
-// to a nil pointer. Emptiness therefore has to be inferred, and ImageID is the
-// field to infer it from: every image-backed volume has one.
+// A blank volume decodes to the zero struct rather than to a nil pointer, so
+// emptiness is inferred from the fields every image-backed volume carries.
 func flattenImageMetadata(m dtgo.VolumeImageMetadata) []interface{} {
 	if m.ImageID == "" && m.ImageName == "" && m.DiskFormat == "" {
 		return []interface{}{}
@@ -160,16 +143,15 @@ func flattenImageMetadata(m dtgo.VolumeImageMetadata) []interface{} {
 	}}
 }
 
-// waitForVolume blocks until the volume is at rest and `settled` agrees that
-// the change being waited for has actually landed.
+// waitForVolume blocks until the volume is at rest and `settled` agrees the
+// requested change has landed.
 //
-// The second condition is the point of this function. After an extend or a
-// retype the volume is still reported `available` with its old size or old
-// policy for a while, so a status-only wait succeeds instantly and the next
-// read then contradicts the plan. Callers pass the value they asked for and the
-// wait ends only when the API reports it back.
+// The second condition is the point of this function: after an extend or a
+// retype the volume is still reported at rest with its old size or policy, so a
+// status-only wait would succeed instantly and the next read would contradict
+// the plan. Callers pass the value they asked for.
 //
-// A nil `settled` means "any resting state will do", which is what create wants.
+// A nil `settled` means any resting state will do, which is what create wants.
 func waitForVolume(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration, settled func(dtgo.GetVolumeDetails) bool) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -177,8 +159,8 @@ func waitForVolume(ctx context.Context, client *dtgo.Client, id string, timeout 
 		Refresh: func() (interface{}, string, error) {
 			details, _, err := client.Volume.GetVolumeDetails(ctx, id, nil)
 			if err != nil {
-				// A volume that has not appeared yet is not a failure; the
-				// create call returns before OpenStack has committed it.
+				// A volume that has not appeared yet is not a failure; create
+				// returns before the platform has committed it.
 				if dterr.IsNotFound(err) {
 					return "waiting", "waiting", nil
 				}
@@ -190,9 +172,9 @@ func waitForVolume(ctx context.Context, client *dtgo.Client, id string, timeout 
 			if volumeFailed(details.Status) {
 				return nil, "", fmt.Errorf("volume %q entered %s state", id, details.Status)
 			}
-			// Every other non-target status counts as pending. Enumerating the
-			// transitional ones is what broke the VM waiters: an unlisted state
-			// failed with "unexpected state" instead of waiting for it.
+			// Every other non-target status counts as pending. The transitional
+			// states are deliberately not enumerated, so an unfamiliar one is
+			// waited out rather than treated as an error.
 			if !volumeSettled(details.Status) {
 				return "waiting", "waiting", nil
 			}
@@ -204,9 +186,9 @@ func waitForVolume(ctx context.Context, client *dtgo.Client, id string, timeout 
 		Timeout:    timeout,
 		Delay:      2 * time.Second,
 		MinTimeout: 3 * time.Second,
-		// Two readings in a row, so a poll that lands in the gap between the
-		// action being accepted and the volume leaving `available` cannot end
-		// the wait on its own.
+		// Two readings in a row, so a poll landing between the action being
+		// accepted and the volume leaving `available` cannot end the wait on
+		// its own.
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -231,8 +213,8 @@ func waitForVolumeGone(ctx context.Context, client *dtgo.Client, id string, time
 			if details.ID == "" {
 				return "done", "done", nil
 			}
-			// error_deleting is terminal: the volume will not disappear on its
-			// own, and waiting the full timeout only hides why.
+			// A failure state during deletion is terminal; waiting out the full
+			// timeout would only hide the reason.
 			if volumeFailed(details.Status) {
 				return nil, "", fmt.Errorf("volume %q entered %s state while being deleted", id, details.Status)
 			}
