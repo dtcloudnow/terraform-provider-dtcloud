@@ -13,13 +13,16 @@ Current scope: SSH keys, virtual machines, networks, volumes and snapshots.
 | `dtcloud_network`              | `dtcloud_vm_history`       |
 | `dtcloud_volume`               | `dtcloud_vm_history_entry` |
 | `dtcloud_snapshot`             | `dtcloud_network`          |
-|                                | `dtcloud_networks`         |
+| `dtcloud_image`                | `dtcloud_networks`         |
 |                                | `dtcloud_volume`           |
 |                                | `dtcloud_volumes`          |
 |                                | `dtcloud_volume_snapshots` |
 |                                | `dtcloud_storage_policies` |
 |                                | `dtcloud_snapshot`         |
 |                                | `dtcloud_snapshots`        |
+|                                | `dtcloud_image`            |
+|                                | `dtcloud_images`           |
+|                                | `dtcloud_image_versions`   |
 
 ## Dependency chain
 

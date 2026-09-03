@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
@@ -62,6 +63,10 @@ func Provider() *schema.Provider {
 
 			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
 			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
+
+			"dtcloud_image":          image.DataSourceDtcloudImage(),
+			"dtcloud_images":         image.DataSourceDtcloudImages(),
+			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":              sshkey.ResourceDtcloudSSHKey(),
@@ -74,6 +79,8 @@ func Provider() *schema.Provider {
 			"dtcloud_volume": volume.ResourceDtcloudVolume(),
 
 			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
+
+			"dtcloud_image": image.ResourceDtcloudImage(),
 		},
 	}
 

@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+# Path to the disk file to upload. Apply blocks for as long as the transfer
+# takes, so use something small the first time — a few hundred MB rather than a
+# real golden image.
+source_file = "/path/to/disk.qcow2"
+
+# Format of the file. The platform decides which formats it accepts; qcow2 and
+# iso are the usual ones.
+disk_format = "qcow2"
+
+# Distribution the image carries. The platform's list, not the provider's, and
+# the names carry a version: ubuntu20.04, centos8, debian10, win2k19.
+os_distro = "ubuntu20.04"
+
+# Smallest volume in GB a machine built from this image needs.
+min_disk = 20

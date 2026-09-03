@@ -130,13 +130,16 @@ different things: `resource "dtcloud_vm"` builds a VM, `data "dtcloud_vm"` looks
 | `dtcloud_network` | `dtcloud_vm_history_entry` |
 | `dtcloud_volume` | `dtcloud_ssh_keys` |
 | `dtcloud_snapshot` | `dtcloud_network` |
-| | `dtcloud_networks` |
+| `dtcloud_image` | `dtcloud_networks` |
 | | `dtcloud_volume` |
 | | `dtcloud_volumes` |
 | | `dtcloud_volume_snapshots` |
 | | `dtcloud_storage_policies` |
 | | `dtcloud_snapshot` |
 | | `dtcloud_snapshots` |
+| | `dtcloud_image` |
+| | `dtcloud_images` |
+| | `dtcloud_image_versions` |
 
 ## How a resource maps to API calls
 
