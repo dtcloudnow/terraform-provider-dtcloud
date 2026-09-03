@@ -56,7 +56,7 @@ Provider settings (all support environment-variable fallbacks):
 |----------------|---------------------|-----------------------------------------|
 | `access_key`   | `DTCLOUD_ACCESS_KEY`| Sent as `x-api-access-key`.             |
 | `secret_key`   | `DTCLOUD_SECRET_KEY`| Sensitive. Sent as `x-api-secret-key`.  |
-| `api_endpoint` | `DTCLOUD_API_URL`   | e.g. `https://cms.dt.net.tr/api/v1`.    |
+| `api_endpoint` | `DTCLOUD_API_URL`   | Base URL of your DT Cloud API.          |
 | `region_id`    | `DTCLOUD_REGION_ID` | Sent as the `serverId` query param.     |
 
 Supply credentials via environment variables rather than committed HCL.

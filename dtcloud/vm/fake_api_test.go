@@ -392,8 +392,8 @@ func (f *fakeVMAPI) history(w http.ResponseWriter, id string) {
 		return
 	}
 	acctest.WriteJSON(w, http.StatusOK, []map[string]any{
-		{"id": "hist-2", "dateAndTime": acctest.FakeCreatedAt, "activity": "Start", "initiator": "volkan"},
-		{"id": "hist-1", "dateAndTime": acctest.FakeCreatedAt, "activity": "Create", "initiator": "volkan"},
+		{"id": "hist-2", "dateAndTime": acctest.FakeCreatedAt, "activity": "Start", "initiator": "test-user"},
+		{"id": "hist-1", "dateAndTime": acctest.FakeCreatedAt, "activity": "Create", "initiator": "test-user"},
 	})
 }
 
@@ -414,7 +414,7 @@ func (f *fakeVMAPI) historyDetail(w http.ResponseWriter, id, historyID string) {
 	}
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"id": historyID, "dateAndTime": acctest.FakeCreatedAt,
-		"activity": activity, "initiator": "volkan", "status": "Success",
+		"activity": activity, "initiator": "test-user", "status": "Success",
 	})
 }
 

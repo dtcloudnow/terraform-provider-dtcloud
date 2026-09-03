@@ -34,7 +34,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_API_URL", nil),
-				Description: "Base URL of the cloud-web-api, e.g. https://cms.dt.net.tr/api/v1. If unset, the dt-go built-in default is used.",
+				Description: "Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.",
 			},
 			"region_id": {
 				Type:        schema.TypeString,

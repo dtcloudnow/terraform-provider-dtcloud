@@ -78,7 +78,7 @@ control, and `terraform.tfstate` is not encrypted either.
 * `secret_key` - (Optional, sensitive) API secret key. Falls back to `DTCLOUD_SECRET_KEY`.
 * `region_id` - (Optional) Region / server id, sent with every request. Falls back to
   `DTCLOUD_REGION_ID`.
-* `api_endpoint` - (Optional) Base URL of the API, e.g. `https://cms.dt.net.tr/api/v1`. Falls
+* `api_endpoint` - (Optional) Base URL of your DT Cloud API, ending in `/api/v1`. Falls
   back to `DTCLOUD_API_URL`, then to the SDK's built-in default.
 
 Both `access_key` and `secret_key` must be set; supplying one without the other fails
