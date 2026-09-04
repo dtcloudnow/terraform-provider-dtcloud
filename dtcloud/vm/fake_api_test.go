@@ -171,6 +171,7 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		BlockDeviceMapping []struct {
 			BootIndex int `json:"boot_index"`
 		} `json:"block_device_mapping_v2"`
+		EnableHotPlug *bool `json:"enableHotPlug"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "bad body"})
@@ -226,6 +227,7 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 			SecGroups: derefStrings(body.Networks[0].SecurityGroups),
 		}},
 		volumes: []*fakeVol{{ID: "vol-boot", Name: body.Name + "-boot", Size: 20}},
+		hotPlug: body.EnableHotPlug != nil && *body.EnableHotPlug,
 	}
 	f.createdNames = append(f.createdNames, body.Name)
 	f.mu.Unlock()
@@ -271,6 +273,11 @@ func (f *fakeVMAPI) detailsBody(id, status, taskState string) map[string]any {
 			"vcpus": 1,
 			"ram":   "512 MB",
 		},
+		// The real response carries these two and dt-go's typed struct does
+		// not, so the provider reads them out of the raw body. Reporting them
+		// here is what makes that path testable.
+		"hotPlugEnabled": v.hotPlug,
+		"metadata":       map[string]string{"ha_enabled": "true"},
 	}
 }
 

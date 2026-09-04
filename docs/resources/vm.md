@@ -125,6 +125,7 @@ The provider cannot turn this into a schema rule, because whether the fields app
   `security_groups` (`id` / `name`).
 * `volume` - Volumes attached to the VM, including the boot disk: `id`, `name`,
   `storage_policy`, `size`, `delete_on_termination`.
+* `metadata` - Metadata the platform attaches to the instance, e.g. `ha_enabled`.
 
 ## Behaviour worth knowing
 
@@ -191,7 +192,7 @@ console, resized it, swapped its key. On the next `plan` Terraform refreshes fro
 notices the difference and offers to put it back.
 
 It can only notice what the API reports. Here that is: `name`, `flavor_id`, `state`,
-`key_name` and everything under Attributes Reference. A key swapped outside Terraform shows up
+`key_name`, `enable_hot_plug` and everything under Attributes Reference. A key swapped outside Terraform shows up
 as a proposed **replacement**, because `key_name` is `ForceNew` — which is the honest answer
 when the way into the machine has changed.
 
@@ -235,8 +236,8 @@ VMs can be imported by ID:
 terraform import dtcloud_vm.web 9f1c2b3a-0000-4a1b-8c2d-1234567890ab
 ```
 
-**Recovered on import:** `name`, `flavor_id`, `state`, `key_name`, the `network` blocks
-(network id, security groups and port security) and every computed attribute.
+**Recovered on import:** `name`, `flavor_id`, `state`, `key_name`, `enable_hot_plug`, the
+`network` blocks (network id, security groups and port security) and every computed attribute.
 
 **Not recovered — write these into your configuration to match the instance, or the first plan
 will propose a replacement:**
@@ -247,6 +248,7 @@ will propose a replacement:**
 | `user_data` | Nothing echoes it back. |
 | `script` | Nothing echoes it back — which is right, since it carries a password. |
 | `is_gpu_image` | Exists only in configuration. |
+| `graceful_shutdown` | Exists only in configuration — it describes *how* to stop, not a property of the machine. |
 
 -> **`network` is rebuilt as an unpinned IPv4 request.** `fixed_ip` comes back as
 `{ ip_version = 4 }` with no address, because that is what the great majority of

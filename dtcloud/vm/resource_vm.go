@@ -95,7 +95,14 @@ func ResourceDtcloudVM() *schema.Resource {
 		"enable_hot_plug": {
 			Type:        schema.TypeBool,
 			Optional:    true,
+			Computed:    true,
 			Description: "Allow live vCPU/memory resize on the instance. Can be toggled after creation.",
+		},
+		"metadata": {
+			Type:        schema.TypeMap,
+			Computed:    true,
+			Elem:        &schema.Schema{Type: schema.TypeString},
+			Description: "Metadata the platform attaches to the instance, e.g. ha_enabled.",
 		},
 		"network": {
 			Type:        schema.TypeList,
@@ -287,6 +294,23 @@ func ResourceDtcloudVM() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 		Schema: resourceSchema,
+		// user_data wins over script, silently, on the API side. Saying so at
+		// plan time beats letting someone write a careful script block and then
+		// wonder why the guest ignored it.
+		//
+		// cloud-web-api's generateAndEncodeVmUserDataHelper is explicit about
+		// it: `if (!user_data && script)` builds cloud-init from the script,
+		// `else base64Data = user_data`. Both set means the script never runs.
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			hasScript := len(d.Get("script").([]interface{})) > 0
+			if d.Get("user_data").(string) != "" && hasScript {
+				return fmt.Errorf("user_data and script cannot both be set: the platform builds " +
+					"cloud-init from script only when user_data is absent, so setting both would " +
+					"silently discard the script block")
+			}
+			return nil
+		},
+
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(20 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -406,7 +430,7 @@ func resourceDtcloudVMCreate(ctx context.Context, d *schema.ResourceData, meta i
 func resourceDtcloudVMRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	details, _, err := client.VirtualMachine.GetVirtualMachineDetails(ctx, d.Id(), nil)
+	details, body, err := client.VirtualMachine.GetVirtualMachineDetails(ctx, d.Id(), nil)
 	if err != nil {
 		if dterr.IsNotFound(err) {
 			d.SetId("")
@@ -420,6 +444,7 @@ func resourceDtcloudVMRead(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	setVMAttributes(d, details)
+	setVMExtras(d, body)
 	d.Set("state", powerStateOf(details.Status))
 
 	// key_name is reported, as `sshKey`. Setting it here is what makes it
