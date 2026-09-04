@@ -2,8 +2,8 @@
 
 Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines and networks, volumes and snapshots plus read-only catalogue and account
-data sources (flavors, regions, projects, quotas).
+Current scope: SSH keys, virtual machines, networks, volumes, snapshots and images, plus read-only
+catalogue and account data sources (flavors, regions, projects, quotas).
 
 | Resources                      | Data sources               |
 |--------------------------------|----------------------------|
@@ -12,14 +12,6 @@ data sources (flavors, regions, projects, quotas).
 | `dtcloud_vm_volume_attachment` | `dtcloud_vm`               |
 | `dtcloud_vm_network_interface` | `dtcloud_vms`              |
 | `dtcloud_network`              | `dtcloud_vm_history`       |
-|                                | `dtcloud_vm_history_entry` |
-|                                | `dtcloud_network`          |
-|                                | `dtcloud_networks`         |
-|                                | `dtcloud_flavors`          |
-|                                | `dtcloud_regions`          |
-|                                | `dtcloud_projects`         |
-|                                | `dtcloud_project_quotas`   |
-|                                | `dtcloud_project_limits`   |
 | `dtcloud_volume`               | `dtcloud_vm_history_entry` |
 | `dtcloud_snapshot`             | `dtcloud_network`          |
 | `dtcloud_image`                | `dtcloud_networks`         |
@@ -32,6 +24,11 @@ data sources (flavors, regions, projects, quotas).
 |                                | `dtcloud_image`            |
 |                                | `dtcloud_images`           |
 |                                | `dtcloud_image_versions`   |
+|                                | `dtcloud_flavors`          |
+|                                | `dtcloud_regions`          |
+|                                | `dtcloud_projects`         |
+|                                | `dtcloud_project_quotas`   |
+|                                | `dtcloud_project_limits`   |
 
 ## Dependency chain
 
