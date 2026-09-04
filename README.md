@@ -1,10 +1,9 @@
 # terraform-provider-dtcloud
 
-Terraform provider for the DT cloud (CMP), built on the [`dt-go`](../dt-go) SDK
-which talks to `cloud-web-api`.
+Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines and networks, plus read-only catalogue and account
-data sources (flavors, regions, projects, quotas).
+Current scope: SSH keys, virtual machines, networks, volumes, snapshots and images, plus read-only
+catalogue and account data sources (flavors, regions, projects, quotas).
 
 | Resources                      | Data sources               |
 |--------------------------------|----------------------------|
@@ -13,9 +12,18 @@ data sources (flavors, regions, projects, quotas).
 | `dtcloud_vm_volume_attachment` | `dtcloud_vm`               |
 | `dtcloud_vm_network_interface` | `dtcloud_vms`              |
 | `dtcloud_network`              | `dtcloud_vm_history`       |
-|                                | `dtcloud_vm_history_entry` |
-|                                | `dtcloud_network`          |
-|                                | `dtcloud_networks`         |
+| `dtcloud_volume`               | `dtcloud_vm_history_entry` |
+| `dtcloud_snapshot`             | `dtcloud_network`          |
+| `dtcloud_image`                | `dtcloud_networks`         |
+|                                | `dtcloud_volume`           |
+|                                | `dtcloud_volumes`          |
+|                                | `dtcloud_volume_snapshots` |
+|                                | `dtcloud_storage_policies` |
+|                                | `dtcloud_snapshot`         |
+|                                | `dtcloud_snapshots`        |
+|                                | `dtcloud_image`            |
+|                                | `dtcloud_images`           |
+|                                | `dtcloud_image_versions`   |
 |                                | `dtcloud_flavors`          |
 |                                | `dtcloud_regions`          |
 |                                | `dtcloud_projects`         |
@@ -25,7 +33,7 @@ data sources (flavors, regions, projects, quotas).
 ## Dependency chain
 
 ```
-terraform-provider-dtcloud  ->  dt-go  ->  cloud-web-api
+terraform-provider-dtcloud  ->  dt-go  ->  DT Cloud API
 ```
 
 ## Local development build
@@ -57,7 +65,7 @@ Provider settings (all support environment-variable fallbacks):
 |----------------|---------------------|-----------------------------------------|
 | `access_key`   | `DTCLOUD_ACCESS_KEY`| Sent as `x-api-access-key`.             |
 | `secret_key`   | `DTCLOUD_SECRET_KEY`| Sensitive. Sent as `x-api-secret-key`.  |
-| `api_endpoint` | `DTCLOUD_API_URL`   | e.g. `https://cms.dt.net.tr/api/v1`.    |
+| `api_endpoint` | `DTCLOUD_API_URL`   | Base URL of your DT Cloud API.          |
 | `region_id`    | `DTCLOUD_REGION_ID` | Sent as the `serverId` query param.     |
 
 Supply credentials via environment variables rather than committed HCL.

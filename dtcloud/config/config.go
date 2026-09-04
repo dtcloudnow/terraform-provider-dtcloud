@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	dtgo "github.com/dtcloudnow/dt-go"
 )
@@ -18,12 +20,42 @@ type Config struct {
 
 // CombinedConfig is the object handed to every resource/data-source CRUD
 // function as `meta`. It wraps the configured dt-go client.
+//
+// Every CRUD call in a run shares one of these, which makes it the right place
+// for anything worth reading once instead of once per resource.
 type CombinedConfig struct {
 	client *dtgo.Client
+
+	policiesOnce sync.Once
+	policies     map[string]string
 }
 
 // DTClient returns the underlying dt-go API client.
 func (c *CombinedConfig) DTClient() *dtgo.Client { return c.client }
+
+// StoragePolicyNames maps volume type id to storage policy name, read at most
+// once per Terraform run.
+//
+// The snapshot endpoints report a volume type id where the rest of the provider
+// reports a policy name. Resolving that per snapshot would repeat the same call
+// for the same answer, since volume types do not change during an apply.
+//
+// Best-effort: a failure caches an empty map rather than an error, so a caller
+// that only wanted a display name degrades to not having one instead of failing
+// a read that otherwise succeeded. Callers needing the difference should call
+// ListStoragePolicies themselves.
+func (c *CombinedConfig) StoragePolicyNames(ctx context.Context) map[string]string {
+	c.policiesOnce.Do(func() {
+		names := map[string]string{}
+		if policies, _, err := c.client.Volume.ListStoragePolicies(ctx, nil); err == nil {
+			for _, p := range policies {
+				names[p.ID] = p.Name
+			}
+		}
+		c.policies = names
+	})
+	return c.policies
+}
 
 // Client validates the configuration and builds an authenticated dt-go client.
 // Auth is the API access-key/secret-key header pair (x-api-access-key /

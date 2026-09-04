@@ -78,7 +78,7 @@ control, and `terraform.tfstate` is not encrypted either.
 * `secret_key` - (Optional, sensitive) API secret key. Falls back to `DTCLOUD_SECRET_KEY`.
 * `region_id` - (Optional) Region / server id, sent with every request. Falls back to
   `DTCLOUD_REGION_ID`.
-* `api_endpoint` - (Optional) Base URL of the API, e.g. `https://cms.dt.net.tr/api/v1`. Falls
+* `api_endpoint` - (Optional) Base URL of your DT Cloud API, ending in `/api/v1`. Falls
   back to `DTCLOUD_API_URL`, then to the SDK's built-in default.
 
 Both `access_key` and `secret_key` must be set; supplying one without the other fails
@@ -128,9 +128,18 @@ different things: `resource "dtcloud_vm"` builds a VM, `data "dtcloud_vm"` looks
 | `dtcloud_vm_volume_attachment` | `dtcloud_vms` |
 | `dtcloud_vm_network_interface` | `dtcloud_vm_history` |
 | `dtcloud_network` | `dtcloud_vm_history_entry` |
-| | `dtcloud_ssh_keys` |
-| | `dtcloud_network` |
-| | `dtcloud_networks` |
+| `dtcloud_volume` | `dtcloud_ssh_keys` |
+| `dtcloud_snapshot` | `dtcloud_network` |
+| `dtcloud_image` | `dtcloud_networks` |
+| | `dtcloud_volume` |
+| | `dtcloud_volumes` |
+| | `dtcloud_volume_snapshots` |
+| | `dtcloud_storage_policies` |
+| | `dtcloud_snapshot` |
+| | `dtcloud_snapshots` |
+| | `dtcloud_image` |
+| | `dtcloud_images` |
+| | `dtcloud_image_versions` |
 
 Read-only catalogue and account data sources, none of which have a resource counterpart —
 flavors are defined by the operator, and the endpoints that would "change" a region or project

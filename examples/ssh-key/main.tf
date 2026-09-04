@@ -10,7 +10,7 @@ terraform {
 # never end up in committed HCL:
 #   export DTCLOUD_ACCESS_KEY=...
 #   export DTCLOUD_SECRET_KEY=...
-#   export DTCLOUD_API_URL=https://cms.dt.net.tr/api/v1
+#   export DTCLOUD_API_URL=<your DT Cloud API base URL, ending in /api/v1>
 #   export DTCLOUD_REGION_ID=<region/server id>
 provider "dtcloud" {}
 

@@ -9,7 +9,7 @@
 # Adjust the path below if your GOPATH/bin differs (see `go env GOPATH`).
 provider_installation {
   dev_overrides {
-    "dtcloudnow/dtcloud" = "/home/volkan/go/bin"
+    "dtcloudnow/dtcloud" = "/replace/with/your/gopath/bin"
   }
   direct {}
 }

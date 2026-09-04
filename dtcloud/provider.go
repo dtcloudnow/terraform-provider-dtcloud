@@ -4,13 +4,16 @@ import (
 	"context"
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/volume"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -36,7 +39,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_API_URL", nil),
-				Description: "Base URL of the cloud-web-api, e.g. https://cms.dt.net.tr/api/v1. If unset, the dt-go built-in default is used.",
+				Description: "Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.",
 			},
 			"region_id": {
 				Type:        schema.TypeString,
@@ -57,6 +60,18 @@ func Provider() *schema.Provider {
 			"dtcloud_network":  network.DataSourceDtcloudNetwork(),
 			"dtcloud_networks": network.DataSourceDtcloudNetworks(),
 
+			"dtcloud_volume":           volume.DataSourceDtcloudVolume(),
+			"dtcloud_volumes":          volume.DataSourceDtcloudVolumes(),
+			"dtcloud_volume_snapshots": volume.DataSourceDtcloudVolumeSnapshots(),
+			"dtcloud_storage_policies": volume.DataSourceDtcloudStoragePolicies(),
+
+			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
+			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
+
+			"dtcloud_image":          image.DataSourceDtcloudImage(),
+			"dtcloud_images":         image.DataSourceDtcloudImages(),
+			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
+
 			"dtcloud_flavors":        flavor.DataSourceDtcloudFlavors(),
 			"dtcloud_regions":        region.DataSourceDtcloudRegions(),
 			"dtcloud_projects":       project.DataSourceDtcloudProjects(),
@@ -70,6 +85,12 @@ func Provider() *schema.Provider {
 			"dtcloud_vm_network_interface": vm.ResourceDtcloudVMNetworkInterface(),
 
 			"dtcloud_network": network.ResourceDtcloudNetwork(),
+
+			"dtcloud_volume": volume.ResourceDtcloudVolume(),
+
+			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
+
+			"dtcloud_image": image.ResourceDtcloudImage(),
 		},
 	}
 
