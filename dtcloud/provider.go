@@ -5,8 +5,12 @@ import (
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/volume"
@@ -67,6 +71,12 @@ func Provider() *schema.Provider {
 			"dtcloud_image":          image.DataSourceDtcloudImage(),
 			"dtcloud_images":         image.DataSourceDtcloudImages(),
 			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
+
+			"dtcloud_flavors":        flavor.DataSourceDtcloudFlavors(),
+			"dtcloud_regions":        region.DataSourceDtcloudRegions(),
+			"dtcloud_projects":       project.DataSourceDtcloudProjects(),
+			"dtcloud_project_quotas": project.DataSourceDtcloudProjectQuotas(),
+			"dtcloud_project_limits": limit.DataSourceDtcloudProjectLimits(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":              sshkey.ResourceDtcloudSSHKey(),

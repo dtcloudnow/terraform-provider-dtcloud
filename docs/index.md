@@ -141,6 +141,18 @@ different things: `resource "dtcloud_vm"` builds a VM, `data "dtcloud_vm"` looks
 | | `dtcloud_images` |
 | | `dtcloud_image_versions` |
 
+Read-only catalogue and account data sources, none of which have a resource counterpart —
+flavors are defined by the operator, and the endpoints that would "change" a region or project
+switch the caller's own session rather than any piece of infrastructure:
+
+| | |
+|---|---|
+| `dtcloud_flavors` | compute sizing catalogue |
+| `dtcloud_regions` | regions, and which services each offers |
+| `dtcloud_projects` | projects, and which one the session is pointed at |
+| `dtcloud_project_quotas` | usage against allowance |
+| `dtcloud_project_limits` | the full quota table |
+
 ## How a resource maps to API calls
 
 A resource page does not list API operations, because Terraform's model does not work that
