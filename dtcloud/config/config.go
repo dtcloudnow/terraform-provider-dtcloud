@@ -28,10 +28,45 @@ type CombinedConfig struct {
 
 	policiesOnce sync.Once
 	policies     map[string]string
+
+	locksMu sync.Mutex
+	locks   map[string]*sync.Mutex
 }
 
 // DTClient returns the underlying dt-go API client.
 func (c *CombinedConfig) DTClient() *dtgo.Client { return c.client }
+
+// Lock serialises the resources that share a key, and Unlock releases it.
+//
+// Some endpoints apply a change by reading a list, editing it and writing the
+// whole list back. Two resources acting on the same parent at the same time
+// both read the old list, and the second write undoes the first — Terraform
+// applies up to ten resources in parallel by default, so this is the ordinary
+// case rather than a rare one. Resources built on such an endpoint take this
+// lock on the parent's id for the whole read-modify-write.
+//
+// The key is a caller's choice; use one that names the object being rewritten,
+// such as the router id behind a static route.
+func (c *CombinedConfig) Lock(key string) {
+	c.mutexFor(key).Lock()
+}
+
+// Unlock releases the lock taken by Lock for the same key.
+func (c *CombinedConfig) Unlock(key string) {
+	c.mutexFor(key).Unlock()
+}
+
+func (c *CombinedConfig) mutexFor(key string) *sync.Mutex {
+	c.locksMu.Lock()
+	defer c.locksMu.Unlock()
+	if c.locks == nil {
+		c.locks = map[string]*sync.Mutex{}
+	}
+	if _, ok := c.locks[key]; !ok {
+		c.locks[key] = &sync.Mutex{}
+	}
+	return c.locks[key]
+}
 
 // StoragePolicyNames maps volume type id to storage policy name, read at most
 // once per Terraform run.

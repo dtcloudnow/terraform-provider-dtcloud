@@ -131,6 +131,10 @@ different things: `resource "dtcloud_vm"` builds a VM, `data "dtcloud_vm"` looks
 | `dtcloud_volume` | `dtcloud_ssh_keys` |
 | `dtcloud_snapshot` | `dtcloud_network` |
 | `dtcloud_image` | `dtcloud_networks` |
+| `dtcloud_router` | `dtcloud_router` |
+| `dtcloud_router_interface` | `dtcloud_routers` |
+| `dtcloud_router_static_route` | `dtcloud_router_interfaces` |
+| | `dtcloud_router_static_routes` |
 | | `dtcloud_volume` |
 | | `dtcloud_volumes` |
 | | `dtcloud_volume_snapshots` |

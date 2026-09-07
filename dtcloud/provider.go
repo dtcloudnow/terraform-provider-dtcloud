@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
-	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
-	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/router"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/volume"
@@ -68,6 +69,11 @@ func Provider() *schema.Provider {
 			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
 			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
 
+			"dtcloud_router":               router.DataSourceDtcloudRouter(),
+			"dtcloud_routers":              router.DataSourceDtcloudRouters(),
+			"dtcloud_router_interfaces":    router.DataSourceDtcloudRouterInterfaces(),
+			"dtcloud_router_static_routes": router.DataSourceDtcloudRouterStaticRoutes(),
+
 			"dtcloud_image":          image.DataSourceDtcloudImage(),
 			"dtcloud_images":         image.DataSourceDtcloudImages(),
 			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
@@ -89,6 +95,10 @@ func Provider() *schema.Provider {
 			"dtcloud_volume": volume.ResourceDtcloudVolume(),
 
 			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
+
+			"dtcloud_router":              router.ResourceDtcloudRouter(),
+			"dtcloud_router_interface":    router.ResourceDtcloudRouterInterface(),
+			"dtcloud_router_static_route": router.ResourceDtcloudRouterStaticRoute(),
 
 			"dtcloud_image": image.ResourceDtcloudImage(),
 		},

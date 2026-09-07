@@ -2,8 +2,8 @@
 
 Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines, networks, volumes, snapshots and images, plus read-only
-catalogue and account data sources (flavors, regions, projects, quotas).
+Current scope: SSH keys, virtual machines, networks, routers, volumes, snapshots and images, plus
+read-only catalogue and account data sources (flavors, regions, projects, quotas).
 
 | Resources                      | Data sources               |
 |--------------------------------|----------------------------|
@@ -15,6 +15,10 @@ catalogue and account data sources (flavors, regions, projects, quotas).
 | `dtcloud_volume`               | `dtcloud_vm_history_entry` |
 | `dtcloud_snapshot`             | `dtcloud_network`          |
 | `dtcloud_image`                | `dtcloud_networks`         |
+| `dtcloud_router`               | `dtcloud_router`           |
+| `dtcloud_router_interface`     | `dtcloud_routers`          |
+| `dtcloud_router_static_route`  | `dtcloud_router_interfaces` |
+|                                | `dtcloud_router_static_routes` |
 |                                | `dtcloud_volume`           |
 |                                | `dtcloud_volumes`          |
 |                                | `dtcloud_volume_snapshots` |
