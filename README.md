@@ -15,14 +15,11 @@ catalogue and account data sources (flavors, regions, projects, quotas).
 | `dtcloud_security_group`       | `dtcloud_vm_history_entry` |
 | `dtcloud_security_group_rule`  | `dtcloud_network`          |
 | `dtcloud_elastic_ip`           | `dtcloud_networks`         |
-|                                | `dtcloud_security_group`   |
-|                                | `dtcloud_security_groups`  |
-|                                | `dtcloud_my_ip`            |
+| `dtcloud_volume`               | `dtcloud_security_group`   |
+| `dtcloud_snapshot`             | `dtcloud_security_groups`  |
+| `dtcloud_image`                | `dtcloud_my_ip`            |
 |                                | `dtcloud_elastic_ip`       |
 |                                | `dtcloud_elastic_ips`      |
-| `dtcloud_volume`               | `dtcloud_vm_history_entry` |
-| `dtcloud_snapshot`             | `dtcloud_network`          |
-| `dtcloud_image`                | `dtcloud_networks`         |
 |                                | `dtcloud_volume`           |
 |                                | `dtcloud_volumes`          |
 |                                | `dtcloud_volume_snapshots` |
