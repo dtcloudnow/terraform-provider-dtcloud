@@ -1,6 +1,7 @@
 # Terraform working files. terraform.tfstate can contain secrets in plain text,
 # so this file is the difference between a clean repo and a leak.
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfvars

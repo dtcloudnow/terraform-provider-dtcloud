@@ -2,6 +2,7 @@ package vm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -164,6 +165,32 @@ func vmComputedSchema() map[string]*schema.Schema {
 }
 
 // setVMAttributes copies an API response onto the Terraform state.
+// vmDetailsExtras is the part of the details response dt-go's typed struct
+// leaves out.
+//
+// `hotPlugEnabled` matters: enable_hot_plug is an argument users can change in
+// place, so without reading it back a change made outside Terraform stays
+// invisible and an import lands on the schema default. Every dt-go method also
+// returns the raw body, so it is decoded here rather than changing the SDK.
+type vmDetailsExtras struct {
+	HotPlugEnabled *bool             `json:"hotPlugEnabled"`
+	Metadata       map[string]string `json:"metadata"`
+}
+
+// setVMExtras reads what setVMAttributes cannot. A body that will not decode is
+// not an error — the rest of the read is still good, the extras just stay as
+// they were.
+func setVMExtras(d *schema.ResourceData, body string) {
+	var extras vmDetailsExtras
+	if err := json.Unmarshal([]byte(body), &extras); err != nil {
+		return
+	}
+	if extras.HotPlugEnabled != nil {
+		d.Set("enable_hot_plug", *extras.HotPlugEnabled)
+	}
+	d.Set("metadata", extras.Metadata)
+}
+
 func setVMAttributes(d *schema.ResourceData, details dtgo.GetVirtualMachineDetails) {
 	d.Set("name", details.Name)
 	d.Set("status", details.Status)

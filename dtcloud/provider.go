@@ -5,10 +5,17 @@ import (
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/elasticip"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/securitygroup"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/vm"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/volume"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -34,7 +41,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_API_URL", nil),
-				Description: "Base URL of the cloud-web-api, e.g. https://cms.dt.net.tr/api/v1. If unset, the dt-go built-in default is used.",
+				Description: "Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.",
 			},
 			"region_id": {
 				Type:        schema.TypeString,
@@ -79,6 +86,24 @@ func Provider() *schema.Provider {
 
 			"dtcloud_elastic_ip":  elasticip.DataSourceDtcloudElasticIP(),
 			"dtcloud_elastic_ips": elasticip.DataSourceDtcloudElasticIPs(),
+
+			"dtcloud_volume":           volume.DataSourceDtcloudVolume(),
+			"dtcloud_volumes":          volume.DataSourceDtcloudVolumes(),
+			"dtcloud_volume_snapshots": volume.DataSourceDtcloudVolumeSnapshots(),
+			"dtcloud_storage_policies": volume.DataSourceDtcloudStoragePolicies(),
+
+			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
+			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
+
+			"dtcloud_image":          image.DataSourceDtcloudImage(),
+			"dtcloud_images":         image.DataSourceDtcloudImages(),
+			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
+
+			"dtcloud_flavors":        flavor.DataSourceDtcloudFlavors(),
+			"dtcloud_regions":        region.DataSourceDtcloudRegions(),
+			"dtcloud_projects":       project.DataSourceDtcloudProjects(),
+			"dtcloud_project_quotas": project.DataSourceDtcloudProjectQuotas(),
+			"dtcloud_project_limits": limit.DataSourceDtcloudProjectLimits(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":              sshkey.ResourceDtcloudSSHKey(),
@@ -92,6 +117,12 @@ func Provider() *schema.Provider {
 			"dtcloud_security_group_rule": securitygroup.ResourceDtcloudSecurityGroupRule(),
 
 			"dtcloud_elastic_ip": elasticip.ResourceDtcloudElasticIP(),
+
+			"dtcloud_volume": volume.ResourceDtcloudVolume(),
+
+			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
+
+			"dtcloud_image": image.ResourceDtcloudImage(),
 		},
 	}
 

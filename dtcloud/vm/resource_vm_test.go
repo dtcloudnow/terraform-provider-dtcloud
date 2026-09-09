@@ -47,6 +47,11 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "ram", "512 MB"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "created_at", "2026-07-08T10:35:17Z"),
 
+					// hotPlugEnabled and metadata come from the raw body, since
+					// dt-go's typed details struct carries neither.
+					resource.TestCheckResourceAttr("dtcloud_vm.test", "enable_hot_plug", "false"),
+					resource.TestCheckResourceAttr("dtcloud_vm.test", "metadata.ha_enabled", "true"),
+
 					// The event log. `status` is missing from the list and only
 					// the detail endpoint has it — which is why there are two.
 					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.#", "2"),
@@ -180,7 +185,7 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 				// they only exist in configuration.
 				ImportStateVerifyIgnore: []string{
 					"block_device", "user_data", "script",
-					"is_gpu_image", "enable_hot_plug", "graceful_shutdown",
+					"is_gpu_image", "graceful_shutdown",
 				},
 			},
 		},
@@ -205,6 +210,56 @@ func TestAccDtcloudVM_createError(t *testing.T) {
 			{
 				Config:      testVMConfig(server.URL, "tf-acc-vm-broken", "flavor-small"),
 				ExpectError: regexp.MustCompile("entered ERROR state"),
+			},
+		},
+	})
+}
+
+// TestAccDtcloudVM_userDataAndScript pins a rule that lives in the API rather
+// than in any schema: cloud-web-api builds cloud-init from `script` only when
+// `user_data` is absent, so setting both discards the script without a word.
+func TestAccDtcloudVM_userDataAndScript(t *testing.T) {
+	api := newFakeVMAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: acctest.ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: acctest.ProviderConfig(server.URL) + `
+resource "dtcloud_vm" "both" {
+  name      = "tf-acc-both"
+  flavor_id = "flavor-small"
+  user_data = "I2Nsb3VkLWNvbmZpZwo="
+
+  script {
+    os       = "linux"
+    password = "hunter2"
+  }
+
+  network {
+    uuid            = "11111111-2222-3333-4444-555555555555"
+    security_groups = ["sg-default"]
+
+    fixed_ip {
+      ip_version = 4
+    }
+  }
+
+  block_device {
+    boot_index            = 0
+    volume_size           = 20
+    source_type           = "image"
+    device_type           = "disk"
+    destination_type      = "volume"
+    delete_on_termination = true
+    volume_type           = "standard"
+    uuid                  = "img-0001"
+  }
+}
+`,
+				ExpectError: regexp.MustCompile("user_data and script cannot both be set"),
 			},
 		},
 	})

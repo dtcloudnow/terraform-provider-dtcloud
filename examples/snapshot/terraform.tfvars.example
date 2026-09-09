@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+# Name of the storage policy, not its id. Leave unset to take the first policy
+# this project has quota for:
+#   data.dtcloud_storage_policies.available.names[0]
+storage_policy = ""
+
+# Size of the source volume in GB. The snapshot copies the whole disk and the
+# restore copies it back, so this example moves three times this much data.
+# Keep it small.
+size = 20
