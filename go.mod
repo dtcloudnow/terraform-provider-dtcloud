@@ -5,6 +5,8 @@ go 1.23.2
 require (
 	github.com/dtcloudnow/dt-go v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.26.1
+	golang.org/x/term v0.6.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -337,19 +339,29 @@ func TestAccDtcloudSSHKey_missingCredentials(t *testing.T) {
 	t.Setenv("DTCLOUD_ACCESS_KEY", "")
 	t.Setenv("DTCLOUD_SECRET_KEY", "")
 
+	// And the provider falls back to a configuration file after the environment,
+	// so point it at an empty one. Without this the test passes on a machine with
+	// no credentials configured and fails on a machine that has some — which is
+	// the developer's own machine, every time.
+	empty := filepath.Join(t.TempDir(), "empty.yaml")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: `
+				Config: fmt.Sprintf(`
 provider "dtcloud" {
-  region_id = "1"
+  region_id   = "1"
+  config_file = %q
 }
 
 data "dtcloud_ssh_key" "test" {
   name = "anything"
 }
-`,
+`, empty),
 				ExpectError: regexp.MustCompile("both .access_key. and .secret_key. must be set"),
 			},
 		},
