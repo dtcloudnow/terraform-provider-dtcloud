@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+external_network_id = "22d08033-3b11-48c4-bd14-56905e627d26"
+
+# Optional: a port to associate with, e.g. from dtcloud_vm.web.network_interface[0].port_id.
+# port_id = ""
