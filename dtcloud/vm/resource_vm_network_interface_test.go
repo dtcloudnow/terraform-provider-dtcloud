@@ -103,4 +103,56 @@ resource "dtcloud_vm_network_interface" "extra" {
 	})
 }
 
-// TestAccDtcloudVMs exercises the plural data source and its filters.
+// TestAccDtcloudVMNetworkInterface_matchesTheVMBlock pins the alignment between
+// this resource and dtcloud_vm's `network` block: the same configuration has to
+// be accepted by both. `fixed_ip` is Optional on both, and omitting it must
+// still produce an address.
+func TestAccDtcloudVMNetworkInterface_matchesTheVMBlock(t *testing.T) {
+	api := newFakeVMAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	noFixedIP := `
+resource "dtcloud_vm_network_interface" "extra" {
+  vm_id      = dtcloud_vm.host.id
+  network_id = "99999999-8888-7777-6666-555555555555"
+}
+`
+	pinned := `
+resource "dtcloud_vm_network_interface" "extra" {
+  vm_id      = dtcloud_vm.host.id
+  network_id = "99999999-8888-7777-6666-555555555555"
+
+  fixed_ip {
+    ip_address = "10.0.1.77"
+  }
+}
+`
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: acctest.ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testVMAttachmentConfig(server.URL, noFixedIP),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// An address was allocated even though none was asked for, and it was
+					// written back into the block rather than only into primary_ip.
+					resource.TestCheckResourceAttr("dtcloud_vm_network_interface.extra", "fixed_ip.#", "1"),
+					resource.TestCheckResourceAttrSet("dtcloud_vm_network_interface.extra", "fixed_ip.0.ip_address"),
+					resource.TestCheckResourceAttr("dtcloud_vm_network_interface.extra", "fixed_ip.0.ip_version", "4"),
+					resource.TestCheckResourceAttrPair(
+						"dtcloud_vm_network_interface.extra", "fixed_ip.0.ip_address",
+						"dtcloud_vm_network_interface.extra", "primary_ip"),
+				),
+			},
+			{
+				// Pinning an address is an in-place change, not a replacement.
+				Config: testVMAttachmentConfig(server.URL, pinned),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("dtcloud_vm_network_interface.extra", "fixed_ip.0.ip_address", "10.0.1.77"),
+					resource.TestCheckResourceAttr("dtcloud_vm_network_interface.extra", "primary_ip", "10.0.1.77"),
+				),
+			},
+		},
+	})
+}

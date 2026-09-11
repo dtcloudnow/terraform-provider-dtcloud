@@ -58,9 +58,8 @@ func TestAccDtcloudSecurityGroup_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_security_group.test", "name", "tf-acc-sg"),
 					resource.TestCheckResourceAttr("dtcloud_security_group.test", "description", "web tier"),
 
-					// A brand-new group is not empty: the platform adds
-					// allow-all egress for each address family. They belong to
-					// nobody, and the snapshot has to show them.
+					// A brand-new group is not empty: allow-all egress is added for each
+					// address family. They belong to nobody, and the snapshot has to show them.
 					resource.TestCheckResourceAttr("dtcloud_security_group.test", "outbound_rule.#", "2"),
 					resource.TestCheckResourceAttr("dtcloud_security_group.test", "outbound_rule.0.protocol", "ANY"),
 					resource.TestCheckResourceAttr("dtcloud_security_group.test", "outbound_rule.0.port_range", "1-65535"),
@@ -100,9 +99,8 @@ func TestAccDtcloudSecurityGroup_lifecycle(t *testing.T) {
 						if len(api.groupUpdates) == 0 {
 							return fmt.Errorf("no update was sent")
 						}
-						// The update route validates with Joi and marks name
-						// required, so it has to go out even on an edit that
-						// only touched the description.
+						// The update route requires a name, so it has to go out even on an
+						// edit that only touched the description.
 						last := api.groupUpdates[len(api.groupUpdates)-1]
 						if _, ok := last["name"]; !ok {
 							return fmt.Errorf("update left out %q, which the endpoint requires", "name")
@@ -120,14 +118,11 @@ func TestAccDtcloudSecurityGroup_lifecycle(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudSecurityGroup_descriptionCannotBeCleared pins the one thing
-// this resource refuses to attempt.
-//
-// dt-go marks UpdateSecurityGroupParams.Description omitempty, so an empty
-// description is dropped from the request body and the platform keeps the old
-// one. Sent anyway, the next Read would restore the old value and the plan
-// would propose the same change forever. The error names the reason.
-func TestAccDtcloudSecurityGroup_descriptionCannotBeCleared(t *testing.T) {
+// TestAccDtcloudSecurityGroup_descriptionCanBeCleared pins the round trip that
+// removes a description. It is sent as a pointer, so an empty one arrives as
+// `description: ""` and is read as "clear it"; dropping the empty value would
+// leave the old description in place and the plan proposing it forever.
+func TestAccDtcloudSecurityGroup_descriptionCanBeCleared(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
@@ -139,9 +134,10 @@ func TestAccDtcloudSecurityGroup_descriptionCannotBeCleared(t *testing.T) {
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_security_group" "test" {
   name        = "tf-acc-sg-desc"
-  description = "will not go away"
+  description = "will go away"
 }
 `,
+				Check: resource.TestCheckResourceAttr("dtcloud_security_group.test", "description", "will go away"),
 			},
 			{
 				Config: acctest.ProviderConfig(server.URL) + `
@@ -149,13 +145,13 @@ resource "dtcloud_security_group" "test" {
   name = "tf-acc-sg-desc"
 }
 `,
-				ExpectError: regexp.MustCompile("description cannot be cleared once set"),
+				Check: resource.TestCheckResourceAttr("dtcloud_security_group.test", "description", ""),
 			},
 		},
 	})
 }
 
-// TestAccDtcloudSecurityGroup_nameCharset pins the API's Joi character rule as
+// TestAccDtcloudSecurityGroup_nameCharset pins the API's character rule as
 // a plan-time error rather than a 406 halfway through an apply.
 func TestAccDtcloudSecurityGroup_nameCharset(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
@@ -178,14 +174,9 @@ resource "dtcloud_security_group" "bad" {
 }
 
 // TestAccDtcloudSecurityGroup_deletedOutside is the test that earns the fake's
-// Neutron-shaped 404.
-//
-// These routes surface an upstream failure as `{"error": {"NeutronError":
-// {...}}, "code": "SERVER_ERROR"}`, which carries no numeric code anywhere —
-// so dterr.IsNotFound cannot use its structured path and has to recognise
-// "does not exist" in the message. If that fallback stops working, a group
-// deleted elsewhere becomes a hard error instead of a resource to rebuild, and
-// this step is what notices.
+// error shape. These routes carry no numeric code anywhere, so dterr.IsNotFound
+// has to recognise "does not exist" in the message; if that fallback stops
+// working, a group deleted elsewhere becomes a hard error instead of a rebuild.
 func TestAccDtcloudSecurityGroup_deletedOutside(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
@@ -220,9 +211,8 @@ resource "dtcloud_security_group" "test" {
 					api.groups[groupID].deleted = true
 				},
 				Config: config,
-				// The refresh 404s, the resource drops out of state, and the
-				// plan proposes to build it again. A hard error here would mean
-				// the 404 was not recognised.
+				// The refresh 404s, the resource drops out of state, and the plan
+				// proposes to build it again.
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
 			},
@@ -230,7 +220,7 @@ resource "dtcloud_security_group" "test" {
 	})
 }
 
-// TestAccDtcloudSecurityGroup_inUse covers the delete the platform refuses. A
+// TestAccDtcloudSecurityGroup_inUse covers the delete the platform refuses: a
 // group still bound to a port cannot go, and that has to surface rather than be
 // swallowed as "already gone".
 func TestAccDtcloudSecurityGroup_inUse(t *testing.T) {
@@ -263,9 +253,8 @@ resource "dtcloud_security_group" "test" {
 				ExpectError: regexp.MustCompile("SecurityGroupInUse"),
 			},
 			{
-				// Release it again, so the framework's own final destroy has
-				// something it can actually delete. Without this the test
-				// leaves a group behind and reports a dangling resource.
+				// Release it again, so the framework's own final destroy has something
+				// it can actually delete.
 				PreConfig: func() {
 					api.mu.Lock()
 					defer api.mu.Unlock()
@@ -277,8 +266,8 @@ resource "dtcloud_security_group" "test" {
 	})
 }
 
-// TestAccDtcloudMyIP covers the data source that exists so a rule can be scoped
-// to the caller without anyone looking their address up by hand.
+// TestAccDtcloudMyIP covers the data source that scopes a rule to the caller
+// without anyone looking their address up by hand.
 func TestAccDtcloudMyIP(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
@@ -293,8 +282,7 @@ data "dtcloud_my_ip" "current" {}
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.dtcloud_my_ip.current", "ip", "203.0.113.7"),
-					// The whole point of the attribute: remote_ip_prefix wants a
-					// CIDR, not an address.
+					// The whole point of the attribute: remote_ip_prefix wants a CIDR.
 					resource.TestCheckResourceAttr("data.dtcloud_my_ip.current", "cidr", "203.0.113.7/32"),
 				),
 			},

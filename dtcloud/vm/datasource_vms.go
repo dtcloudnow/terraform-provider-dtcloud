@@ -11,12 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudVMs lists the VMs in the active region and project.
-//
-// The list endpoint returns a lighter record than the details endpoint — no
-// image, no SSH key, no timestamps — so this exposes what a list actually
-// carries. Use the singular `dtcloud_vm` data source for the full picture of
-// one instance.
+// DataSourceDtcloudVMs lists the VMs in the active region and project. The list
+// endpoint returns a lighter record than the details one — no image, SSH key or
+// timestamps — so use the singular data source for the full picture.
 func DataSourceDtcloudVMs() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudVMsRead,

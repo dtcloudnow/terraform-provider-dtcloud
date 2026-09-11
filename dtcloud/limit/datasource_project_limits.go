@@ -17,17 +17,9 @@ import (
 )
 
 // DataSourceDtcloudProjectLimits reports every quota the platform tracks for a
-// project.
+// project — limits only; `dtcloud_project_quotas` has usage alongside.
 //
-// This is the full OpenStack table — around forty entries covering compute,
-// network, volume and VPN limits. It is the counterpart to
-// `dtcloud_project_quotas`, which reports a handful of headline figures *with
-// current usage*. This one reports limits only: what you are allowed, not what
-// you are using.
-//
-// The keys are OpenStack's own (`cores`, `instances`, `security_group_rules`,
-// …) and the platform can add more without warning, so they arrive as a map
-// rather than a fixed set of attributes. Index it by name:
+// The keys are the platform's and it can add more, so they arrive as a map:
 // `data.dtcloud_project_limits.mine.quotas["cores"]`.
 func DataSourceDtcloudProjectLimits() *schema.Resource {
 	return &schema.Resource{
@@ -102,11 +94,9 @@ func dataSourceDtcloudProjectLimitsRead(ctx context.Context, d *schema.ResourceD
 	return nil
 }
 
-// formatQuota renders a quota value as text.
-//
-// dt-go hands back either a float64 or the string "Unlimited" — it substitutes
-// that word for the API's -1. Whole numbers are printed without a decimal point
-// so that `cores` reads as "48" rather than "48.000000".
+// formatQuota renders a quota value as text. dt-go hands back a float64 or the
+// string "Unlimited", which it substitutes for the API's -1. Whole numbers
+// print without a decimal point, so `cores` reads as "48".
 func formatQuota(v interface{}) string {
 	switch n := v.(type) {
 	case string:

@@ -14,25 +14,11 @@ import (
 // noHTML is the character rule the API applies to name and description.
 var noHTML = regexp.MustCompile(`^[^<>&"']*$`)
 
-// settleReads is how many details reads a status change takes to land, so that
-// the create and delete waiters are exercised rather than satisfied on the
-// first poll.
+// settleReads is how many details reads a status change takes to land.
 const settleReads = 2
 
-// valueSettleReads is the same idea for extend and retype, and it is
-// deliberately larger. Those two are the traps: the volume sits at its resting
-// status reporting its old size or policy, so a waiter watching only the status
-// returns early.
-//
-// Larger than anything the platform actually does. The fake models the case
-// the waiter has to survive rather than the one that happens to be fast today.
-//
-// The number has to keep the stale value visible for longer than a broken
-// provider takes to stop looking. A status-only wait costs two reads —
-// ContinuousTargetOccurence is two — and the Read that follows the update costs
-// a third, so the old value has to survive at least three. Two did not: a
-// deliberately reverted size wait still passed, because the value had drained
-// away by the time Read looked. Four holds it one read past the threshold.
+// valueSettleReads is the same for extend and retype, and larger: those leave
+// the volume at its resting status, so a status-only waiter returns early.
 const valueSettleReads = 4
 
 type fakeSnapshot struct {
@@ -52,7 +38,7 @@ type fakeVolume struct {
 	Size          int
 	Bootable      string
 	Type          string
-	// Held but never reported: the details endpoint leaves it out entirely.
+	// Held but never reported back.
 	Description string
 	ImageID     string
 	ImageName   string
@@ -62,8 +48,7 @@ type fakeVolume struct {
 	AttachedToID     string
 	AttachedToStatus string
 
-	// Pending changes, each with a countdown in details reads. Applying them
-	// lazily is what makes the fake lie the way the platform lies.
+	// Pending changes, each with a countdown in details reads.
 	pendingStatus string
 	statusDelay   int
 	pendingSize   int
@@ -78,15 +63,8 @@ type fakeVolume struct {
 }
 
 // tick advances every pending change by one details read. The caller reports
-// the volume *before* calling this, so a change with a delay of n is invisible
-// for n reads and only then becomes visible — never on the read that triggered
-// it.
-//
-// All the counters advance together rather than one at a time. Draining them in
-// turn would mean a wait for one change also settled another, which is not how
-// the platform behaves and which hides exactly the bug this fake is built to
-// catch: a wait that watches the wrong thing gets covered by the next wait that
-// watches the right one.
+// the volume before calling this, and the counters advance together, so waiting
+// on one change cannot settle another.
 func (v *fakeVolume) tick() {
 	if v.deleteDelay > 0 {
 		v.deleteDelay--
@@ -114,8 +92,8 @@ func (v *fakeVolume) tick() {
 	}
 }
 
-// imageMeta mirrors the OpenStack sub-object, present only on image-backed
-// volumes. Kept a pointer so it can be omitted rather than sent empty.
+// imageMeta is present only on image-backed volumes; a pointer so it can be
+// omitted rather than sent empty.
 type imageMeta struct {
 	OsDistro         string `json:"os_distro"`
 	ImageValidated   string `json:"image_validated"`
@@ -131,12 +109,8 @@ type imageMeta struct {
 	Size             string `json:"size"`
 }
 
-// detailsResponse is a struct rather than a map on purpose.
-//
-// Go sorts map keys alphabetically when encoding, which would move `created`
-// to the front and hide the class of bug where a field that fails to decode
-// takes everything declared after it down with it. This order is the order
-// the API sends them in.
+// detailsResponse is a struct so the field order is the API's: a field that
+// fails to decode takes everything declared after it with it.
 type detailsResponse struct {
 	ID                  string     `json:"id"`
 	Name                string     `json:"name"`
@@ -155,17 +129,6 @@ type detailsResponse struct {
 }
 
 // fakeVolumeAPI stands in for the volume endpoints.
-//
-// The rules it enforces are the real API's, not the ones this provider finds
-// convenient. In particular it reproduces:
-//
-//   - create answering with `volumeId` while clone answers with `id`;
-//   - the list endpoint sending size as the string "20 GB";
-//   - `bootable` as a string rather than a boolean;
-//   - details never carrying a description, however many times one is written;
-//   - extend and retype leaving the volume at `available` with its old value
-//     for several reads;
-//   - at least one action key being required, and the create size bounds.
 type fakeVolumeAPI struct {
 	mu      sync.Mutex
 	volumes map[string]*fakeVolume
@@ -184,9 +147,7 @@ type fakeVolumeAPI struct {
 	restorableSnapshots map[string]restorableSnapshot
 }
 
-// restorableSnapshot is the one thing this fake needs from the snapshots
-// service: something for source_snapshot_id to point at. The snapshot service
-// has its own fake; this is only the far end of the restore call.
+// restorableSnapshot is only the far end of the restore call.
 type restorableSnapshot struct {
 	ID   string
 	Size int
@@ -227,10 +188,8 @@ func (f *fakeVolumeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// source_snapshot_id does not go to the volume create endpoint, which
-	// accepts no snapshot id. It goes to the snapshot service, and what comes
-	// back is the raw volume object keyed `id` — the clone shape, from a third
-	// endpoint.
+	// source_snapshot_id goes to the snapshot service, and what comes back is the
+	// raw volume object keyed `id` — the clone shape, from a third endpoint.
 	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/openstack/snapshots/") &&
 		strings.HasSuffix(r.URL.Path, "/snapshot-to-volume") {
 		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/openstack/snapshots/"), "/snapshot-to-volume")
@@ -251,8 +210,7 @@ func (f *fakeVolumeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.list(w)
 	case r.Method == http.MethodPost && len(seg) == 0:
 		f.create(w, r)
-	// Declared before the {id} routes, as it is in the router: a literal
-	// segment must not be read as a volume id.
+	// Declared before the {id} routes: a literal segment must not read as an id.
 	case r.Method == http.MethodGet && len(seg) == 1 && seg[0] == "storage-policies":
 		acctest.WriteJSON(w, http.StatusOK, f.policies)
 	case r.Method == http.MethodGet && len(seg) == 2 && seg[1] == "details":
@@ -328,9 +286,7 @@ func (f *fakeVolumeAPI) create(w http.ResponseWriter, r *http.Request) {
 		Size:          body.Size,
 		Type:          "HDD",
 		Bootable:      "false",
-		// Fresh volumes are `creating` for a while. Every non-target status has
-		// to be treated as pending by the provider, which is the rule that
-		// enumerating transitional states broke on VMs.
+		// Every non-target status has to count as pending.
 		Status:        "creating",
 		pendingStatus: "available",
 		statusDelay:   settleReads,
@@ -340,15 +296,13 @@ func (f *fakeVolumeAPI) create(w http.ResponseWriter, r *http.Request) {
 		v.ImageID = body.ImageRef
 		v.ImageName = "image-" + body.ImageRef
 		v.DiskFormat = "qcow2"
-		// An image-backed volume passes through `downloading` too — another
-		// status nobody would think to enumerate.
+		// An image-backed volume passes through `downloading` too.
 		v.Status = "downloading"
 	}
 	f.volumes[v.ID] = v
 	f.creates++
 
-	// The create response is built by the API and keys the id
-	// `volumeId`. Nothing here is called `id`.
+	// The create response keys the id `volumeId`. Nothing here is called `id`.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"volumeId":         v.ID,
 		"name":             v.Name,
@@ -377,8 +331,7 @@ func (f *fakeVolumeAPI) clone(w http.ResponseWriter, r *http.Request, sourceID s
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
 		return
 	}
-	// Clone requires name, size and storagePolicy. imageRef
-	// is not accepted here — unknown keys are rejected.
+	// Clone requires name, size and storagePolicy; unknown keys are rejected.
 	if body.Name == "" || body.StoragePolicy == "" || body.Size == 0 {
 		validationError(w, "'name', 'size' and 'storagePolicy' are required")
 		return
@@ -405,9 +358,7 @@ func (f *fakeVolumeAPI) clone(w http.ResponseWriter, r *http.Request, sourceID s
 	f.volumes[v.ID] = v
 	f.clones++
 
-	// The clone route returns whatever createVolume returned, which is the raw
-	// OpenStack volume — so `id`, `volume_type`, `created_at`. Nothing in this
-	// body is called `volumeId`, and the provider has to cope with both shapes.
+	// Clone returns the raw volume, keyed `id`, so the provider copes with both.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"id":          v.ID,
 		"status":      v.Status,
@@ -420,11 +371,8 @@ func (f *fakeVolumeAPI) clone(w http.ResponseWriter, r *http.Request, sourceID s
 	})
 }
 
-// snapshotToVolume is POST /openstack/snapshots/{id}/snapshot-to-volume.
-//
-// Restore requires name, size and storagePolicy; the size is
-// also floored at the snapshot's, because a volume cannot be smaller than the
-// data being restored into it.
+// snapshotToVolume restores into a new volume. The size is floored at the
+// snapshot's: a volume cannot be smaller than the data restored into it.
 func (f *fakeVolumeAPI) snapshotToVolume(w http.ResponseWriter, r *http.Request, snapshotID string) {
 	snap, ok := f.restorableSnapshots[snapshotID]
 	if !ok {
@@ -466,7 +414,7 @@ func (f *fakeVolumeAPI) snapshotToVolume(w http.ResponseWriter, r *http.Request,
 	f.volumes[v.ID] = v
 	f.restores++
 
-	// The raw OpenStack volume, keyed `id`. Nothing here is called `volumeId`.
+	// The raw volume, keyed `id`. Nothing here is called `volumeId`.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"id":          v.ID,
 		"status":      v.Status,
@@ -496,13 +444,12 @@ func (f *fakeVolumeAPI) details(w http.ResponseWriter, id string) {
 		AttachedToID:     v.AttachedToID,
 		Size:             v.Size,
 		StoragePolicy:    v.StoragePolicy,
-		// A string, as OpenStack sends it — not a JSON boolean.
+		// A string, not a JSON boolean.
 		Bootable:     v.Bootable,
 		Created:      acctest.FakeCreatedAt,
 		LastModified: acctest.FakeCreatedAt,
 		Type:         v.Type,
-		// false while detached, and it disagrees with the list route on the
-		// very same volume — see the note on list().
+		// false while detached, disagreeing with list on the very same volume.
 		IsDetachable: v.AttachedToID != "",
 	}
 	if v.ImageID != "" {
@@ -520,8 +467,7 @@ func (f *fakeVolumeAPI) details(w http.ResponseWriter, id string) {
 		}
 	}
 
-	// Reported first, advanced after: a pending change is never visible on the
-	// read that would have been able to see it too early.
+	// Reported first, advanced after, so a pending change is never visible early.
 	acctest.WriteJSON(w, http.StatusOK, out)
 	v.tick()
 }
@@ -537,25 +483,15 @@ func (f *fakeVolumeAPI) list(w http.ResponseWriter) {
 			"name":   v.Name,
 			"status": v.Status,
 			"policy": v.StoragePolicy,
-			// The list route builds this as `volume.size + ' GB'`, so it is a
-			// string here and a number on the details route.
+			// Built as `size + ' GB'` here, and a number on the details route.
 			"size":         fmt.Sprintf("%d GB", v.Size),
 			"bootable":     v.Bootable,
 			"attachedTo":   v.AttachedTo,
 			"attachedToId": v.AttachedToID,
 			"vmStatus":     v.AttachedToStatus,
 			"type":         v.Type,
-			// Always true for a detached volume, where the details route says
-			// false for the same one. Not a bug in this fake: the two handlers
-			// compute it differently. The details endpoint reports false
-			// outright when there is no attached machine; the list endpoint
-			// writes
-			// `vm?.hci_info.disks ? ... : true`, and with no VM the optional
-			// chain is undefined, so it falls through to true.
-			//
-			// The provider reports whichever endpoint it read from, which is
-			// why the resource and the plural data source disagree in the
-			// tests.
+			// Always true for a detached volume, where details says false: the two
+			// handlers compute it differently. The provider reports whichever it read.
 			"isDetachable": true,
 		})
 	}
@@ -656,15 +592,9 @@ func (f *fakeVolumeAPI) actions(w http.ResponseWriter, r *http.Request, id strin
 			return
 		}
 		f.extends++
-		// The trap this fake exists to spring: the status does not move at all
-		// and the volume goes on reporting its old size for several reads. A
-		// waiter that only watches the status returns straight away with the
-		// wrong size, and the apply then fails on an inconsistent result.
-		//
-		// Leaving the status alone is what the platform does: an extend on an
-		// attached volume is accepted and the status stays `in-use` throughout,
-		// never passing through `available`. That is why volumeSettled has to
-		// accept both.
+		// The trap this fake exists to spring: the status does not move while the old
+		// size is still reported. An extend on an attached volume stays `in-use`
+		// throughout, which is why volumeSettled accepts both resting statuses.
 		v.pendingSize = body.OsExtend.NewSize
 		v.sizeDelay = valueSettleReads
 
@@ -689,14 +619,8 @@ func (f *fakeVolumeAPI) delete(w http.ResponseWriter, id string) {
 		return
 	}
 
-	// An in-use volume cannot be deleted. The API answers with:
-	// the request comes back 400 and the volume is untouched.
-	//
-	// The body is copied from that response rather than invented, down to the
-	// double space where the platform's format string failed to interpolate the
-	// volume id, and the list of five conditions that never says which one
-	// applied. That unhelpfulness is the reason the provider reads the volume
-	// and writes its own message instead of passing this one through.
+	// An in-use volume cannot be deleted. The refusal lists five conditions and
+	// never says which applied, so the provider checks first and writes its own.
 	if strings.EqualFold(v.Status, "in-use") {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": map[string]any{
@@ -718,18 +642,9 @@ func (f *fakeVolumeAPI) delete(w http.ResponseWriter, id string) {
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"message": "deleted"})
 }
 
-// attachTo puts a volume into the state the API reports once it is attached to
-// a VM: `in-use`, carrying the VM's identity, and detachable.
-//
-// No VM exists here and none is needed. This package has no code that attaches
-// anything — attaching is dtcloud_vm_volume_attachment's job and is tested in
-// the vm package — it only *reads* the attachment state the details endpoint
-// reports. Putting a volume into that state exercises every line here that
-// touches it, while keeping this fake to the routes it actually owns.
-//
-// What it deliberately cannot prove is that the vm package's attach really
-// produces this shape. That is a contract between two fakes, and only a live
-// run against a real VM settles it.
+// attachTo puts a volume into the state reported once it is attached to a VM.
+// No VM exists and none is needed: this package only reads that state, it never
+// attaches. What it cannot prove is that the vm package produces this shape.
 func (f *fakeVolumeAPI) attachTo(name, vmName, vmID, vmStatus string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -743,15 +658,8 @@ func (f *fakeVolumeAPI) attachTo(name, vmName, vmID, vmStatus string) {
 	}
 }
 
-// detach returns a volume to `available`. Required before it can be deleted —
-// see delete().
-//
-// The real thing passes through `detaching` on the way, and does not always
-// arrive: a guest still holding the filesystem leaves the
-// volume in `detaching` for about two and a half minutes and then put it back
-// to `in-use`. That failure mode belongs to dtcloud_vm_volume_attachment, which
-// owns detaching, so it is not modelled here — this package never detaches
-// anything.
+// detach returns a volume to `available`, which is required before delete. The
+// transitional state belongs to dtcloud_vm_volume_attachment, not here.
 func (f *fakeVolumeAPI) detach(name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -765,10 +673,8 @@ func (f *fakeVolumeAPI) detach(name string) {
 	}
 }
 
-// growOutOfBand resizes a volume the way the web console would — immediately,
-// with no action call from the provider and no settle delay. It stands in for
-// somebody growing a disk outside Terraform, which is what leaves the
-// configuration behind reality.
+// growOutOfBand resizes a volume the way the web console would, standing in for
+// somebody growing a disk outside Terraform.
 func (f *fakeVolumeAPI) growOutOfBand(name string, size int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -779,8 +685,7 @@ func (f *fakeVolumeAPI) growOutOfBand(name string, size int) {
 	}
 }
 
-// seed puts a volume in place without going through create, for tests that need
-// something to clone from or to snapshot.
+// seed puts a volume in place without going through create.
 func (f *fakeVolumeAPI) seed(name, policy string, size int, snapshots ...fakeSnapshot) *fakeVolume {
 	f.mu.Lock()
 	defer f.mu.Unlock()

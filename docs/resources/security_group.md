@@ -52,8 +52,8 @@ using it is gone.
 * `name` - (Required) Name of the security group. Can be changed in place. Names are **not**
   required to be unique. Must not contain `<`, `>`, `&`, `'` or `"` — the API rejects them,
   and so does the plan.
-* `description` - (Optional) Description of the group. Can be changed in place, but **cannot
-  be cleared once set** — see below. Same character restriction as `name`.
+* `description` - (Optional) Description of the group. Can be changed in place, and removing
+  it clears it. Same character restriction as `name`.
 
 ## Attributes Reference
 
@@ -96,16 +96,6 @@ terraform import dtcloud_security_group_rule.default_v4 <group-id>:<rule-id>
 ```
 
 The rule ids are in this resource's `outbound_rule` blocks.
-
-### `description` cannot be cleared
-
-Setting a description and later removing it is rejected at plan time. The reason is on our
-side rather than the API's: the SDK marks the field `omitempty`, so an empty description is
-dropped from the update request and the platform keeps the old value — which would leave a
-plan that proposes the same change forever. Set a different description instead, or recreate
-the group.
-
-Changing it to another non-empty value works normally.
 
 ### Deleting a group that is in use
 

@@ -1,18 +1,12 @@
 // Package snapshot implements the dtcloud_snapshot resource and its data
 // sources.
 //
-// A snapshot is a point-in-time copy of a volume. It is taken against a volume
-// and never moves, so volume_id is ForceNew; only name and description change
-// in place.
+// A snapshot is a point-in-time copy of a volume. It never moves, so volume_id
+// is ForceNew; only name and description change in place.
 //
-// Two API behaviours shape the code here:
-//
-//   - The snapshot endpoints report the storage policy as a volume type id,
-//     while the rest of the provider reports policy names. This package
-//     resolves the id so both agree. See resolveStoragePolicy.
-//   - `available` is the only resting state, and an update is not guaranteed to
-//     have been applied by the time it is acknowledged. Waits are therefore on
-//     the value that was requested, not on the status. See waitForSnapshot.
+// Two API behaviours shape it: the storage policy is reported as a volume type
+// id where the rest of the provider uses names, and an update is acknowledged
+// before it is applied, so waits compare the value rather than the status.
 package snapshot
 
 import (
@@ -29,29 +23,24 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// noHTMLPattern mirrors the character rule the API applies to name and
-// description. Enforcing it in the schema turns a rejected request halfway
-// through an apply into an error during plan.
+// noHTMLPattern mirrors the character rule on name and description, so a
+// request rejected halfway through an apply becomes an error during plan.
 const noHTMLPattern = `^[^<>&"']*$`
 
 // snapshotSettled reports whether a status means the platform has finished.
-// `available` is the only resting state: unlike a volume, a snapshot is never
-// reported as in use, even when a volume has been built from it.
+// `available` is the only resting state: a snapshot is never reported in use.
 func snapshotSettled(status string) bool {
 	return strings.EqualFold(strings.TrimSpace(status), "available")
 }
 
 // snapshotFailed reports whether a status means the platform gave up. Matched
-// as a substring because the failure statuses are a family (`error`,
-// `error_deleting`, ...) rather than a fixed set.
+// as a substring: the failure statuses are a family, not a fixed set.
 func snapshotFailed(status string) bool {
 	return strings.Contains(strings.ToLower(status), "error")
 }
 
-// createdSnapshotID reads the new snapshot's id out of a create response.
-// The typed value is used when present; the raw body is parsed as a fallback,
-// because a resource that starts life with an empty id is one Terraform will
-// create a second time on the next apply.
+// createdSnapshotID reads the new snapshot's id out of a create response. The
+// typed value is used when present, the raw body as a fallback.
 func createdSnapshotID(typed string, body string) (string, error) {
 	if typed != "" {
 		return typed, nil
@@ -76,12 +65,7 @@ func createdSnapshotID(typed string, body string) (string, error) {
 }
 
 // resolveStoragePolicy turns a volume type id into the policy name used
-// everywhere else in the provider, so the same snapshot is not described by a
-// UUID on one page and by a name on another.
-//
-// The lookup is memoised on the provider configuration and shared by every
-// resource in a run. It is best-effort: if the storage policies cannot be read
-// the name is left empty rather than failing a read that otherwise succeeded.
+// elsewhere, cached for the run. Best-effort: an unreadable list leaves it empty.
 func resolveStoragePolicy(ctx context.Context, conf *config.CombinedConfig, volumeTypeID string) string {
 	if volumeTypeID == "" {
 		return ""
@@ -90,14 +74,8 @@ func resolveStoragePolicy(ctx context.Context, conf *config.CombinedConfig, volu
 }
 
 // waitForSnapshot blocks until the snapshot is at rest and `settled` agrees the
-// requested change has landed.
-//
-// The second condition matters: an update is acknowledged while the snapshot is
-// still reported as `available` with its old values, so a wait that only
-// watched the status could return before anything had changed. Callers pass the
-// value they asked for.
-//
-// A nil `settled` means any resting state will do, which is what create wants.
+// change has landed — an update is acknowledged while the old values still show.
+// A nil `settled` accepts any resting state, for create.
 func waitForSnapshot(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration, settled func(dtgo.GetSnapshotDetails) bool) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -105,8 +83,8 @@ func waitForSnapshot(ctx context.Context, client *dtgo.Client, id string, timeou
 		Refresh: func() (interface{}, string, error) {
 			details, _, err := client.Snapshot.GetSnapshotDetails(ctx, id, nil)
 			if err != nil {
-				// A snapshot that has not appeared yet is not a failure; create
-				// returns before the platform has committed it.
+				// A snapshot that has not appeared yet is not a failure; create returns
+				// before the platform has committed it.
 				if dterr.IsNotFound(err) {
 					return "waiting", "waiting", nil
 				}
@@ -118,9 +96,8 @@ func waitForSnapshot(ctx context.Context, client *dtgo.Client, id string, timeou
 			if snapshotFailed(details.Snapshot.Status) {
 				return nil, "", fmt.Errorf("snapshot %q entered %s state", id, details.Snapshot.Status)
 			}
-			// Every other non-target status counts as pending. The
-			// transitional states are deliberately not enumerated, so an
-			// unfamiliar one is waited out rather than treated as an error.
+			// Every other non-target status counts as pending, so an unfamiliar one
+			// is waited out rather than treated as an error.
 			if !snapshotSettled(details.Snapshot.Status) {
 				return "waiting", "waiting", nil
 			}
@@ -132,9 +109,8 @@ func waitForSnapshot(ctx context.Context, client *dtgo.Client, id string, timeou
 		Timeout:    timeout,
 		Delay:      2 * time.Second,
 		MinTimeout: 3 * time.Second,
-		// Two readings in a row, so a poll that lands in the gap between the
-		// request being accepted and the snapshot leaving `available` cannot
-		// end the wait on its own.
+		// Two readings in a row, so a poll that lands between the request being
+		// accepted and the snapshot leaving `available` cannot end the wait.
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -142,8 +118,7 @@ func waitForSnapshot(ctx context.Context, client *dtgo.Client, id string, timeou
 }
 
 // waitForSnapshotGone blocks until the snapshot stops resolving, so destroy
-// does not return while the platform is still tearing it down and the quota it
-// occupies is still charged.
+// does not return while the quota it occupies is still charged.
 func waitForSnapshotGone(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -159,8 +134,7 @@ func waitForSnapshotGone(ctx context.Context, client *dtgo.Client, id string, ti
 			if details.Snapshot.ID == "" {
 				return "done", "done", nil
 			}
-			// error_deleting is terminal: the snapshot will not disappear on
-			// its own, and waiting the full timeout only hides why.
+			// error_deleting is terminal: the snapshot will not disappear on its own.
 			if snapshotFailed(details.Snapshot.Status) {
 				return nil, "", fmt.Errorf("snapshot %q entered %s state while being deleted", id, details.Snapshot.Status)
 			}

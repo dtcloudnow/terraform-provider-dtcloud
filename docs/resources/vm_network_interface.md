@@ -19,10 +19,6 @@ resource "dtcloud_vm_network_interface" "internal" {
   network_id = "99999999-8888-7777-6666-555555555555"
 
   security_groups = ["sg-internal"]
-
-  fixed_ip {
-    ip_version = 4
-  }
 }
 
 output "internal_address" {
@@ -34,15 +30,25 @@ output "internal_address" {
 
 * `vm_id` - (Required) ID of the virtual machine. Changing this recreates the interface.
 * `network_id` - (Required) ID of the network to attach to. Changing this recreates the interface.
-* `security_groups` - (Optional) Security group IDs bound to this interface. **Can be changed in place.**
-* `fixed_ip` - (Required) One or more blocks, at least one. Each takes `ip_version` (`4`, the
-  default) and an optional `ip_address`. Leave `ip_address` out to have the subnet allocate
-  one. **Can be changed in place.**
-* `port_security_enabled` - (Optional) Defaults to `true`. Changing this recreates the
-  interface. Only meaningful on virtual networks.
+* `security_groups` - (Optional) Security group IDs bound to this interface. **Can be changed
+  in place.** Left out, the port keeps whatever the platform gave it, reported back here.
+* `fixed_ip` - (Optional) One or more blocks. **Omit it for the normal case**: one address is
+  requested and the platform allocates it. Set `ip_address` to pin a specific one. **Can be
+  changed in place.** After apply the assigned addresses are reported back in these blocks.
+  * `ip_address` - (Optional) Address to pin. Allocated by the platform when omitted.
+  * `ip_version` - (Optional) `4` or `6`, advisory: the platform allocates from the attached
+    network regardless. Reported back from the assigned address.
+* `port_security_enabled` - (Optional) Whether port security applies. **Left unset it is not
+  sent at all** and the network's own setting stands. Changing this recreates the interface.
 
-~> **`fixed_ip` is required.** An interface attached without one comes up with no address,
-which is almost never what you meant.
+-> **These arguments are identical to the `network` block on `dtcloud_vm`.** The two describe
+the same thing — a port on a network — so a block that works inline works here unchanged. Use
+`dtcloud_vm`'s block for interfaces the instance boots with, and this resource for ones added
+afterwards, which have their own lifecycle and can be detached without rebuilding the instance.
+
+~> **An interface never ends up without an address.** An empty `fixed_ips` list means "no
+address" to the platform, not "allocate one", so the provider requests one when you leave the
+block out rather than sending an empty list.
 
 ## Attributes Reference
 

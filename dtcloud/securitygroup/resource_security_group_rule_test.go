@@ -14,10 +14,10 @@ import (
 // The three rules exercise three different shapes on the wire:
 //
 //	ssh    every field populated
-//	ping   a port field set and its pair omitted — for ICMP those are type and
-//	       code, not ports, so this is ordinary rather than exotic
-//	open   protocol and both ports omitted, which reaches the provider as JSON
-//	       nulls and must not read back as a difference
+//	ping   a port field set and its pair omitted — for ICMP those are the type
+//	       and the code, not ports
+//	open   protocol and both ports omitted, which arrive as JSON nulls and must
+//	       not read back as a difference
 const rulesConfigTemplate = `
 resource "dtcloud_security_group" "web" {
   name = "tf-acc-sg-rules"
@@ -68,12 +68,9 @@ func rulesConfig(endpoint, extra string) string {
 	return acctest.ProviderConfig(endpoint) + fmt.Sprintf(rulesConfigTemplate, extra)
 }
 
-// TestAccDtcloudSecurityGroupRule_lifecycle is the test the task is really
-// about: removing one rule must leave the group and every other rule alone.
-//
-// It asserts that by remembering the surviving rules' ids across the step. A
-// rule that had been destroyed and recreated would come back with a new id, and
-// the group's own create count would move if the group had been rebuilt.
+// TestAccDtcloudSecurityGroupRule_lifecycle pins that removing one rule leaves
+// the group and every other rule alone. It remembers the surviving ids across
+// the step: a rule that had been recreated would come back with a new one.
 func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
@@ -99,13 +96,13 @@ func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ssh", "protocol", "tcp"),
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ssh", "port_range_min", "22"),
-					// Omitted, so the platform chose it. Optional+Computed is
-					// what stops that choice reading as a difference.
+					// Omitted, so the platform chose it. Optional+Computed is what stops
+					// that choice reading as a difference.
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ssh", "ethertype", "IPv4"),
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ssh", "normalized_cidr", "10.0.0.0/24"),
 
-					// ICMP: min is the type, max was left out. It comes back as
-					// JSON null and must settle as 0, not as a difference.
+					// ICMP: min is the type, max was left out. It arrives as null and
+					// must settle as 0, not as a difference.
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ping", "port_range_min", "8"),
 					resource.TestCheckResourceAttr("dtcloud_security_group_rule.ping", "port_range_max", "0"),
 
@@ -118,12 +115,9 @@ func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 						"dtcloud_security_group_rule.from_peer", "remote_group_id",
 						"dtcloud_security_group.peer", "id"),
 
-					// Deliberately no assertion on the group's own rule list
-					// here: it is a snapshot from that resource's last read,
-					// which happened before these rules existed. Terraform
-					// creates the group first, so within this apply it is
-					// correctly empty. The next step, after a refresh, is where
-					// it can be checked.
+					// No assertion on the group's own rule list here: it is a snapshot
+					// from that resource's last read, which happened before these rules
+					// existed. The next step, after a refresh, is where it can be checked.
 					resource.TestCheckResourceAttr("dtcloud_security_group.web", "inbound_rule.#", "0"),
 
 					func(s *terraform.State) error {
@@ -142,13 +136,11 @@ func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// The same configuration again. Nothing changes, but the
-				// refresh re-reads the group — and now its rule snapshot is
-				// populated, so the platform's display of these rules can be
+				// The same configuration again. The refresh re-reads the group, so its
+				// rule snapshot is now populated and the platform's display can be
 				// checked: cooked protocol names, port ranges as strings, and a
-				// referenced group rendered by *name* rather than id. None of
-				// that could be turned back into a rule, which is why
-				// dtcloud_security_group_rule reads the raw endpoint instead.
+				// referenced group rendered by name. None of that could be turned back
+				// into a rule, which is why the rule resource reads the raw endpoint.
 				Config: rulesConfig(server.URL, pingRule),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_security_group.web", "inbound_rule.#", "4"),
@@ -158,9 +150,8 @@ func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 						map[string]string{"protocol": "ANY", "port_range": "1-65535", "source": "0.0.0.0/0"}),
 					resource.TestCheckTypeSetElemNestedAttrs("dtcloud_security_group.web", "inbound_rule.*",
 						map[string]string{"protocol": "TCP", "port_range": "5432", "source": "tf-acc-sg-peer"}),
-					// ICMP with a type and no code: the platform renders the
-					// pair as a range it cannot express and falls back to
-					// "1-65535" even though this rule is not about ports at all.
+					// ICMP with a type and no code: the pair is rendered as a range it
+					// cannot express and falls back to "1-65535".
 					resource.TestCheckTypeSetElemNestedAttrs("dtcloud_security_group.web", "inbound_rule.*",
 						map[string]string{"protocol": "ICMP", "port_range": "1-65535", "source": "0.0.0.0/0"}),
 				),
@@ -203,8 +194,8 @@ func TestAccDtcloudSecurityGroupRule_lifecycle(t *testing.T) {
 }
 
 // TestAccDtcloudSecurityGroupRule_planTimeRules pins the four things rejected
-// before anything is sent. Each is something the platform would otherwise
-// refuse mid-apply, after the plan had already looked fine.
+// before anything is sent, each of which the platform would otherwise refuse
+// mid-apply, after the plan had looked fine.
 func TestAccDtcloudSecurityGroupRule_planTimeRules(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
@@ -273,12 +264,9 @@ resource "dtcloud_security_group_rule" "bad" {
 }
 
 // TestAccDtcloudSecurityGroupRule_icmpPortRangeIsNotComparedAsPorts guards a
-// rule that is easy to get wrong later.
-//
-// For ICMP the two port fields are the message type and code, so a code below
-// the type is ordinary — type 8 code 0 is a ping. An unconditional
-// min <= max check would reject it. The check is therefore restricted to tcp
-// and udp, and this pins that.
+// rule that is easy to get wrong later: for ICMP the two port fields are the
+// message type and code, so a code below the type is ordinary — type 8 code 0
+// is a ping. The min <= max check is therefore restricted to tcp and udp.
 func TestAccDtcloudSecurityGroupRule_icmpTypeCodeOrder(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)
@@ -353,9 +341,8 @@ resource "dtcloud_security_group_rule" "b" {
 	})
 }
 
-// TestAccDtcloudSecurityGroupRule_badImportID checks a malformed composite id
-// is rejected with a message that says what the right shape is, rather than
-// producing a resource pointing at nothing.
+// TestAccDtcloudSecurityGroupRule_badImportID checks a malformed composite id is
+// rejected with a message saying what the right shape is.
 func TestAccDtcloudSecurityGroupRule_badImportID(t *testing.T) {
 	api := newFakeSecurityGroupAPI()
 	server := httptest.NewServer(api)

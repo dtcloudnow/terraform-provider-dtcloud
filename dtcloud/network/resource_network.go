@@ -16,16 +16,13 @@ import (
 
 // ResourceDtcloudNetwork manages a network and, when IPAM is on, its subnet.
 //
-// What can change in place: `name` (PUT on the network) and the subnet's
-// `gateway_ip`, `enable_dhcp`, `dns_nameservers` and `allocation_pools` (PUT on
-// the subnet). `ipam_enabled` and `cidr` are ForceNew — neither the subnet's
-// address range nor its existence can be changed after the fact.
+// In place: `name`, and the subnet's `gateway_ip`, `enable_dhcp`,
+// `dns_nameservers` and `allocation_pools`. `ipam_enabled` and `cidr` are
+// ForceNew.
 //
-// The subnet update endpoint takes all four fields at once and validates three
-// of them with Joi.array()/required, so Update always sends the complete set
-// rather than a patch. That is why the read has to recover every one of them:
-// a field the read misses would be sent back as empty on the next unrelated
-// change.
+// The subnet update takes all four fields at once, so Update sends the complete
+// set and Read has to recover every one — a field it missed would go back empty
+// on the next unrelated change.
 func ResourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDtcloudNetworkCreate,
@@ -101,8 +98,8 @@ func ResourceDtcloudNetwork() *schema.Resource {
 			},
 		},
 
-		// The two rules the schema itself cannot express. Catching them here
-		// makes them plan-time errors rather than a 500 from the API.
+		// The two rules the schema cannot express, caught here so that they are
+		// plan-time errors rather than a 500 from the API.
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 			ipam := d.Get("ipam_enabled").(bool)
 			cidr := d.Get("cidr").(string)
@@ -137,16 +134,9 @@ func ResourceDtcloudNetwork() *schema.Resource {
 	}
 }
 
-// createdNetworkID digs the new network's id out of the create response.
-//
-// The response has two shapes, because the API builds the network and the
-// subnet with two different OpenStack calls and returns whichever came last:
-//
-//	ipam_enabled = true   ->  the createSubnet response, carrying network_id
-//	ipam_enabled = false  ->  the bare network object, carrying id
-//
-// dt-go's typed CreateNetworkResponse covers the wrapped forms; the bare one
-// falls through to the raw body, which is why that is parsed here too.
+// createdNetworkID digs the new network's id out of the create response, which
+// has two shapes: `network_id` inside a wrapper with IPAM on, `id` on a bare
+// object with it off. The bare one is read from the raw body.
 func createdNetworkID(resp *dtgo.CreateNetworkResponse, body string) (string, error) {
 	if resp != nil {
 		if resp.Subnet != nil && resp.Subnet.NetworkID != "" {
@@ -190,8 +180,8 @@ func resourceDtcloudNetworkCreate(ctx context.Context, d *schema.ResourceData, m
 		req.GatewayIP = d.Get("gateway_ip").(string)
 		req.DNSNameservers = expandStringList(d.Get("dns_nameservers").([]interface{}))
 		req.AllocationPools = expandAllocationPools(d.Get("allocation_pools").([]interface{}))
-		// The route hardcodes ip_version: 4 regardless of what is sent, so there
-		// is nothing to choose here and no argument exposed for it.
+		// The route fixes ip_version at 4 regardless of what is sent, so there is
+		// no argument exposed for it.
 		req.IPVersion = 4
 	}
 
@@ -233,16 +223,13 @@ func resourceDtcloudNetworkRead(ctx context.Context, d *schema.ResourceData, met
 	d.Set("network_type", details.NetworkConfiguration.Type)
 
 	// A network without IPAM has no subnet, and the details endpoint omits the
-	// whole object rather than sending an empty one. Everything subnet-shaped
-	// stays at its zero value in that case.
+	// whole object, so everything subnet-shaped stays at its zero value.
 	if details.Subnets == nil {
 		d.Set("ipam_enabled", false)
 		d.Set("subnet_id", "")
-		// enable_dhcp has a schema default of true and nothing to read it from
-		// here. Leaving it unset makes `terraform import` land on false while
-		// the configuration says true, and applying that diff would reach the
-		// subnet update with no subnet to update. Found importing a live
-		// IPAM-disabled network on 2026-08-26.
+		// enable_dhcp defaults to true in the schema and there is nothing to read
+		// it from without a subnet. Left unset, an import lands on false and
+		// applying that diff reaches the subnet update with no subnet.
 		d.Set("enable_dhcp", true)
 		return nil
 	}
@@ -271,15 +258,13 @@ func resourceDtcloudNetworkUpdate(ctx context.Context, d *schema.ResourceData, m
 	if d.HasChanges("gateway_ip", "enable_dhcp", "dns_nameservers", "allocation_pools") {
 		subnetID := d.Get("subnet_id").(string)
 		if subnetID == "" {
-			// Unreachable through the schema — CustomizeDiff rejects subnet
-			// fields without IPAM — but a clear error beats a nil dereference if
-			// that ever changes.
+			// Unreachable through the schema, but a clear error beats a nil
+			// dereference if that ever changes.
 			return diag.Errorf("Network %q has no subnet to update; subnet settings need ipam_enabled = true", d.Id())
 		}
 
-		// The whole set goes every time: the endpoint requires enable_dhcp,
-		// dns_nameservers and allocation_pools, and the two arrays must be
-		// arrays rather than null.
+		// The whole set goes every time: the endpoint requires all of them, and
+		// the two arrays must be arrays rather than null.
 		params := dtgo.UpdateSubnetParams{
 			EnableDHCP:      d.Get("enable_dhcp").(bool),
 			GatewayIP:       d.Get("gateway_ip").(string),

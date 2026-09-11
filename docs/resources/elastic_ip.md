@@ -43,7 +43,8 @@ resource "dtcloud_elastic_ip" "reserved" {
   The platform picks one when omitted — **unless the port carries more than one IPv4 address**,
   in which case it refuses the request and you must name the address. See below.
 * `subnet_id` - (Optional) A specific subnet of the external network to take the address from.
-  Only used when allocating. Never reported back — see **Import**.
+  Only used when allocating, so changing it releases the address and allocates a new one.
+  Never reported back — see **Import**.
 
 ## Attributes Reference
 

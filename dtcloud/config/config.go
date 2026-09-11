@@ -12,27 +12,21 @@ import (
 	dtgo "github.com/dtcloudnow/dt-go"
 )
 
-// Config holds the raw provider-level settings collected from the Terraform
-// provider block (or their environment-variable fallbacks), plus where to look
-// for the configuration file that fills in whatever they leave out.
+// Config holds the raw provider-level settings from the Terraform provider block
+// or their environment fallbacks, plus where to look for the configuration file.
 type Config struct {
 	AccessKey   string
 	SecretKey   string
 	APIEndpoint string
 	RegionID    string
 
-	// ConfigFile and Profile select the file and the account within it. Both
-	// may be empty, in which case the default path and the file's own
-	// default_profile apply. See file.go.
+	// Both may be empty; see file.go for the defaults.
 	ConfigFile string
 	Profile    string
 }
 
-// CombinedConfig is the object handed to every resource/data-source CRUD
-// function as `meta`. It wraps the configured dt-go client.
-//
-// Every CRUD call in a run shares one of these, which makes it the right place
-// for anything worth reading once instead of once per resource.
+// CombinedConfig is passed to every CRUD function as `meta`. It wraps the
+// dt-go client and caches lookups that are shared across a run.
 type CombinedConfig struct {
 	client *dtgo.Client
 
@@ -43,17 +37,8 @@ type CombinedConfig struct {
 // DTClient returns the underlying dt-go API client.
 func (c *CombinedConfig) DTClient() *dtgo.Client { return c.client }
 
-// StoragePolicyNames maps volume type id to storage policy name, read at most
-// once per Terraform run.
-//
-// The snapshot endpoints report a volume type id where the rest of the provider
-// reports a policy name. Resolving that per snapshot would repeat the same call
-// for the same answer, since volume types do not change during an apply.
-//
-// Best-effort: a failure caches an empty map rather than an error, so a caller
-// that only wanted a display name degrades to not having one instead of failing
-// a read that otherwise succeeded. Callers needing the difference should call
-// ListStoragePolicies themselves.
+// StoragePolicyNames maps volume type id to policy name, read once per run.
+// Best-effort: a failure caches an empty map.
 func (c *CombinedConfig) StoragePolicyNames(ctx context.Context) map[string]string {
 	c.policiesOnce.Do(func() {
 		names := map[string]string{}
@@ -68,27 +53,15 @@ func (c *CombinedConfig) StoragePolicyNames(ctx context.Context) map[string]stri
 }
 
 // Client validates the configuration and builds an authenticated dt-go client.
-//
-// Values are resolved highest-first: what the provider block says, then the
-// environment, then the configuration file. Only settings still empty after the
-// first two are taken from the file, which is what makes an environment
-// variable a usable override in CI without editing anyone's home directory.
-//
-// Auth is the API access-key/secret-key header pair (x-api-access-key /
-// x-api-secret-key), and RegionID is applied as the serverId sent on every
-// request. All three are mandatory for the API to answer.
-//
-// Warnings are returned rather than logged so the caller can surface them as
-// Terraform diagnostics; they are not failures.
+// Values resolve highest-first: provider block, environment, configuration file.
+// Access key, secret key and region are all mandatory. Warnings are returned
+// rather than logged, for the caller to surface.
 func (c *Config) Client() (client *CombinedConfig, warnings []string, err error) {
 	accessKey, secretKey := c.AccessKey, c.SecretKey
 	endpoint, regionID := c.APIEndpoint, c.RegionID
 
-	// The file is only consulted when something is still missing. Skipping it
-	// otherwise is not just cheaper: it keeps a fully-specified provider block
-	// from depending on whatever happens to be in the person's home directory,
-	// which is what makes the acceptance tests reproducible on a machine that
-	// has real credentials configured.
+	// Only consulted when something is still missing, so a fully specified
+	// provider block never depends on the home directory.
 	path := "the configuration file"
 	if accessKey == "" || secretKey == "" || regionID == "" || endpoint == "" {
 		values, resolved, fileWarnings, err := Load(c.ConfigFile, c.Profile)
@@ -140,16 +113,8 @@ func (c *Config) Client() (client *CombinedConfig, warnings []string, err error)
 	return &CombinedConfig{client: dtClient}, warnings, nil
 }
 
-// setupCommand renders how to invoke this binary's own setup command.
-//
-// Terraform keeps the plugin under .terraform, so the bare name usually means
-// nothing to a shell and the absolute path is the only thing that can be
-// pasted. But when the binary *is* reachable by name — someone installed the
-// release build, or put it on PATH — the short form is far friendlier, and a
-// ninety-character path in an error message is its own small insult.
-//
-// So: check whether the name on PATH resolves to this very executable, and
-// prefer the short form when it does.
+// setupCommand renders how to invoke this binary's setup command. The absolute
+// path is used unless the name on PATH resolves to this same executable.
 func setupCommand() string {
 	const name = "terraform-provider-dtcloud"
 
@@ -163,9 +128,8 @@ func setupCommand() string {
 	return exe + " configure"
 }
 
-// sameFile reports whether two paths are the same file on disk, which is more
-// reliable than comparing strings: symlinks, 8.3 short names on Windows and a
-// trailing ".exe" all make equal files look like different paths.
+// sameFile reports whether two paths are the same file on disk. Symlinks, short
+// names on Windows and a trailing ".exe" all make equal files look different.
 func sameFile(a, b string) bool {
 	ai, err := os.Stat(a)
 	if err != nil {

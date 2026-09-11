@@ -10,11 +10,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudSnapshot looks up one snapshot by id.
-//
-// Use it to reference a snapshot Terraform did not take. Declaring such a
-// snapshot as a resource would hand Terraform ownership of it, and a later
-// destroy would delete the copy it was there to protect.
+// DataSourceDtcloudSnapshot looks up one snapshot by id, for snapshots this
+// configuration does not own — as a resource, a later destroy would delete the
+// copy it was there to protect.
 func DataSourceDtcloudSnapshot() *schema.Resource {
 	s := map[string]*schema.Schema{
 		"id": {

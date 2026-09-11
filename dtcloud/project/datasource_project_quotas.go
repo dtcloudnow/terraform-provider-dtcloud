@@ -11,16 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudProjectQuotas reports what a project is using against what
-// it is allowed.
-//
-// This is the console's summary view: a handful of headline figures with usage
-// and quota side by side. For the full OpenStack quota table — every limit the
-// platform tracks, most of which nothing here surfaces — use
-// `dtcloud_project_limits` instead.
-//
-// A quota of `-1` means unlimited, and is reported here as `-1` rather than
-// being translated, so arithmetic on it stays honest.
+// DataSourceDtcloudProjectQuotas reports headline figures with usage and quota
+// side by side; `dtcloud_project_limits` has the full table. A quota of `-1`
+// means unlimited and is reported as `-1` rather than translated.
 func DataSourceDtcloudProjectQuotas() *schema.Resource {
 	usage := func(desc string) *schema.Schema {
 		return &schema.Schema{

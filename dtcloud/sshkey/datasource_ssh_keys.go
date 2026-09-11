@@ -11,12 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudSSHKeys lists the SSH keys on the account.
-//
-// The list endpoint reports less than the details one — a name and a creation
-// timestamp, nothing else. Fingerprints and public keys would mean one extra
-// call per key, so anyone who needs those should look the key up by name with
-// the singular `dtcloud_ssh_key` data source.
+// DataSourceDtcloudSSHKeys lists the SSH keys on the account: name and creation
+// timestamp only. Use the singular data source for fingerprints and public
+// keys, which cost one call each.
 func DataSourceDtcloudSSHKeys() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudSSHKeysRead,
