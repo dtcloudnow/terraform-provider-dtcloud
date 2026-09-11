@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"golang.org/x/term"
 )
