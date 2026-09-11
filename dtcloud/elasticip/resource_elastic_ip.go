@@ -14,14 +14,10 @@ import (
 )
 
 // ResourceDtcloudElasticIP allocates a public address and points it at a port.
+// Create allocates, update associates and disassociates, delete releases.
 //
-// The three verbs of the service map onto Terraform's model directly: create
-// allocates, update associates and disassociates, delete releases. Moving the
-// address between machines is an in-place update — the address itself, which is
-// the part worth keeping, is never released to change what it reaches.
-//
-// `port_id` is the association, and the only argument that writes it. See the
-// package comment for why there is no separate association resource.
+// `port_id` is the association and the only argument that writes it. Moving the
+// address is an in-place update; it is never released to change what it points at.
 func ResourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDtcloudElasticIPCreate,
@@ -45,13 +41,8 @@ func ResourceDtcloudElasticIP() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-				// The API accepts this on create and never reports it back, so
-				// an imported address has nothing here. Without the suppression
-				// below, adding the resource to a configuration that names a
-				// subnet would propose destroying and re-allocating the address
-				// — losing the address — to satisfy a difference that is not
-				// real. Empty state is absence of evidence, not evidence of a
-				// difference.
+				// Accepted on create and never reported back, so without the suppression
+				// an imported address is re-allocated over a difference that is not real.
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					return old == ""
 				},
@@ -123,12 +114,10 @@ func ResourceDtcloudElasticIP() *schema.Resource {
 
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 			// The rule the schema cannot express: a fixed address only means
-			// something relative to a port. Left to the API it is accepted and
-			// quietly ignored, which is worse than an error.
+			// something relative to a port. Left to the API it is quietly ignored.
 			if d.Get("fixed_ip_address").(string) != "" && d.Get("port_id").(string) == "" {
-				// Computed: after a disassociate the platform's old value can
-				// still be in state with no port. Only a value the practitioner
-				// actually wrote is worth refusing.
+				// Computed: after a disassociate an old value can still be in state
+				// with no port. Only a value actually written is worth refusing.
 				if raw := d.GetRawConfig(); !raw.IsNull() {
 					v := raw.GetAttr("fixed_ip_address")
 					if !v.IsNull() {
@@ -138,30 +127,16 @@ func ResourceDtcloudElasticIP() *schema.Resource {
 				}
 			}
 
-			// Everything below is derived from the association, so changing the
-			// port changes all of it — and Terraform has to be told that during
-			// the plan, not after.
-			//
-			// Without this, the plan carries the *prior* values for these
-			// attributes, Read afterwards returns the new ones, and Terraform
-			// treats that as the provider contradicting its own plan. Under
-			// SDKv2 that is not an error: the legacy type system downgrades it
-			// to a log line and keeps the planned values. State then holds the
-			// previous association until something unrelated triggers a refresh
-			// — the resource silently reports the machine it used to point at.
-			//
-			// Confirmed on DEV: `terraform apply` of a disassociate left status
-			// ACTIVE and device_id still set, while the API had already
-			// detached, and TF_LOG showed ".status: was cty.StringVal(\"ACTIVE\")"
-			// under "legacy plugin SDK".
+			// These all derive from the association. Unless they are marked unknown
+			// the plan keeps the prior values and state reports the old machine.
 			if d.Id() != "" && d.HasChange("port_id") {
 				for _, key := range []string{"status", "device_id", "device_owner", "router_id"} {
 					if err := d.SetNewComputed(key); err != nil {
 						return err
 					}
 				}
-				// Only when the practitioner has not pinned it; a configured
-				// value is theirs and is not the platform's to choose.
+				// Only when it has not been pinned; a configured value is not the
+				// platform's to choose.
 				if raw := d.GetRawConfig(); raw.IsNull() || raw.GetAttr("fixed_ip_address").IsNull() {
 					if err := d.SetNewComputed("fixed_ip_address"); err != nil {
 						return err
@@ -179,18 +154,9 @@ func ResourceDtcloudElasticIP() *schema.Resource {
 	}
 }
 
-// configuredFixedIP returns fixed_ip_address only when the configuration
-// actually names one.
-//
-// `d.Get` cannot be used for this. The field is Optional+Computed, so once the
-// platform has filled it in, `d.Get` keeps returning that value even though the
-// practitioner never asked for it — and re-sending it is wrong the moment the
-// address moves to a different port, because an address that belonged to the
-// old port is not one the new port has. The platform rejects the pairing and
-// the move fails.
-//
-// So the rule is: send it only if it was written down. Anything else, let the
-// platform choose and let Computed absorb the answer.
+// configuredFixedIP returns fixed_ip_address only when the configuration names
+// one. Being Optional+Computed, d.Get keeps returning a platform-supplied value,
+// which the new port would reject when the address moves.
 func configuredFixedIP(d *schema.ResourceData) string {
 	raw := d.GetRawConfig()
 	if raw.IsNull() || !raw.IsKnown() {
@@ -212,7 +178,7 @@ func resourceDtcloudElasticIPCreate(ctx context.Context, d *schema.ResourceData,
 		SubnetID:          d.Get("subnet_id").(string),
 	}
 	// Only meaningful alongside a port, and CustomizeDiff has already refused
-	// the combination the practitioner could have got wrong.
+	// the combination.
 	if params.PortID != "" {
 		params.FixedIPAddress = configuredFixedIP(d)
 	}
@@ -278,11 +244,8 @@ func resourceDtcloudElasticIPUpdate(ctx context.Context, d *schema.ResourceData,
 
 	portID := d.Get("port_id").(string)
 
-	// The whole association goes every time, because the endpoint has no
-	// partial mode: a body without port_id is how the platform is told to
-	// disassociate, not how it is told to leave things alone. dt-go's omitempty
-	// on both fields is what makes that reachable — an empty PortID serialises
-	// the body away to `{}`, which is exactly the disassociate call.
+	// There is no partial mode: a body without port_id disassociates. omitempty
+	// is what makes that reachable — an empty PortID serialises to `{}`.
 	params := dtgo.UpdateFloatingIpParams{PortID: portID}
 	if portID != "" {
 		params.FixedIPAddress = configuredFixedIP(d)

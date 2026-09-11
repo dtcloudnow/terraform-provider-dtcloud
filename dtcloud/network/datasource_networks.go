@@ -19,12 +19,9 @@ type listNetworkOptions struct {
 	NetworkType string `url:"networkType,omitempty"`
 }
 
-// DataSourceDtcloudNetworks lists the networks visible to the caller.
-//
-// The list endpoint reports a flatter shape than the details one: it folds the
-// subnet's CIDR and gateway up onto the network and reports DHCP as a word
-// rather than a boolean. That is what is exposed here — reading the full subnet
-// for every network would mean one extra call each.
+// DataSourceDtcloudNetworks lists the networks visible to the caller. The list
+// endpoint folds the subnet's CIDR and gateway onto the network and reports
+// DHCP as a word; reading the full subnet would cost one call per network.
 func DataSourceDtcloudNetworks() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudNetworksRead,

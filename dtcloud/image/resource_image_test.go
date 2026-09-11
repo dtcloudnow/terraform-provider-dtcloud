@@ -15,13 +15,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// uploadBytes is the size of the file every test uploads. Chosen so the API's
-// own formatting is exact rather than rounded: 3,000,000 bytes is "3 MB".
+// uploadBytes is the size every test uploads: 3,000,000 bytes formats as "3 MB"
+// exactly, so nothing is rounded.
 const uploadBytes = 3000000
 
 // imageFile writes a file for the resource to upload and returns its path.
-// The provider reads it during apply, so it has to be a real file rather than
-// a name.
 func imageFile(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "disk.qcow2")
@@ -31,13 +29,9 @@ func imageFile(t *testing.T) string {
 	return filepath.ToSlash(path)
 }
 
-// checkTerraformOwnedGone asserts that everything this provider created has
-// been destroyed. Images seeded into the fake are skipped by name: they stand
-// in for infrastructure Terraform does not own.
-//
-// This is also what pins the destroy waiter. The fake only advances a deleted
-// image towards disappearing when it is read, so a Delete that returned without
-// polling leaves the image alive here.
+// checkTerraformOwnedGone asserts everything this provider created is gone.
+// Seeded images are skipped by name. It also pins the destroy waiter: the fake
+// only advances a deleted image towards disappearing when it is read.
 func checkTerraformOwnedGone(api *fakeImageAPI) func(*terraform.State) error {
 	return func(*terraform.State) error {
 		api.mu.Lock()
@@ -54,9 +48,8 @@ func checkTerraformOwnedGone(api *fakeImageAPI) func(*terraform.State) error {
 	}
 }
 
-// imageResource is the resource on its own. Used wherever a step removes the
-// image underneath Terraform, since the data sources error on a missing image
-// and would fail the step for the wrong reason.
+// imageResource is the resource on its own, for steps that remove the image
+// underneath Terraform — the data sources would fail for the wrong reason.
 func imageResource(endpoint, file, name, diskFormat, osDistro string, minDisk int, visibility string) string {
 	return acctest.ProviderConfig(endpoint) + fmt.Sprintf(`
 resource "dtcloud_image" "test" {
@@ -70,8 +63,7 @@ resource "dtcloud_image" "test" {
 `, name, file, diskFormat, osDistro, minDisk, visibility)
 }
 
-// imageConfig is the whole surface of the package in one configuration: the
-// resource, both image data sources, and the catalogue.
+// imageConfig is the whole surface of the package in one configuration.
 func imageConfig(endpoint, file, name, diskFormat, osDistro string, minDisk int, visibility string) string {
 	return imageResource(endpoint, file, name, diskFormat, osDistro, minDisk, visibility) + `
 data "dtcloud_image" "by_id" {
@@ -97,11 +89,8 @@ data "dtcloud_image_versions" "catalogue" {}
 }
 
 // TestAccDtcloudImage_lifecycle drives create → read → re-plan → import →
-// destroy, with every data source reading along.
-//
-// Create is two requests: the endpoint opens an empty record and the file goes
-// up separately. The size and status asserted here are what prove the second
-// one happened — a record with no data reports "0 MB" and stays `queued`.
+// destroy. Create is two requests, and the size and status asserted here are
+// what prove the second one happened.
 func TestAccDtcloudImage_lifecycle(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -123,24 +112,20 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_image.test", "status", "active"),
 					// The size the file actually was, formatted by the platform.
 					resource.TestCheckResourceAttr("dtcloud_image.test", "size", "3 MB"),
-					// A display category derived from the disk format, not the
-					// disk format itself.
+					// A display category derived from the disk format, not the format.
 					resource.TestCheckResourceAttr("dtcloud_image.test", "type", "Template (VM)"),
-					// The details endpoint makes no guess at os_type, so the
-					// resource has none.
+					// The details endpoint makes no guess at os_type.
 					resource.TestCheckResourceAttr("dtcloud_image.test", "os_type", ""),
 					resource.TestCheckResourceAttrSet("dtcloud_image.test", "id"),
 
-					// The singular data source reads the same endpoint, by id
-					// and by name alike.
+					// The singular data source reads the same endpoint, by id and by name.
 					resource.TestCheckResourceAttrPair("data.dtcloud_image.by_id", "id", "dtcloud_image.test", "id"),
 					resource.TestCheckResourceAttr("data.dtcloud_image.by_id", "min_disk", "20"),
 					resource.TestCheckResourceAttr("data.dtcloud_image.by_id", "size", "3 MB"),
 					resource.TestCheckResourceAttrPair("data.dtcloud_image.by_name", "id", "dtcloud_image.test", "id"),
 
-					// The list endpoint fills os_type in from the distro where
-					// the details endpoint left it empty. The same image,
-					// described two ways — which is why both are exposed.
+					// The list endpoint fills os_type in where details left it empty — the
+					// same image described two ways, which is why both are exposed.
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.os_type", "linux"),
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.os_distro", "ubuntu20.04"),
@@ -157,9 +142,7 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 				ResourceName:      "dtcloud_image.test",
 				ImportState:       true,
 				ImportStateVerify: true,
-				// None of these is reported by any read endpoint, so an import
-				// cannot recover them. Listing them here is the honest record
-				// of what does not round-trip.
+				// Reported by no read endpoint, so an import cannot recover them.
 				ImportStateVerifyIgnore: []string{"source_file", "source_file_hash", "disk_format", "min_ram", "tags"},
 			},
 		},
@@ -167,16 +150,9 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 }
 
 // TestAccDtcloudImage_createUploadsAndWaitsForActive is the rule that an image
-// is not finished when the create call returns.
-//
-// The configuration has nothing to change afterwards, so no second wait can
-// settle the status behind this one. Break the wait and the status asserted
-// here is `saving`; skip the upload and it is `queued` with no data at all.
-//
-// It also covers where the upload's arguments go. The fake refuses an upload
-// whose image id is not in the query string, which is where the API reads it
-// from — so an SDK that puts it in the multipart body instead fails create
-// here rather than in production.
+// is not finished when the create call returns. Nothing changes afterwards, so
+// no second wait can settle the status behind this one. It also covers where
+// the upload's arguments go: the id belongs in the query string.
 func TestAccDtcloudImage_createUploadsAndWaitsForActive(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -210,14 +186,9 @@ func TestAccDtcloudImage_createUploadsAndWaitsForActive(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudImage_createDeclaresTheFileSize is the rule that the platform
-// is told how large the file is before it is sent.
-//
-// The create endpoint refuses an image that would exceed the upload ceiling,
-// but it can only do so if the request says how big the file is. Without that
-// the user uploads the whole thing and is refused at the end of it. The ceiling
-// is lowered here rather than the file enlarged, so the refusal can be shown
-// without writing a file that size.
+// TestAccDtcloudImage_createDeclaresTheFileSize is the rule that the platform is
+// told the file size before it is sent, so an oversized upload is refused up
+// front. The ceiling is lowered rather than the file enlarged.
 func TestAccDtcloudImage_createDeclaresTheFileSize(t *testing.T) {
 	api := newFakeImageAPI()
 	api.maxBytes = 1000
@@ -237,10 +208,8 @@ func TestAccDtcloudImage_createDeclaresTheFileSize(t *testing.T) {
 
 	api.mu.Lock()
 	defer api.mu.Unlock()
-	// The refusal has to come from create. The upload endpoint enforces the
-	// same ceiling, so a provider that declared nothing would still be refused
-	// — after sending the whole file, which is the thing being prevented.
-	// Asserting on the error alone would pass either way.
+	// The refusal has to come from create: upload enforces the same ceiling, so
+	// asserting on the error alone would pass either way.
 	if api.creates != 0 {
 		t.Fatalf("the image record was created (%d creates), so the refusal came from the upload "+
 			"rather than from the declared size", api.creates)
@@ -250,17 +219,10 @@ func TestAccDtcloudImage_createDeclaresTheFileSize(t *testing.T) {
 	}
 }
 
-// TestAccDtcloudImage_updateWaitsForEachValue covers the four fields the update
-// endpoint accepts.
-//
-// Each one gets a step of its own. A single step changing all four would let a
-// wait that checked only one of them pass, and would hide that the endpoint
-// takes one field per request: the patch paths asserted at the end are the
-// record of one request per changed field.
-//
-// The waits here cannot be on the status. An image stays `active` throughout an
-// update, and the fake holds the old value for several reads while it does, so
-// a status-only wait returns having waited for nothing.
+// TestAccDtcloudImage_updateWaitsForEachValue covers the four fields update
+// accepts, one step each — a single step changing all four would let a wait
+// that checked only one of them pass. The waits cannot be on the status: an
+// image stays `active` throughout while the old value is still reported.
 func TestAccDtcloudImage_updateWaitsForEachValue(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -280,8 +242,7 @@ func TestAccDtcloudImage_updateWaitsForEachValue(t *testing.T) {
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "name", "tf-acc-update-renamed"),
 			},
 			{
-				// min_disk comes back inside "40 GB", so this step also covers
-				// the parsing that makes the wait comparable at all.
+				// min_disk comes back inside "40 GB", so this also covers the parsing.
 				Config: imageResource(server.URL, file, "tf-acc-update-renamed", "qcow2", "ubuntu20.04", 40, "shared"),
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "min_disk", "40"),
 			},
@@ -313,11 +274,8 @@ func TestAccDtcloudImage_updateWaitsForEachValue(t *testing.T) {
 }
 
 // TestAccDtcloudImage_diskFormatForcesNew is the rule that the file and its
-// format are fixed once an image exists.
-//
-// There is no endpoint that replaces the data of an image, and the update
-// endpoint does not accept the format, so the only way to honour a change is to
-// build a new image.
+// format are fixed once an image exists: nothing replaces an image's data, so
+// the only way to honour a change is to build a new one.
 func TestAccDtcloudImage_diskFormatForcesNew(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -354,18 +312,9 @@ func TestAccDtcloudImage_diskFormatForcesNew(t *testing.T) {
 }
 
 // TestAccDtcloudImage_destroyWaitsForTheImageToBeGone is the rule that destroy
-// does not return while the platform is still reclaiming the image.
-//
-// The fake answers a delete with a bare status and then keeps reporting the
-// image for several reads, without changing its status — nothing but the image
-// disappearing says the delete finished.
-//
-// Written first with CheckDestroy as the only assertion, which turned out to
-// prove nothing: breaking the waiter so that it returned immediately left the
-// test green, because by the time CheckDestroy runs the fake's countdown has
-// drained regardless. The assertion that bites is inside the step, and it is on
-// whether the provider ever received a 404 — the one thing a Delete that
-// stopped looking cannot have seen.
+// does not return while the platform is still reclaiming the image. Nothing but
+// the image disappearing says the delete finished, so the assertion is on
+// whether the provider ever received a 404.
 func TestAccDtcloudImage_destroyWaitsForTheImageToBeGone(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -385,12 +334,8 @@ func TestAccDtcloudImage_destroyWaitsForTheImageToBeGone(t *testing.T) {
 				Check: func(*terraform.State) error {
 					api.mu.Lock()
 					defer api.mu.Unlock()
-					// The assertion is that the provider *saw* the image go,
-					// not merely that it is gone by the time anything checks.
-					// CheckDestroy alone cannot tell the difference: it runs
-					// late enough that the fake has drained its countdown
-					// anyway, so a Delete that returned the moment the request
-					// was accepted passes it. This does not.
+					// The assertion is that the provider saw the image go, not that it is gone by
+					// the time anything checks. CheckDestroy runs late enough to pass either way.
 					if api.servedGone == 0 {
 						return fmt.Errorf("destroy returned without ever seeing the image gone: the "+
 							"delete was acknowledged and the provider stopped looking after %d read(s)",
@@ -403,14 +348,10 @@ func TestAccDtcloudImage_destroyWaitsForTheImageToBeGone(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState is the rule
-// that a missing image is dropped from state rather than failing the run.
-//
-// It matters more here than elsewhere. These endpoints hand the platform's own
-// error body back rather than the nested one the other services send, and the
-// only numeric status in it is gone by the time the SDK sees it — so the
-// classification rests entirely on matching the message text. This test is what
-// says that path still works for images.
+// TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState is the rule that
+// a missing image is dropped from state rather than failing the run. These
+// routes carry no numeric status by the time the SDK sees them, so the
+// classification rests on matching the message text.
 func TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -426,8 +367,8 @@ func TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState(t *testing.T)
 				Config: config,
 			},
 			{
-				// Somebody deleted it in the console. A refresh step carries
-				// the previous step's configuration, so it cannot repeat it.
+				// Somebody deleted it in the console. A refresh step carries the previous
+				// step's configuration, so it cannot repeat it.
 				PreConfig: func() {
 					api.mu.Lock()
 					defer api.mu.Unlock()
@@ -442,10 +383,8 @@ func TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState(t *testing.T)
 	})
 }
 
-// TestAccDtcloudImage_ambiguousNameLookupFails is the rule that a name is not
-// an identifier on this platform.
-//
-// Two images may carry the same name, and picking the first match would build
+// TestAccDtcloudImage_ambiguousNameLookupFails is the rule that a name is not an
+// identifier: two images may share one, and picking the first match would build
 // machines from an image nobody chose.
 func TestAccDtcloudImage_ambiguousNameLookupFails(t *testing.T) {
 	api := newFakeImageAPI()
@@ -469,12 +408,9 @@ data "dtcloud_image" "ambiguous" {
 	})
 }
 
-// TestAccDtcloudImage_versionsFlattensEveryFlavorShape covers the catalogue.
-//
-// The flavor list is stored by the platform rather than produced by OpenStack,
-// and the same column holds a JSON array, a comma-separated string and null.
-// A data source that handled only one of them would fail a read for an entry
-// somebody else wrote.
+// TestAccDtcloudImage_versionsFlattensEveryFlavorShape covers the catalogue,
+// whose flavor column holds a JSON array, a comma-separated string or null. A
+// data source handling one shape would fail on an entry somebody else wrote.
 func TestAccDtcloudImage_versionsFlattensEveryFlavorShape(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
@@ -492,8 +428,7 @@ data "dtcloud_image_versions" "ubuntu" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Sorted by family and then by version, so the order does
-					// not move when the catalogue gains an entry.
+					// Sorted by family then version, so the order does not move.
 					resource.TestCheckResourceAttr("data.dtcloud_image_versions.all", "versions.#", "3"),
 					resource.TestCheckResourceAttr("data.dtcloud_image_versions.all", "versions.0.type", "ubuntu"),
 					resource.TestCheckResourceAttr("data.dtcloud_image_versions.all", "versions.0.version", "20.04"),

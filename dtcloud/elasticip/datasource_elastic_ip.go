@@ -9,16 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudElasticIP looks up one elastic IP, by id or by address.
-//
-// Address lookup is the useful half: an address is the thing a person knows —
-// it is on a DNS record or in a firewall rule somewhere — while its id is not
-// written down anywhere outside the platform.
-//
-// This reads both endpoints, so it costs two calls. `details` carries the raw
-// fields the resource works in; the list carries the platform's cooked view,
-// which is the only place the external network's *name* and the name of the
-// machine behind the address appear.
+// DataSourceDtcloudElasticIP looks up one elastic IP, by id or by address. It
+// costs two calls: `details` carries the raw fields, the list carries the
+// external network's name and what the address is attached to.
 func DataSourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudElasticIPRead,

@@ -12,15 +12,9 @@ import (
 )
 
 // DataSourceDtcloudSecurityGroups lists the security groups visible to the
-// caller.
-//
-// The `name` filter is applied here rather than by the API: the list route
-// takes no query parameters — `getSecurityGroups()` calls Neutron with none —
-// so filtering server-side is not on offer.
-//
-// The list endpoint reports an id, a name and a description and nothing else.
-// Rules would be one extra call per group, so anyone who needs them should read
-// the group with the singular `dtcloud_security_group` data source.
+// caller: id, name and description only. The `name` filter is applied here,
+// since the route takes no query parameters. Use the singular data source for
+// rules.
 func DataSourceDtcloudSecurityGroups() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudSecurityGroupsRead,

@@ -21,7 +21,6 @@ func writeConfig(t *testing.T, body string) string {
 
 // isolateConfigHome points os.UserConfigDir at a temp directory, so a test can
 // exercise the default path without reading the developer's real credentials.
-// APPDATA is what it reads on Windows, XDG_CONFIG_HOME/HOME elsewhere.
 func isolateConfigHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
@@ -48,9 +47,8 @@ profiles:
     region_id: "1"
 `
 
-// The shape dtctl itself writes: no profiles, and region_id as a bare integer.
-// A string field would fail the whole decode on that, which is why the type is
-// deliberately not a string.
+// The shape dtctl itself writes: no profiles, and region_id as a bare integer,
+// which a string field would fail the whole decode on.
 const dtctlShapedConfig = `
 api:
     access_key: cli-access
@@ -84,8 +82,8 @@ func TestProfileSelection(t *testing.T) {
 	}
 }
 
-// A dtctl config.yaml is usable as-is. That is the point of mirroring its key
-// names, and the bare `region_id: 1` is the part that would otherwise break.
+// A dtctl config.yaml is usable as-is; the bare `region_id: 1` is the part that
+// would otherwise break.
 func TestDtctlShapedConfigIsAccepted(t *testing.T) {
 	got, _, _, err := Load(writeConfig(t, dtctlShapedConfig), "")
 	if err != nil {
@@ -126,9 +124,8 @@ func TestNamingAProfileInAFileThatHasNoneIsAnError(t *testing.T) {
 	}
 }
 
-// A missing file is only a problem when someone asked for that file by name.
-// At the default path it means "this machine configures the provider some other
-// way", which is entirely normal.
+// A missing file is only a problem when someone asked for that file by name. At
+// the default path it means the machine configures the provider some other way.
 func TestMissingFile(t *testing.T) {
 	t.Run("at the default path it is not an error", func(t *testing.T) {
 		isolateConfigHome(t)
@@ -167,8 +164,7 @@ func TestMalformedYAMLIsReportedWithTheFileName(t *testing.T) {
 }
 
 // The file holds an API secret key, so it is treated the way an SSH private key
-// is: if anyone else on the machine can read it, it is not a secret. At the
-// default path the provider tightens it rather than only complaining.
+// is. At the default path the provider tightens it rather than only complaining.
 func TestPermissionsAreTightenedAtTheDefaultPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX mode bits are not meaningful on Windows; os.Chmod maps 0400 onto the read-only attribute instead")
@@ -201,9 +197,8 @@ func TestPermissionsAreTightenedAtTheDefaultPath(t *testing.T) {
 	}
 }
 
-// A file the practitioner named explicitly is warned about but left alone: it
-// may be dtctl's own config, which dtctl rewrites whenever the key changes.
-// Making that read-only would break the CLI to tidy up the provider.
+// A file named explicitly is warned about but left alone: it may be dtctl's own
+// config, and making that read-only would break the CLI to tidy up the provider.
 func TestAnExplicitlyNamedFileIsWarnedAboutButNotChanged(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX mode bits are not meaningful on Windows")
@@ -248,8 +243,8 @@ func TestScalarToString(t *testing.T) {
 	}
 }
 
-// The permission rule itself, tested on every platform. Only the chmod behind
-// it is POSIX-specific, and that is what the two skipped tests above cover.
+// The permission rule itself, tested on every platform; only the chmod behind
+// it is POSIX-specific.
 func TestPermissionAction(t *testing.T) {
 	for _, tc := range []struct {
 		mode        fs.FileMode

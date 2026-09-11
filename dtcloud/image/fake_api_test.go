@@ -16,56 +16,37 @@ import (
 // noHTML is the character rule the API applies to an image name.
 var noHTML = regexp.MustCompile(`^[^<>&"']*$`)
 
-// settleReads is how many reads it takes for an upload to finish and for a
-// deleted image to disappear, so the create and delete waiters are exercised
-// rather than satisfied on the first poll.
-//
-// It has to exceed three: a wait that watches the wrong thing ends after two
-// reads, and the read that follows it costs a third. Below that threshold a
-// waiter that returned far too early is indistinguishable from one that waited.
+// settleReads is how many reads an upload takes to finish. Above three, so a
+// waiter watching the wrong thing cannot pass by accident.
 const settleReads = 4
 
-// valueSettleReads is the same idea for the four fields the update endpoint
-// patches. The image sits at `active` the whole time still reporting its old
-// value, so a waiter watching only the status would return having done nothing.
-//
-// Larger than anything the platform actually does. The fake models the case the
-// waiter has to survive rather than the one that happens to be fast today.
+// valueSettleReads is the same for a field the update endpoint patches.
 const valueSettleReads = 4
 
-// defaultMaxUploadBytes stands in for the platform's configured upload ceiling.
-// Smaller than the real default of 100 GB, and overridable per test so the
-// refusal can be exercised without producing a file that size.
+// defaultMaxUploadBytes stands in for the configured upload ceiling.
 const defaultMaxUploadBytes = 1000 * 1000 * 1000
 
-// uploadLimitMessage renders the refusal the way the API does. Its formatter
-// always speaks in whole GB, so a ceiling below a billion bytes really does
-// come back as "0 GB" — reproduced rather than tidied up.
+// uploadLimitMessage renders the refusal. Whole GB only, so a small ceiling
+// really does read as "0 GB".
 func uploadLimitMessage(maxBytes int64) string {
 	return fmt.Sprintf("Image exceeds the maximum upload size of %.0f GB", float64(maxBytes)/1000000000)
 }
 
-// allowedDiskFormats and allowedOsDistros are read from the platform's own
-// configuration by the real API, not fixed in its code. They are fixed here
-// only because a fake needs something to check against — the point being that
-// the provider does no checking of its own and lets the API refuse.
+// allowedDiskFormats and allowedOsDistros are what the fake checks against.
+// The provider does no checking of its own and lets the API refuse.
 var (
-	// The values the platform actually accepts, copied from its own rejection
-	// message. `img` is in the list and is not a format the storage layer
-	// knows, which is why the service maps anything unrecognised to `detect`.
+	// `img` is accepted but unknown to storage, which is why it maps to `detect`.
 	allowedDiskFormats = map[string]bool{
 		"iso": true, "aki": true, "ami": true, "ari": true, "img": true, "ploop": true,
 		"qcow2": true, "raw": true, "vdi": true, "vhd": true, "vhdx": true, "vmdk": true,
 	}
-	// Abbreviated from the platform's list. The point is the shape: a
-	// distribution carries its version, so a bare `ubuntu` is refused.
+	// A distribution carries its version, so a bare `ubuntu` is refused.
 	allowedOsDistros = map[string]bool{
 		"ubuntu20.04": true, "ubuntu18.04": true, "centos8": true, "centos7": true,
 		"rockylinux8": true, "debian10": true, "win2k19": true, "windows": true,
 	}
 	allowedVisibility = map[string]bool{"public": true, "private": true, "shared": true, "community": true}
-	// The four paths the update endpoint accepts. Everything else about an
-	// image is fixed once it is created.
+	// The four paths update accepts.
 	allowedPatchPaths = map[string]bool{"/name": true, "/os_distro": true, "/min_disk": true, "/visibility": true}
 )
 
@@ -84,8 +65,7 @@ type fakeImage struct {
 	Visibility string
 	Uefi       bool
 	Status     string
-	// Bytes actually uploaded. Zero until the file arrives, which is what makes
-	// a freshly created image report "0 MB".
+	// Zero until the file arrives, which is what makes a new image report "0 MB".
 	Bytes int64
 
 	// Pending status change, counted down in details reads.
@@ -99,12 +79,8 @@ type fakeImage struct {
 	deleteDelay int
 }
 
-// tick advances every pending change by one read. The caller reports the image
-// before calling this, so a change with a delay of n is invisible for n reads.
-//
-// The counters advance together rather than in turn, so that waiting for one
-// change cannot settle another — which is how a wait that watches the wrong
-// thing gets covered by one that watches the right thing.
+// tick advances every pending change by one read. They advance together, so
+// waiting on one cannot settle another.
 func (i *fakeImage) tick() {
 	if i.deleteDelay > 0 {
 		i.deleteDelay--
@@ -137,14 +113,8 @@ func (i *fakeImage) tick() {
 	}
 }
 
-// detailsImage is a struct rather than a map on purpose: Go sorts map keys
-// alphabetically, and a fixture that reorders fields hides the class of bug
-// where a field that fails to decode takes everything declared after it with
-// it. The field order here matches the API's.
-//
-// osType is `any` with omitempty because the details endpoint builds it from a
-// value that is usually absent, and an absent value in JavaScript leaves the
-// key out of the response rather than sending an empty string.
+// detailsImage is a struct so the field order is the API's: a field that fails
+// to decode takes everything declared after it with it.
 type detailsImage struct {
 	ID            string      `json:"id"`
 	Name          string      `json:"name"`
@@ -158,10 +128,8 @@ type detailsImage struct {
 	Uefi          bool        `json:"uefi"`
 }
 
-// createdImageBody is what create answers with: the storage layer's own image
-// object, not the shape either read endpoint uses. A struct rather than a map
-// so the field order is the API's — `id` arrives well down the response, which
-// is the case the provider's id parser has to survive.
+// createdImageBody is what create answers with: the raw image object, `id` well
+// down the response rather than at the front.
 type createdImageBody struct {
 	OsDistro        string      `json:"os_distro"`
 	Name            string      `json:"name"`
@@ -188,9 +156,8 @@ type createdImageBody struct {
 	Schema          string      `json:"schema"`
 }
 
-// listImage is the same image as the list endpoint reports it. Two differences
-// from the details shape, both real: the distro is under a different key, and
-// osType is filled in from the distro when the platform has none.
+// listImage is the same image as list reports it: a different distro key, and
+// osType filled in.
 type listImage struct {
 	ID            string      `json:"id"`
 	Name          string      `json:"name"`
@@ -204,17 +171,8 @@ type listImage struct {
 	Uefi          bool        `json:"uefi"`
 }
 
-// notFound writes the body the images endpoints really send for a missing
-// image, copied from the live API.
-//
-// Deliberately not the nested itemNotFound body the volume and snapshot fakes
-// use. These routes hand the platform's own error straight back, and the
-// platform answers with an **HTML page** — so `error` is a string, there is no
-// numeric code anywhere in the body, and dterr.IsNotFound has nothing to read.
-// What saves it is that the page carries its status in the title.
-//
-// That is the whole classification for this service, which is why it also has
-// a test of its own rather than only being exercised through here.
+// notFound is the body these routes send for a missing image: an HTML page
+// wrapped in a string, carrying its status only in the title.
 func notFound(w http.ResponseWriter, id string) {
 	acctest.WriteJSON(w, http.StatusNotFound, map[string]any{
 		"error": fmt.Sprintf("<html>\n <head>\n  <title>404 Not Found</title>\n </head>\n"+
@@ -224,9 +182,8 @@ func notFound(w http.ResponseWriter, id string) {
 	})
 }
 
-// validationError reproduces the API's rejection body, including the leading
-// space and trailing comma the real one carries: the middleware builds the
-// string by reducing its validator's details.
+// validationError reproduces the rejection body, leading space and trailing
+// comma included.
 func validationError(w http.ResponseWriter, message string) {
 	acctest.WriteJSON(w, http.StatusNotAcceptable, map[string]any{
 		"error": " " + message + ",",
@@ -241,9 +198,8 @@ func badRequest(w http.ResponseWriter, message string) {
 	})
 }
 
-// formatSize renders a byte count the way the API does: decimal GB with one
-// decimal place above a billion bytes, whole MB below it. An image with no data
-// therefore reads as "0 MB" rather than as nothing.
+// formatSize renders a byte count as the API does: GB above a billion bytes,
+// whole MB below.
 func formatSize(bytes int64) string {
 	if bytes >= 1000000000 {
 		return fmt.Sprintf("%.1f GB", float64(bytes)/1000000000)
@@ -251,8 +207,7 @@ func formatSize(bytes int64) string {
 	return fmt.Sprintf("%.0f MB", float64(bytes)/1000000)
 }
 
-// formatMinVolumeSize renders min_disk the way the API does — as text, with a
-// dash standing in for "none".
+// formatMinVolumeSize renders min_disk as text, with a dash for "none".
 func formatMinVolumeSize(minDisk int) string {
 	if minDisk == 0 {
 		return "-"
@@ -260,8 +215,7 @@ func formatMinVolumeSize(minDisk int) string {
 	return fmt.Sprintf("%d GB", minDisk)
 }
 
-// displayType is the category the API derives from the disk format. It is not
-// the disk format, which is why the provider cannot round-trip that argument.
+// displayType is the category derived from the disk format, not the format.
 func displayType(diskFormat string) string {
 	if diskFormat == "iso" {
 		return "ISO"
@@ -269,8 +223,7 @@ func displayType(diskFormat string) string {
 	return "Template (VM)"
 }
 
-// derivedOsType is the guess the list endpoint makes when the platform reports
-// no os_type. The details endpoint makes no such guess.
+// derivedOsType is the guess list makes when os_type is missing.
 func derivedOsType(osType, osDistro string) interface{} {
 	if osType != "" {
 		return osType
@@ -285,25 +238,6 @@ func derivedOsType(osType, osDistro string) interface{} {
 }
 
 // fakeImageAPI stands in for the images endpoints.
-//
-// The rules it enforces are the API's, not the ones the provider would find
-// convenient. In particular it reproduces:
-//
-//   - create opening an empty record that is `queued` and reports "0 MB",
-//     with the data arriving in a second request, and answering with the
-//     storage layer's own object rather than either read shape;
-//   - the upload endpoint taking the image id and the declared size from the
-//     query string, and refusing the request outright without the id;
-//   - an upload whose byte count does not match the declared size being
-//     rejected, and the image being deleted with it;
-//   - the update endpoint taking one field per request, from a list of four;
-//   - a patched value taking several reads to appear while the status stays
-//     `active` throughout;
-//   - the list and details endpoints disagreeing about the distro's key and
-//     about os_type;
-//   - every size being text, never a number;
-//   - a missing image answering with the platform's own HTML error page wrapped
-//     in a string, rather than the nested body the other services send.
 type fakeImageAPI struct {
 	mu     sync.Mutex
 	images map[string]*fakeImage
@@ -315,28 +249,20 @@ type fakeImageAPI struct {
 	deletes  int
 	detailsN int
 
-	// patchPaths records every path the provider patched, in order, so a test
-	// can show that one request went out per changed field.
+	// patchPaths records every path patched, in order.
 	patchPaths []string
 
-	// readsAfterDelete counts reads of an image once its delete has been
-	// accepted, and servedGone counts the 404s handed back once it has
-	// actually gone. Together they say whether the provider polled the delete
-	// through to the end or returned as soon as the request was accepted.
+	// Together these say whether the provider polled the delete through to the end.
 	readsAfterDelete int
 	servedGone       int
 
-	// uploadSawFileSize records whether the upload request declared a size.
-	// The API tolerates its absence; the SDK is expected to send it, and
-	// without it the platform cannot refuse an oversized file early.
+	// uploadSawFileSize records whether the upload declared a size.
 	uploadSawFileSize bool
 
-	// maxBytes is the upload ceiling this instance enforces. A test lowers it
-	// to show the refusal without producing a file of that size.
+	// maxBytes is the upload ceiling this instance enforces.
 	maxBytes int64
 
-	// versions is the platform's own catalogue, which is a different list from
-	// the images above and comes from a different table.
+	// versions is a separate catalogue from the images above.
 	versions map[string][]map[string]any
 }
 
@@ -345,12 +271,9 @@ func newFakeImageAPI() *fakeImageAPI {
 		images:   map[string]*fakeImage{},
 		maxBytes: defaultMaxUploadBytes,
 		versions: map[string][]map[string]any{
-			// The entry's own `type` is a display category, not an operating
-			// system — the same two words the image endpoints report.
+			// A display category, not an operating system.
 			"ubuntu": {
-				// An array of flavor ids. Not a shape seen on the platform,
-				// where every entry holds null; kept because the column is
-				// untyped and a read must not fail on a value it did not write.
+				// The column is untyped: a read must not fail on a value it did not write.
 				{"id": "img-cat-0001", "version": "20.04", "type": "Template (VM)", "minVolumeSize": 20,
 					"validFlavorIds": []any{"flavor-1", "flavor-2"}},
 				// Null, which is what every entry really holds.
@@ -371,8 +294,7 @@ func (f *fakeImageAPI) nextID() string {
 	return fmt.Sprintf("img-%04d", f.seq)
 }
 
-// seed adds an image the provider did not create, standing in for one that was
-// already on the platform.
+// seed adds an image the provider did not create.
 func (f *fakeImageAPI) seed(img *fakeImage) *fakeImage {
 	if img.ID == "" {
 		img.ID = f.nextID()
@@ -467,9 +389,7 @@ func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
 	}
 	visibility, _ := body["visibility"].(string)
 	if visibility == "" {
-		// Omitting the field does not mean private: the service fills in
-		// `shared`, and a provider whose default said otherwise would drift on
-		// its first read.
+		// The service fills in `shared`; a different default here would drift.
 		visibility = "shared"
 	}
 	if !allowedVisibility[visibility] {
@@ -477,9 +397,7 @@ func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The guard the route applies before a single byte is sent. It can only
-	// work if the caller declares the size here, which is why the provider
-	// puts it in the create body as well as on the upload request.
+	// The guard only works if the caller declares the size.
 	if declared, ok := body["fileSize"].(float64); ok && int64(declared) > f.maxBytes {
 		acctest.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 			"error": uploadLimitMessage(f.maxBytes),
@@ -498,17 +416,14 @@ func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
 		MinDisk:    int(minDisk),
 		Visibility: visibility,
 		Uefi:       uefi,
-		// The record exists and holds nothing. It stays this way until the file
-		// arrives, and nothing can be built from it in the meantime.
+		// The record exists and holds nothing until the file arrives.
 		Status:  "queued",
 		pending: map[string]*pendingValue{},
 	}
 	f.images[img.ID] = img
 	f.creates++
 
-	// The raw image object the storage layer produced, passed through without a
-	// wrapper. Copied from the live API: 23 fields, with `id` sixteen fields in
-	// rather than at the front, and the timestamps behind it.
+	// The raw image object, unwrapped: 23 fields with `id` sixteen in.
 	acctest.WriteJSON(w, http.StatusOK, createdImageBody{
 		OsDistro:        img.OsDistro,
 		Name:            img.Name,
@@ -523,8 +438,7 @@ func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
 		Owner:     "25dc6c29facb4ec5b3eb605ae85d2072",
 		OsHidden:  false,
 		ID:        img.ID,
-		// Unlike every other timestamp in this API, these carry a timezone.
-		// Nothing reads them, and they are here because the response has them.
+		// The only timestamps here carrying a timezone. Nothing reads them.
 		CreatedAt: "2026-07-08T10:35:17Z",
 		UpdatedAt: "2026-07-08T10:35:17Z",
 		// An array, never null — the field the platform validates as one.
@@ -535,9 +449,8 @@ func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// upload takes the file. The id and the declared size come from the query
-// string; anything sent in the multipart body instead is ignored, which is
-// exactly what makes a client that puts them there fail with a 400.
+// upload takes the file. Id and size come from the query string; anything in
+// the multipart body is ignored.
 func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("imageId")
 	if id == "" {
@@ -567,8 +480,7 @@ func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Counted from the stream rather than taken from a header, so a client that
-	// understates the size cannot get past the check below.
+	// Counted from the stream, so an understated size cannot get past the check.
 	uploaded, err := io.Copy(io.Discard, file)
 	if err != nil {
 		badRequest(w, "read error")
@@ -580,8 +492,7 @@ func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if declared >= 0 && uploaded != declared {
-		// The API refuses a body that does not match the size the caller
-		// promised, and takes the image down with it.
+		// A body that does not match takes the image down with it.
 		f.rejectUpload(w, img, http.StatusBadRequest,
 			"Uploaded file does not match the declared fileSize")
 		return
@@ -589,8 +500,7 @@ func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
 
 	f.uploads++
 	img.Bytes = uploaded
-	// The data is in; the platform still has work to do before the image can
-	// be booted from.
+	// The data is in; the platform still has work before it can be booted from.
 	img.Status = "saving"
 	img.pendingStatus = "active"
 	img.statusDelay = settleReads
@@ -598,9 +508,7 @@ func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"msg": "Upload started"})
 }
 
-// rejectUpload refuses an upload and deletes the image with it, which is what
-// the API does on every failed upload path. A provider that kept the id in
-// state after one would be pointing at nothing.
+// rejectUpload refuses an upload and deletes the image with it.
 func (f *fakeImageAPI) rejectUpload(w http.ResponseWriter, img *fakeImage, status int, message string) {
 	img.deleted = true
 	acctest.WriteJSON(w, status, map[string]any{"error": message, "code": "UPLOAD_REJECTED"})
@@ -612,8 +520,7 @@ func (f *fakeImageAPI) detailsView(img *fakeImage) detailsImage {
 		Name:   img.Name,
 		Status: img.Status,
 		Size:   formatSize(img.Bytes),
-		// No guess here: the details endpoint reports whatever the platform
-		// holds, which for an uploaded image is nothing.
+		// Details reports whatever is held, which for an uploaded image is nothing.
 		OsType:        nilIfEmpty(img.OsType),
 		MinVolumeSize: formatMinVolumeSize(img.MinDisk),
 		Type:          displayType(img.DiskFormat),
@@ -640,15 +547,13 @@ func (f *fakeImageAPI) details(w http.ResponseWriter, id string) {
 		f.readsAfterDelete++
 	}
 	view := f.detailsView(img)
-	// Reported before the tick, so a change with a delay of n really is
-	// invisible for n reads.
+	// Reported before the tick, so a delay of n really is invisible for n reads.
 	img.tick()
 	acctest.WriteJSON(w, http.StatusOK, view)
 }
 
 func (f *fakeImageAPI) list(w http.ResponseWriter) {
-	// The endpoint takes no filter worth having and no sort: everything visible
-	// comes back in insertion order, and filtering is the provider's problem.
+	// No filter and no sort: everything comes back in insertion order.
 	out := []listImage{}
 	for i := 1; i <= f.seq; i++ {
 		img, ok := f.images[fmt.Sprintf("img-%04d", i)]
@@ -673,8 +578,7 @@ func (f *fakeImageAPI) list(w http.ResponseWriter) {
 	acctest.WriteJSON(w, http.StatusOK, out)
 }
 
-// update patches one field. The endpoint has no way to take two, which is why
-// the provider sends a request per changed field.
+// update patches one field; the endpoint has no way to take two.
 func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string) {
 	img := f.get(w, id)
 	if img == nil {
@@ -716,8 +620,7 @@ func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string)
 			return
 		}
 	case "/min_disk":
-		// The platform checks this, the update schema does not — it validates
-		// only that a value is a string or a number.
+		// Checked by the platform, not by the update schema.
 		size, ok := body.Value.(float64)
 		if !ok || size < 1 || size > 512 {
 			validationError(w, "'min_disk' must be between 1 and 512")
@@ -739,14 +642,10 @@ func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string)
 
 	f.updates++
 	f.patchPaths = append(f.patchPaths, body.Path)
-	// The new value takes several reads to appear, and the status does not move
-	// while it does. A waiter that watched the status would be satisfied at
-	// once, having waited for nothing.
+	// The value takes several reads to appear, and the status does not move.
 	img.pending[body.Path] = &pendingValue{value: body.Value, delay: valueSettleReads}
 
-	// The response is the platform's raw object rather than the shape the read
-	// endpoints use, so a provider that filled state from this body instead of
-	// re-reading gets a different set of keys and notices.
+	// The raw object rather than a read shape, so state filled from it differs.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"id":          img.ID,
 		"name":        img.Name,
@@ -758,9 +657,7 @@ func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string)
 	})
 }
 
-// delete answers with a bare status code and no body, then lets the image
-// linger for a few reads. The status does not change while it does: nothing
-// but the image disappearing tells a caller the delete finished.
+// delete answers with no body, then lets the image linger for a few reads.
 func (f *fakeImageAPI) delete(w http.ResponseWriter, id string) {
 	img := f.get(w, id)
 	if img == nil {

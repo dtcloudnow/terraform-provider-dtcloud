@@ -11,9 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// association renders the resource with whatever port block is passed in, so
-// the same configuration can be allocated bare, pointed at a port, moved, and
-// released.
+// association renders the resource with whatever port block is passed in, so the
+// same configuration can be allocated bare, pointed at a port, moved and released.
 func association(endpoint, extra string) string {
 	return acctest.ProviderConfig(endpoint) + fmt.Sprintf(`
 resource "dtcloud_elastic_ip" "test" {
@@ -31,9 +30,9 @@ data "dtcloud_elastic_ips" "all" {
 `, extra)
 }
 
-// TestAccDtcloudElasticIP_lifecycle is the ticket end to end: allocate,
-// associate, move, disassociate, release — and, throughout, the address must
-// never change, because the address is the whole point of the resource.
+// TestAccDtcloudElasticIP_lifecycle drives allocate → associate → move →
+// disassociate → release. Throughout, the address must never change: the address
+// is the whole point of the resource.
 func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 	api := newFakeElasticIPAPI().
 		withPort("port-web", "vm-web", "web-01", "VM", "10.0.0.11").
@@ -57,9 +56,8 @@ func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 		},
 		Steps: []resource.TestStep{
 			{
-				// Allocated and pointed at nothing. DOWN is the resting state
-				// here, not a failure — a waiter that insisted on ACTIVE would
-				// hang forever on this perfectly normal address.
+				// Allocated and pointed at nothing. DOWN is the resting state here,
+				// so a waiter that insisted on ACTIVE would hang on a normal address.
 				Config: association(server.URL, ""),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "status", "DOWN"),
@@ -89,9 +87,9 @@ func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "status", "ACTIVE"),
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "port_id", "port-web"),
-					// Read out of the raw body: dt-go types port_details as a
-					// string and the API sends an object, so the typed field is
-					// nil exactly when it has something in it.
+					// Read out of the raw body: dt-go types port_details as a string
+					// and the API sends an object, so the typed field is nil exactly
+					// when it has something in it.
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "device_id", "vm-web"),
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "device_owner", "compute:nova"),
 					// Not given, so the platform chose it.
@@ -106,9 +104,7 @@ func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 			},
 			{
 				// Move it to another machine. Still an update, still the same
-				// address — releasing and re-allocating would hand back a
-				// different one, which is the failure this resource exists to
-				// avoid.
+				// address — releasing and re-allocating would hand back a different one.
 				Config: association(server.URL, `  port_id = "port-api"`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "port_id", "port-api"),
@@ -119,8 +115,8 @@ func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Disassociate by removing the argument. The endpoint has no
-				// partial mode, so this has to go out as an empty object.
+				// Disassociate by removing the argument. There is no partial mode,
+				// so this has to go out as an empty object.
 				Config: association(server.URL, ""),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.test", "port_id", ""),
@@ -153,9 +149,8 @@ func TestAccDtcloudElasticIP_lifecycle(t *testing.T) {
 	})
 }
 
-// checkAddressSurvived asserts the resource was updated rather than replaced.
-// A replacement would allocate a different public address, which is the one
-// thing that must never happen silently.
+// checkAddressSurvived asserts the resource was updated rather than replaced. A
+// replacement would allocate a different public address.
 func checkAddressSurvived(address, id *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources["dtcloud_elastic_ip.test"]
@@ -170,8 +165,7 @@ func checkAddressSurvived(address, id *string) resource.TestCheckFunc {
 }
 
 // TestAccDtcloudElasticIP_associatedAtCreate covers allocating and associating
-// in one call, which the create route supports and which skips the update path
-// entirely.
+// in one call, which skips the update path entirely.
 func TestAccDtcloudElasticIP_associatedAtCreate(t *testing.T) {
 	api := newFakeElasticIPAPI().withPort("port-lb", "lb-1", "public-lb", "LB", "10.0.0.50")
 	server := httptest.NewServer(api)
@@ -197,8 +191,8 @@ data "dtcloud_elastic_ips" "attached" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.lb", "status", "ACTIVE"),
 					resource.TestCheckResourceAttr("dtcloud_elastic_ip.lb", "device_owner", "Octavia"),
-					// A load balancer, not a VM — the address does not care, and
-					// neither should the resource.
+					// A load balancer, not a VM — the address does not care, and neither
+					// should the resource.
 					resource.TestCheckResourceAttr("data.dtcloud_elastic_ips.attached", "elastic_ips.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_elastic_ips.attached", "elastic_ips.0.assigned_to", "public-lb"),
 				),
@@ -223,9 +217,9 @@ data "dtcloud_elastic_ips" "attached" {
 	})
 }
 
-// TestAccDtcloudElasticIP_unusedFilter covers the question the plural data
-// source is really for: which allocated addresses is nothing using. An idle
-// address still costs quota and still bills.
+// TestAccDtcloudElasticIP_unusedFilter covers what the plural data source is
+// really for: which allocated addresses nothing is using. An idle address still
+// costs quota and still bills.
 func TestAccDtcloudElasticIP_unusedFilter(t *testing.T) {
 	api := newFakeElasticIPAPI().withPort("port-web", "vm-web", "web-01", "VM", "10.0.0.11")
 	server := httptest.NewServer(api)
@@ -261,8 +255,8 @@ data "dtcloud_elastic_ips" "none_attached" {
 					resource.TestCheckResourceAttr("data.dtcloud_elastic_ips.idle", "elastic_ips.#", "1"),
 					resource.TestCheckResourceAttrPair(
 						"data.dtcloud_elastic_ips.idle", "ids.0", "dtcloud_elastic_ip.idle", "id"),
-					// "none" is the only way to ask for the empty string the API
-					// reports for an unattached address.
+					// "none" is the only way to ask for the empty string the API reports
+					// for an unattached address.
 					resource.TestCheckResourceAttr("data.dtcloud_elastic_ips.none_attached", "elastic_ips.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_elastic_ips.none_attached", "elastic_ips.0.fixed_ip_address", ""),
 				),
@@ -271,9 +265,8 @@ data "dtcloud_elastic_ips" "none_attached" {
 	})
 }
 
-// TestAccDtcloudElasticIP_fixedIPNeedsPort pins the one plan-time rule. Sent to
-// the platform on its own, a fixed address is accepted and ignored, which is
-// the worst of the three possible outcomes.
+// TestAccDtcloudElasticIP_fixedIPNeedsPort pins the one plan-time rule: on its
+// own a fixed address is accepted and ignored, the worst of the outcomes.
 func TestAccDtcloudElasticIP_fixedIPNeedsPort(t *testing.T) {
 	api := newFakeElasticIPAPI()
 	server := httptest.NewServer(api)
@@ -297,12 +290,9 @@ resource "dtcloud_elastic_ip" "bad" {
 
 // TestAccDtcloudElasticIP_multiAddressPort covers a refusal that only shows up
 // on real infrastructure: a port carrying more than one IPv4 address will not
-// take a floating IP unless the request says which address to map to.
-//
-// Found on DEV, on a VM interface with four addresses. It is not something the
-// provider can pre-empt — the port's addresses are not knowable at plan time —
-// so the platform's message is what the user gets, and it is a good one. What
-// this pins is that supplying fixed_ip_address resolves it.
+// take a floating IP unless the request says which address to map to. The
+// provider cannot pre-empt it — a port's addresses are not knowable at plan
+// time — so what this pins is that supplying fixed_ip_address resolves it.
 func TestAccDtcloudElasticIP_multiAddressPort(t *testing.T) {
 	api := newFakeElasticIPAPI().withMultiIPPort("port-many", "vm-many", "many-01", "193.168.1.25")
 	server := httptest.NewServer(api)
@@ -337,10 +327,9 @@ resource "dtcloud_elastic_ip" "good" {
 	})
 }
 
-// TestAccDtcloudElasticIP_releasedOutside covers the address someone released
-// in the panel. The 404 arrives Neutron-shaped with no numeric code anywhere,
-// so dterr.IsNotFound has only the message text to go on; if that stops
-// matching, this becomes a hard error instead of a rebuild.
+// TestAccDtcloudElasticIP_releasedOutside covers an address someone released in
+// the panel. The 404 carries no numeric code anywhere, so dterr.IsNotFound has
+// only the message text to go on.
 func TestAccDtcloudElasticIP_releasedOutside(t *testing.T) {
 	api := newFakeElasticIPAPI()
 	server := httptest.NewServer(api)
