@@ -1,19 +1,11 @@
 // Package image implements the dtcloud_image resource and its data sources.
 //
-// An image is created in two calls, not one. The create endpoint only opens an
-// empty record — the image is `queued` and no machine can boot from it — and
-// the disk file goes up in a separate upload request. A resource that stopped
-// after create would leave a record nothing could ever use, so create here
-// always uploads and always waits for `active`.
+// An image takes two calls to create: one opens an empty `queued` record, the
+// other uploads the file. Create does both and waits for `active`.
 //
-// Three API behaviours shape the rest of the code:
-//
-//   - The upload endpoint deletes the image if anything goes wrong, so a failed
-//     create leaves nothing behind on the platform.
-//   - Only four fields can be changed in place: name, os_distro, min_disk and
-//     visibility, one request each. Everything else is ForceNew.
-//   - Sizes are reported as formatted strings ("20 GB", "250 MB") and never as
-//     numbers, so min_disk has to be parsed back out of one to be comparable.
+// Three API behaviours shape it: a failed upload deletes the image, so a failed
+// create leaves nothing; only name, os_distro, min_disk and visibility change in
+// place; and sizes are reported as strings, so min_disk has to be parsed.
 package image
 
 import (
@@ -30,35 +22,22 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// noHTMLPattern mirrors the character rule the API applies to an image name.
-// Enforcing it in the schema turns a request rejected halfway through an apply
-// into an error during plan.
+// noHTMLPattern mirrors the character rule on an image name, so a request
+// rejected halfway through an apply becomes an error during plan.
 const noHTMLPattern = `^[^<>&"']*$`
 
-// visibilities are the four values the API accepts. Unlike os_distro and
-// disk_format, this set is fixed in the code rather than read from the
-// platform's configuration, so it is safe to check during plan.
+// visibilities are the four values the API accepts. Fixed in code rather than
+// read from the platform, so it is safe to check during plan.
 var visibilities = []string{"public", "private", "shared", "community"}
 
 // imageSettled reports whether a status means the platform has finished.
-// `active` is the only usable resting state: an image in any other status
-// either has no data yet or cannot be booted from.
+// `active` is the only usable resting state.
 func imageSettled(status string) bool {
 	return strings.EqualFold(strings.TrimSpace(status), "active")
 }
 
-// imageFailed reports whether a status means the image will never become
-// active on its own.
-//
-// Only these four are terminal; every other status is treated as pending by
-// the waiters below. Enumerating the transitional ones instead would mean an
-// unfamiliar status failed the wait rather than being waited out.
-//
-//   - killed        the upload failed and the data was discarded
-//   - deleted       the image was removed, which is what the API does to its
-//     own record when an upload is rejected
-//   - pending_delete
-//   - deactivated   an administrator took it out of service
+// imageFailed reports whether a status is terminal. Every other status counts
+// as pending, so an unfamiliar one is waited out rather than failed.
 func imageFailed(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "killed", "deleted", "pending_delete", "deactivated":
@@ -67,12 +46,8 @@ func imageFailed(status string) bool {
 	return false
 }
 
-// createdImageID reads the new image's id out of a create response.
-//
-// The endpoint answers with the platform's raw image object rather than the
-// wrapped shape the other services use, and nothing in the SDK is typed for it,
-// so the body is parsed here. A resource that started life with an empty id is
-// one Terraform would create a second time on the next apply.
+// createdImageID reads the new image's id out of a create response, which is
+// the raw image object rather than the wrapped shape the other services use.
 func createdImageID(body string) (string, error) {
 	var bare struct {
 		ID      string `json:"id"`
@@ -92,13 +67,8 @@ func createdImageID(body string) (string, error) {
 	return "", fmt.Errorf("no image id in the API response (body: %s)", body)
 }
 
-// parseSizeGB turns the API's size strings back into whole GB.
-//
-// Every size on an image is reported as text: min_disk comes back as
-// "20 GB" and as "-" when it was never set, and the payload size as "1.5 GB"
-// or "250 MB". Anything that is not a whole number of GB — including a
-// megabyte figure and the placeholder — reads as 0, which is what callers
-// compare against when the platform has nothing to report.
+// parseSizeGB turns the API's size strings back into whole GB. Anything that is
+// not a whole number of GB — "1.5 GB", "250 MB", "-" — reads as 0.
 func parseSizeGB(value string) int {
 	fields := strings.Fields(strings.TrimSpace(value))
 	if len(fields) != 2 || !strings.EqualFold(fields[1], "GB") {
@@ -112,16 +82,8 @@ func parseSizeGB(value string) int {
 }
 
 // waitForImage blocks until the image is at rest and `settled` agrees the
-// requested change has landed.
-//
-// The second condition is what makes this useful on an update: the four
-// updatable fields are patched while the image sits at `active` throughout, so
-// a wait that watched only the status would return before anything had
-// changed. Callers pass the values they asked for.
-//
-// A nil `settled` means any resting state will do, which is what create wants —
-// there the status really is the thing being waited on, since an image goes
-// queued -> saving -> active as its data is written.
+// change has landed — both are needed on an update, where the image stays
+// `active` throughout. A nil `settled` accepts any resting state, for create.
 func waitForImage(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration, settled func(dtgo.GetImageDetails) bool) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -129,8 +91,8 @@ func waitForImage(ctx context.Context, client *dtgo.Client, id string, timeout t
 		Refresh: func() (interface{}, string, error) {
 			details, _, err := client.Image.GetImageDetails(ctx, id, nil)
 			if err != nil {
-				// An image that has not appeared yet is not a failure; create
-				// can return before the platform has committed the record.
+				// An image that has not appeared yet is not a failure; create can return
+				// before the platform has committed the record.
 				if dterr.IsNotFound(err) {
 					return "waiting", "waiting", nil
 				}
@@ -153,9 +115,8 @@ func waitForImage(ctx context.Context, client *dtgo.Client, id string, timeout t
 		Timeout:    timeout,
 		Delay:      2 * time.Second,
 		MinTimeout: 3 * time.Second,
-		// Two readings in a row, so a poll that lands in the gap between a
-		// request being accepted and the image leaving its resting status
-		// cannot end the wait on its own.
+		// Two readings in a row, so a poll that lands between a request being
+		// accepted and the image leaving its resting status cannot end the wait.
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -179,10 +140,8 @@ func waitForImageGone(ctx context.Context, client *dtgo.Client, id string, timeo
 			if details.ID == "" {
 				return "done", "done", nil
 			}
-			// The platform reports a deletion in progress as pending_delete and
-			// a finished one by dropping the image, so both count as done here.
-			// imageFailed is not consulted: its statuses all mean "gone or
-			// going", which during a delete is the outcome being waited for.
+			// A deletion in progress reports pending_delete and a finished one drops
+			// the image, so both count as done.
 			if strings.EqualFold(details.Status, "deleted") || strings.EqualFold(details.Status, "pending_delete") {
 				return "done", "done", nil
 			}

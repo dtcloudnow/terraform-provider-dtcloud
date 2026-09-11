@@ -12,16 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudElasticIPs lists the elastic IPs allocated to the caller.
-//
-// The most useful thing it answers is "what are we paying for that nothing is
-// using" — an allocated address that is not associated still occupies quota and
-// is still billed. `status = "DOWN"` is that question.
-//
-// Filters are applied here rather than by the API: the list route takes no
-// query parameters. Every address is fetched either way, and the API builds
-// each row from three further calls of its own, so this is not a cheap read —
-// prefer the singular data source when you already know which address you want.
+// DataSourceDtcloudElasticIPs lists the elastic IPs allocated to the caller;
+// `status = "DOWN"` selects the unassociated ones, which still occupy quota.
+// Filters are applied here, since the route takes no query parameters.
 func DataSourceDtcloudElasticIPs() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists the elastic IPs allocated to the caller.\n\n" +

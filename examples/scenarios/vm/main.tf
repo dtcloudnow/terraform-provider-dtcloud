@@ -47,8 +47,8 @@ resource "dtcloud_vm" "example" {
   flavor_id = var.flavor_id
   key_name  = dtcloud_ssh_key.example.name
 
-  # security_groups and at least one fixed_ip are required on every interface.
-  # An interface with no fixed IP comes up with no address at all.
+  # fixed_ip is optional now: leaving it out asks for one address and the
+  # platform allocates it. It is spelled out here so the block is visible.
   network {
     uuid            = var.network_id
     security_groups = [var.security_group_id]
@@ -109,10 +109,6 @@ resource "dtcloud_vm_network_interface" "extra" {
 
   vm_id      = dtcloud_vm.example.id
   network_id = var.extra_network_id
-
-  fixed_ip {
-    ip_version = 4
-  }
 }
 
 resource "dtcloud_vm_volume_attachment" "extra" {

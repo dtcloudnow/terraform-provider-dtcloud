@@ -12,9 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// checkTerraformOwnedGone asserts that everything this provider created has
-// been destroyed. Volumes seeded directly into the fake are skipped by name —
-// they stand in for infrastructure Terraform does not own.
+// checkTerraformOwnedGone asserts everything this provider created is gone.
+// Seeded volumes are skipped by name — Terraform does not own them.
 func checkTerraformOwnedGone(api *fakeVolumeAPI) func(*terraform.State) error {
 	return func(*terraform.State) error {
 		api.mu.Lock()
@@ -54,12 +53,6 @@ data "dtcloud_storage_policies" "all" {}
 
 // TestAccDtcloudVolume_lifecycle drives create → read → re-plan → in-place
 // rename, grow and retype → import → destroy.
-//
-// The update step is the one that matters. `osExtend` and `osRetype` are
-// accepted while the volume is `available` and it stays `available` afterwards,
-// so the fake holds the old size and policy for several reads. A waiter that
-// only watched the status would return early and the apply would then fail with
-// an inconsistent result — which is exactly what this test would report.
 func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -80,9 +73,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "bootable", "false"),
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "volume_type", "HDD"),
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "attached_to_id", ""),
-					// false from the details route, while the list route below
-					// says true for this very same volume. The two handlers
-					// compute it differently; see the note in the fake's list().
+					// false here, and true from the list route below for the same volume.
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "is_detachable", "false"),
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "created", acctest.FakeCreatedAt),
 					// A blank volume carries no image metadata at all.
@@ -94,8 +85,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("data.dtcloud_volume.test", "size", "20"),
 					resource.TestCheckResourceAttr("data.dtcloud_volume.test", "bootable", "false"),
 
-					// The list endpoint reports "20 GB"; the provider parses it
-					// so that `size` means the same thing everywhere.
+					// The list endpoint reports "20 GB"; the provider parses it.
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.all", "volumes.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.all", "volumes.0.size", "20"),
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.all", "volumes.0.name", "tf-acc-vol"),
@@ -110,8 +100,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 					func(*terraform.State) error {
 						api.mu.Lock()
 						defer api.mu.Unlock()
-						// The description is applied as a follow-up update,
-						// because create accepts no description field.
+						// Applied as a follow-up update: create accepts no description.
 						if api.updates != 1 {
 							return fmt.Errorf("expected one update call to set the description, saw %d", api.updates)
 						}
@@ -120,9 +109,8 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Re-applying the same config must be a no-op — in particular
-				// `description`, which the API never reports back, must not
-				// look like a change on every plan.
+				// Re-applying must be a no-op, `description` included — it is never reported
+				// back and must not look like a change on every plan.
 				Config:   volumeConfig(server.URL, "tf-acc-vol", "standard", "first", 20),
 				PlanOnly: true,
 			},
@@ -142,15 +130,8 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Grow, and nothing else.
-				//
-				// This step is deliberately on its own. Changing the size and
-				// the policy together made the test useless: the retype wait
-				// polled long enough for the size to settle behind it, so
-				// reverting the size wait to a status-only one still passed.
-				// With only the size changing there is nothing to hide behind —
-				// a status-only wait returns while the volume still reports
-				// 20 GB, and the apply fails on an inconsistent result.
+				// Grow, and nothing else. On its own deliberately: changing the size and the
+				// policy together lets the retype wait hide a broken size wait.
 				Config: volumeConfig(server.URL, "tf-acc-vol-renamed", "standard", "second", 40),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "size", "40"),
@@ -169,7 +150,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Retype, and nothing else — the same trap on the other field.
+				// Retype, and nothing else.
 				Config: volumeConfig(server.URL, "tf-acc-vol-renamed", "fast", "second", 40),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_volume.test", "storage_policy", "fast"),
@@ -195,9 +176,8 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 				ResourceName:      "dtcloud_volume.test",
 				ImportState:       true,
 				ImportStateVerify: true,
-				// The details endpoint builds its response field by field and
-				// leaves the description out, so there is nothing to import it
-				// from. Documented on the resource page rather than papered over.
+				// The details endpoint leaves the description out, so there is nothing to
+				// import it from. Documented on the resource page rather than papered over.
 				ImportStateVerifyIgnore: []string{"description"},
 			},
 		},
@@ -205,8 +185,7 @@ func TestAccDtcloudVolume_lifecycle(t *testing.T) {
 }
 
 // TestAccDtcloudVolume_fromImage covers the bootable path: a different create
-// status to wait through, a string "true" to turn into a bool, and the image
-// metadata block.
+// status, a string "true" to turn into a bool, and the image metadata block.
 func TestAccDtcloudVolume_fromImage(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -234,16 +213,13 @@ resource "dtcloud_volume" "boot" {
 					resource.TestCheckResourceAttr("dtcloud_volume.boot", "image_metadata.0.image_id", "img-1234"),
 					resource.TestCheckResourceAttr("dtcloud_volume.boot", "image_metadata.0.disk_format", "qcow2"),
 					resource.TestCheckResourceAttr("dtcloud_volume.boot", "image_metadata.0.os_distro", "ubuntu"),
-					// Reported as a string by OpenStack; kept as one.
+					// Reported as a string; kept as one.
 					resource.TestCheckResourceAttr("dtcloud_volume.boot", "image_metadata.0.min_ram", "512"),
 					resource.TestCheckResourceAttr("dtcloud_volume.boot", "status", "available"),
 				),
 			},
 			{
-				// `image_id` is never echoed back, so the only thing keeping it
-				// stable is that Read leaves it alone. If Read ever started
-				// setting it from image_metadata, this plan would propose a
-				// replacement.
+				// Never echoed back, so what keeps it stable is that Read leaves it alone.
 				Config:   config,
 				PlanOnly: true,
 			},
@@ -258,9 +234,8 @@ resource "dtcloud_volume" "boot" {
 	})
 }
 
-// TestAccDtcloudVolume_clone pins the second create shape. The clone route
-// answers with the raw OpenStack volume, keyed `id`, where create answers with
-// a built response keyed `volumeId`.
+// TestAccDtcloudVolume_clone pins the second create shape: clone answers with
+// the raw volume keyed `id` where create answers with `volumeId`.
 func TestAccDtcloudVolume_clone(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -308,9 +283,8 @@ resource "dtcloud_volume" "copy" {
 	})
 }
 
-// The VM a volume gets attached to in TestAccDtcloudVolume_attached. It never
-// exists as an object — only as the identity the details endpoint reports on an
-// attached volume, which is all this package ever sees of it.
+// The VM a volume gets attached to in TestAccDtcloudVolume_attached. It exists
+// only as the identity the details endpoint reports on an attached volume.
 const (
 	attachedVMName   = "tf-acc-web-01"
 	attachedVMID     = "vm-9f1c2b3a"
@@ -345,23 +319,9 @@ data "dtcloud_volumes" "on_vm" {
 }
 
 // TestAccDtcloudVolume_attached covers the half of this package that only
-// applies to a volume someone has attached to a VM.
-//
-// None of it was reachable before. Every volume in every other test is
-// detached, so `attached_to`, `attached_to_id`, `attached_to_status`, the true
-// branch of `is_detachable` and the `attached_to_id` filter were all dead, and
-// so was the most consequential one: volumeSettled treating `in-use` as a
-// resting state. Deleting `in-use` from that function used to leave the whole
-// suite green.
-//
-// That last one is not academic. Growing a disk that is in use is the ordinary
-// production case, and an attached volume stays `in-use` throughout the extend
-// rather than passing through `available` — so a waiter that does not accept
-// `in-use` hangs until timeout instead of returning.
-//
-// No VM is created. This package has no code that attaches anything; it only
-// reads the state the details endpoint reports, so the fake is put into that
-// state directly. See attachTo() for what that does and does not prove.
+// applies to an attached volume, including volumeSettled treating `in-use` as a
+// resting state — growing a disk in use is the ordinary production case, and it
+// never passes through `available`. No VM is created; see attachTo().
 func TestAccDtcloudVolume_attached(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -381,14 +341,12 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_volume.attached", "attached_to", ""),
 					resource.TestCheckResourceAttr("dtcloud_volume.attached", "attached_to_id", ""),
 					resource.TestCheckResourceAttr("dtcloud_volume.attached", "is_detachable", "false"),
-					// The filter has nothing to match yet, which is the half of
-					// it that proves it filters at all.
+					// Nothing to match yet, which is the half that proves it filters at all.
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.on_vm", "volumes.#", "0"),
 				),
 			},
 			{
-				// Attached out of band — by dtcloud_vm_volume_attachment, or by
-				// hand. Either way this package only ever sees the result.
+				// Attached out of band; this package only ever sees the result.
 				PreConfig: func() { api.attachTo(name, attachedVMName, attachedVMID, attachedVMStatus) },
 				Config:    attachedVolumeConfig(server.URL, name, "standard", 20),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -401,9 +359,7 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 					resource.TestCheckResourceAttr("data.dtcloud_volume.attached", "attached_to", attachedVMName),
 					resource.TestCheckResourceAttr("data.dtcloud_volume.attached", "is_detachable", "true"),
 
-					// Now it matches. The list route reports isDetachable as
-					// true for a detached volume and the details route as
-					// false, so the two disagree above and agree here.
+					// Now it matches. The two routes disagree above and agree here.
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.on_vm", "volumes.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.on_vm", "volumes.0.name", name),
 					resource.TestCheckResourceAttr("data.dtcloud_volumes.on_vm", "volumes.0.status", "in-use"),
@@ -411,9 +367,8 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 				),
 			},
 			{
-				// The step this test exists for: grow a volume that is in use.
-				// The status never leaves `in-use`, so the wait ends only if
-				// volumeSettled accepts it — and only once the size lands.
+				// The step this test exists for: grow a volume that is in use. The status
+				// never leaves `in-use`, so the wait ends only once the size lands.
 				Config: attachedVolumeConfig(server.URL, name, "standard", 40),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_volume.attached", "size", "40"),
@@ -433,23 +388,15 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 				),
 			},
 			{
-				// Destroying while still attached must be refused, and refused
-				// with something the reader can act on. The platform will not
-				// delete an in-use volume under any circumstances — the web
-				// console enforces the same rule — so the provider checks first
-				// rather than letting the platform answer with its generic
-				// five-condition complaint half-way through a destroy.
-				//
-				// It must not detach on its own either. Pulling a disk out of a
-				// running machine to make a destroy succeed is the same class of
-				// silent damage as shrinking a volume to satisfy a plan.
+				// Destroying while attached must be refused, and must not detach on its own:
+				// pulling a disk out of a running machine to satisfy a plan is the same class
+				// of silent damage as shrinking a volume.
 				Destroy:     true,
 				Config:      attachedVolumeConfig(server.URL, name, "standard", 40),
 				ExpectError: regexp.MustCompile(`still attached to .*detach it first`),
 			},
 			{
-				// Detached, which is the supported way round. Also required
-				// before the framework's own teardown can succeed.
+				// Detached, which is the supported way round.
 				PreConfig: func() { api.detach(name) },
 				Config:    attachedVolumeConfig(server.URL, name, "standard", 40),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -464,8 +411,7 @@ func TestAccDtcloudVolume_attached(t *testing.T) {
 }
 
 // TestAccDtcloudVolume_snapshots reads the snapshots of a volume Terraform does
-// not own, which is the case the data source exists for: seeing what a cascade
-// delete would take with it.
+// not own: seeing what a cascade delete would take with it.
 func TestAccDtcloudVolume_snapshots(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -497,9 +443,8 @@ data "dtcloud_volume_snapshots" "seen" {
 	})
 }
 
-// TestAccDtcloudVolume_shrinkRejected pins the rule that costs data if it is
-// got wrong. Shrinking is impossible, and the alternative to a plan-time error
-// would be a ForceNew that silently destroys the volume to satisfy the plan.
+// TestAccDtcloudVolume_shrinkRejected pins the rule that costs data if it is got
+// wrong: the alternative to a plan-time error is a ForceNew that destroys it.
 func TestAccDtcloudVolume_shrinkRejected(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -521,19 +466,8 @@ func TestAccDtcloudVolume_shrinkRejected(t *testing.T) {
 }
 
 // TestAccDtcloudVolume_shrinkRuleDoesNotBlockDestroy pins the other half of the
-// grow-only rule: it must reject a shrink and it must stay out of the way of a
-// destroy.
-//
-// Someone grows a disk outside Terraform; the configuration still
-// says the old size. From then on the refresh reports the larger size, every
-// plan looks like a shrink, and CustomizeDiff rejects it — including the plan
-// `terraform destroy` builds. The resource becomes impossible to destroy
-// without first editing the configuration to match a size the user never chose.
-//
-// The step below grows the volume behind Terraform's back and confirms a normal
-// plan still refuses. What proves the fix is what happens afterwards: the
-// framework's own teardown runs against that same mismatch, and a destroy plan
-// carries no configuration for the shrink rule to have an opinion about.
+// grow-only rule: reject a shrink, and stay out of the way of a destroy. A disk
+// grown outside Terraform makes every plan look like a shrink, teardown too.
 func TestAccDtcloudVolume_shrinkRuleDoesNotBlockDestroy(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -557,18 +491,14 @@ resource "dtcloud_volume" "oob" {
 				Check:  resource.TestCheckResourceAttr("dtcloud_volume.oob", "size", "20"),
 			},
 			{
-				// Grown outside Terraform. The configuration still says 20, so
-				// the next plan is a shrink and has to be refused.
+				// Grown outside Terraform, so the next plan is a shrink and has to be refused.
 				PreConfig:   func() { api.growOutOfBand(name, 40) },
 				Config:      config,
 				ExpectError: regexp.MustCompile(`size cannot be reduced from 40 to 20`),
 			},
 			{
-				// And now the point: the same mismatch must not stop a destroy.
-				// An explicit destroy step rather than the framework's own
-				// teardown, because the teardown does not refresh — it would
-				// plan from a state that still said 20 and never reach the
-				// disagreement this test is about.
+				// And now the point: the same mismatch must not stop a destroy. An explicit
+				// step, because the framework's own teardown does not refresh.
 				Destroy: true,
 				Config:  config,
 			},
@@ -576,8 +506,8 @@ resource "dtcloud_volume" "oob" {
 	})
 }
 
-// TestAccDtcloudVolume_validation covers the API rules worth catching
-// during plan rather than as a 406 part-way through an apply.
+// TestAccDtcloudVolume_validation covers the rules worth catching during plan
+// rather than part-way through an apply.
 func TestAccDtcloudVolume_validation(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -587,7 +517,7 @@ func TestAccDtcloudVolume_validation(t *testing.T) {
 		ProviderFactories: acctest.ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				// strictNoHtmlRegex on the name.
+				// The character rule on the name.
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_volume" "bad" {
   name           = "tf-acc-<script>"
@@ -610,7 +540,7 @@ resource "dtcloud_volume" "bad" {
 				ExpectError: regexp.MustCompile(`must not contain any of`),
 			},
 			{
-				// The API's minimum size.
+				// The minimum size.
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_volume" "bad" {
   name           = "tf-acc-vol"
@@ -621,7 +551,7 @@ resource "dtcloud_volume" "bad" {
 				ExpectError: regexp.MustCompile(`expected size to be in the range \(1 - 8192\)`),
 			},
 			{
-				// The API's maximum size.
+				// The maximum size.
 				Config: acctest.ProviderConfig(server.URL) + `
 resource "dtcloud_volume" "bad" {
   name           = "tf-acc-vol"
@@ -648,16 +578,9 @@ resource "dtcloud_volume" "bad" {
 	})
 }
 
-// TestAccDtcloudVolume_fromSnapshot covers the third create path.
-//
-// `source_snapshot_id` does not go to the volume create endpoint, which accepts
-// no snapshot id. It goes to the snapshot service, and the response is the raw
-// volume object keyed `id` — the clone shape from a third endpoint, with
-// nothing typed for createdVolumeID to prefer.
-//
-// The restore itself is exercised rather than asserted about from the outside:
-// if the provider sent the request to POST /volumes instead, `creates` would
-// move and `restores` would not.
+// TestAccDtcloudVolume_fromSnapshot covers the third create path: the restore
+// goes to the snapshot service and answers with the raw volume keyed `id`. The
+// counters prove where the request went.
 func TestAccDtcloudVolume_fromSnapshot(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)
@@ -698,10 +621,8 @@ resource "dtcloud_volume" "restored" {
 				),
 			},
 			{
-				// A restored volume is an ordinary volume; nothing on it points
-				// back at the snapshot. So `source_snapshot_id` cannot be read
-				// back and the re-plan has to stay empty on the strength of the
-				// resource never trying to.
+				// Nothing on a restored volume points back at the snapshot, so the re-plan
+				// stays empty only because the resource never tries to read it back.
 				Config:   config,
 				PlanOnly: true,
 			},
@@ -710,8 +631,7 @@ resource "dtcloud_volume" "restored" {
 }
 
 // TestAccDtcloudVolume_sourcesAreMutuallyExclusive pins the ConflictsWith wiring
-// on all three create-time sources. Each pair is a different endpoint, and a
-// configuration naming two of them has no defensible meaning.
+// on all three create-time sources.
 func TestAccDtcloudVolume_sourcesAreMutuallyExclusive(t *testing.T) {
 	api := newFakeVolumeAPI()
 	server := httptest.NewServer(api)

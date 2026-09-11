@@ -10,12 +10,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudNetwork looks up one network by id.
-//
-// Use it to reference a network Terraform did not create — which is the common
-// case, since networks tend to outlive the things attached to them. Declaring
-// one as a resource instead would hand Terraform ownership of it, and a later
-// `terraform destroy` would take it down along with everything else.
+// DataSourceDtcloudNetwork looks up one network by id, for networks this
+// configuration does not own — the common case, since networks outlive the
+// things attached to them.
 func DataSourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
 		Description: "Looks up one network by id.\n\n" +

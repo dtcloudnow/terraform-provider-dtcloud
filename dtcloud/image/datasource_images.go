@@ -11,18 +11,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudImages lists every image visible to the caller.
-//
-// Every filter below is applied by the provider rather than passed to the API.
-// The endpoint does take a visibility parameter, but it only distinguishes
-// public images from the rest: asking it for `private` returns the private,
-// shared and community ones together. Filtering here means `visibility =
-// "private"` returns private images, which is what it says.
-//
-// The list endpoint reports two fields the details endpoint does not:
-// `os_distro` is spelled differently there, and `os_type` is guessed from it
-// when the platform leaves it empty. `dtcloud_image` reads details and can
-// therefore report an empty `os_type` for the same image.
+// DataSourceDtcloudImages lists every image visible to the caller. Filters are
+// applied here, since the API's visibility parameter only separates public from
+// the rest. The list endpoint guesses `os_type` where the platform left it
+// empty, so dtcloud_image can report an empty one for the same image.
 func DataSourceDtcloudImages() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists every image visible to the caller.\n\n" +

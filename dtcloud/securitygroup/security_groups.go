@@ -1,41 +1,14 @@
 // Package securitygroup implements the dtcloud_security_group and
 // dtcloud_security_group_rule resources and their data sources.
 //
-// # Why rules are their own resource
+// Rules are a separate resource: they are only ever created or destroyed, and as
+// blocks on the group every rule change would read as a change to the group.
 //
-// A rule has its own lifecycle. The API has POST /rules and DELETE /rules/{id}
-// and *no* update endpoint, so a rule is only ever created or destroyed —
-// modelling rules as blocks on the group would mean the provider computing the
-// difference between two sets and issuing creates and deletes to close it, and
-// every rule change would read as a change to the group. As separate resources,
-// adding or removing one rule disturbs neither the group nor the other rules.
-// terraform-provider-openstack, over the same Neutron API, splits them the same
-// way.
+// The two read endpoints disagree. The details endpoint renders rules for
+// display and none of it converts back into a rule, so the group exposes them as
+// a read-only snapshot and the rule resource reads the raw endpoint.
 //
-// # The two read endpoints disagree, on purpose
-//
-// This is the thing to understand before reading anything else here.
-//
-//	GET /securitygroups/{id}/details  ->  cooked, lossy, for display
-//	GET /securitygroups/{id}/rules    ->  raw Neutron, round-trips
-//
-// `getSecurityGroupDetailsForClient` builds its rules for the web panel: it
-// splits them into inbound/outbound, turns a protocol and port into a *display
-// name* ("SSH", "ALL TCP", "ANY"), renders the port range as a string, and
-// resolves a rule's source to the *name* of the security group it references.
-// Worse, those display names are read out of the platform's `parameters` table,
-// so 22 is "SSH" only until someone edits a row.
-//
-// None of that can be turned back into a rule. So the group resource and its
-// data sources expose the cooked rules as a **read-only display snapshot**, and
-// dtcloud_security_group_rule reads the raw endpoint, which reports the fields
-// it was created with.
-//
-// # Everything here is synchronous
-//
-// Unlike networks and VMs, none of these routes calls socketUtils: Neutron
-// answers when the work is done and the response is the final state. There are
-// no waiters in this package, and that is deliberate rather than an omission.
+// Every route here is synchronous, so there are no waiters.
 package securitygroup
 
 import (
@@ -48,35 +21,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// Rule directions, as Neutron names them.
+// Rule directions.
 const (
 	directionIngress = "ingress"
 	directionEgress  = "egress"
 )
 
-// Address families, as Neutron spells them — capitalised, and rejected in any
-// other casing by the API's Joi schema.
+// Address families — capitalised, and rejected in any other casing.
 const (
 	ethertypeIPv4 = "IPv4"
 	ethertypeIPv6 = "IPv6"
 )
 
-// nameCharset is the API's own restriction on names and descriptions:
-//
-//	Joi.string().pattern(/^[^<>&"']*$/)
-//
-// Applying it here turns a 406 from the API into a plan-time error.
+// nameCharset is the restriction on names and descriptions, applied here so a
+// rejected request becomes a plan-time error.
 var nameCharset = regexp.MustCompile(`^[^<>&"']*$`)
 
 const nameCharsetMessage = `must not contain <, >, &, ' or " — the API rejects them`
 
 // cookedRuleSchema describes the display-only rules the details endpoint
-// reports. It is shared by the resource and the singular data source.
-//
-// Everything in it is Computed. These are not the rules Terraform manages —
-// those are dtcloud_security_group_rule resources — they are what the platform
-// shows, reproduced so a plan or a `terraform show` says the same thing the web
-// panel does.
+// reports, shared by the resource and the singular data source. Everything in it
+// is Computed: these are what the platform displays, not the managed rules.
 func cookedRuleSchema(description string) *schema.Schema {
 	return &schema.Schema{
 		Type:        schema.TypeList,
@@ -125,9 +90,8 @@ func flattenCookedRules(rules []dtgo.Rule) []interface{} {
 	return out
 }
 
-// ruleID pairs the group and the rule, because Read finds a rule by listing the
-// group's rules and a rule on its own cannot say which group to list. It is
-// also the import format.
+// ruleID pairs the group and the rule: Read finds a rule by listing the group's
+// rules, and a rule alone cannot say which group to list. Also the import format.
 func ruleID(groupID, id string) string {
 	return fmt.Sprintf("%s:%s", groupID, id)
 }

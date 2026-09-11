@@ -11,28 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudMyIP reports the address the API sees the caller coming
-// from.
+// DataSourceDtcloudMyIP reports the address the API sees the caller coming from
+// — their address on whatever network they reached it over, not their public one.
 //
-// It belongs to this package because it belongs to this service: the route is
-// `GET /openstack/securitygroups/ip`, dt-go puts GetMyIP on
-// SecurityGroupsService, and its only purpose is scoping a rule to your own
-// address — "let me in, and nobody else".
-//
-// Not the caller's *public* address: it is their address on whatever network
-// they reached the API over. On DEV, over the corporate VPN, it came back as
-// the VPN address rather than the public one — which is the useful answer,
-// since that is the address a VM sees too.
-//
-// # Read this before using it in a rule
-//
-// The value changes when the caller changes network, and a connection may
-// renumber on its own.
-// Because a rule is entirely ForceNew, a changed address means the next plan
-// deletes the rule and creates a new one. That is usually what you want from an
-// administrative allow-rule and is a poor idea for anything a service depends
-// on. It also means the machine that ran the last apply decides who has access,
-// which is rarely the right answer from CI.
+// The value changes with the caller's network and a rule is entirely ForceNew,
+// so whichever machine ran the last apply decides who has access.
 func DataSourceDtcloudMyIP() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reports the address the API sees the caller coming from.\n\n" +
@@ -83,9 +66,8 @@ func dataSourceDtcloudMyIPRead(ctx context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("The API returned no address (body: %s)", body)
 	}
 
-	// Express reports an IPv4 address reached over a dual-stack listener in the
-	// IPv4-mapped form ::ffff:1.2.3.4. Left as-is it is not a usable prefix, so
-	// it is unwrapped here.
+	// An IPv4 address reached over a dual-stack listener is reported in the
+	// IPv4-mapped form ::ffff:1.2.3.4, which is not a usable prefix on its own.
 	ip := net.ParseIP(parsed.IP)
 	if ip == nil {
 		return diag.Errorf("The API returned %q, which is not an IP address", parsed.IP)
