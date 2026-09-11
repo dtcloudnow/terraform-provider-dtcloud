@@ -44,7 +44,7 @@ import (
 	"regexp"
 	"strings"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
