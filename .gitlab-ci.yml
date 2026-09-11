@@ -1,0 +1,77 @@
+# CI for terraform-provider-dtcloud.
+#
+# Two jobs, both about documentation:
+#
+#   docs-check  runs on every push. Regenerates docs/ from the provider schema
+#               and fails if the result differs from the commit, so a schema
+#               change can never land with stale documentation behind it.
+#
+#   docs-mr     runs on the default branch. Converts docs/ into Docusaurus pages
+#               and opens a merge request against the docs site, the same way
+#               dt-cli does for the CLI reference.
+#
+# Both jobs stay off until their CI variables exist: DOCS_JOBS_ENABLED=true and
+# DOCS_RUNNER_TAG for docs-check, plus DOCS_PROJECT_PATH, DOCS_BOT_TOKEN,
+# DOCS_BOT_NAME and DOCS_BOT_EMAIL for docs-mr -- the same set dt-cli uses.
+
+stages:
+  - check
+  - sync
+
+variables:
+  # tfplugindocs needs a Go toolchain new enough for terraform-plugin-docs; the
+  # image carries it so no toolchain download is needed at job time.
+  DOCS_CI_IMAGE: "golang:1.25-bookworm"
+  DOCS_SOURCE_BRANCH: "dev"
+
+.docs_base:
+  image: $DOCS_CI_IMAGE
+  before_script:
+    # tfplugindocs builds the provider and asks it for its schema through the
+    # Terraform CLI, so a terraform binary has to be on PATH. It will download
+    # one itself if this step is ever dropped, which is slower and needs
+    # releases.hashicorp.com to be reachable.
+    - apt-get update -qq && apt-get install -y -qq unzip curl make
+    - curl -fsSL -o /tmp/tf.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+    - unzip -q -o /tmp/tf.zip -d /usr/local/bin
+    - terraform version && go version
+  variables:
+    TERRAFORM_VERSION: "1.12.1"
+  interruptible: true
+
+# The drift gate. This is what makes "the docs follow the code" true rather than
+# a convention people are asked to remember.
+docs-check:
+  extends: .docs_base
+  stage: check
+  rules:
+    - if: '$DOCS_JOBS_ENABLED != "true"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+  script:
+    - make docs_check
+    - make docs_validate
+  tags:
+    - $DOCS_RUNNER_TAG
+
+docs-mr:
+  extends: .docs_base
+  stage: sync
+  rules:
+    - if: '$DOCS_BOT_TOKEN == null || $DOCS_PROJECT_PATH == null'
+      when: never
+    - if: '$CI_COMMIT_BRANCH != $DOCS_SOURCE_BRANCH'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  before_script:
+    - !reference [.docs_base, before_script]
+    # The site build is what proves the generated pages are valid MDX.
+    - apt-get install -y -qq nodejs npm
+    - node --version && npm --version
+  script:
+    - bash scripts/ci/docs-mr.sh
+  tags:
+    - $DOCS_RUNNER_TAG

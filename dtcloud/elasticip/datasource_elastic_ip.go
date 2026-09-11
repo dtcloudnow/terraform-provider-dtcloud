@@ -21,6 +21,14 @@ import (
 // machine behind the address appear.
 func DataSourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one elastic IP, by id or by address.\n\n" +
+			"Address lookup is the useful half: an address is the thing a person knows -- it is on a DNS " +
+			"record or in a firewall rule somewhere -- while its id is not written down anywhere outside " +
+			"the platform.\n\n" +
+			"This reads two endpoints, so it costs two calls. The details carry the raw fields, and the " +
+			"list carries the platform's cooked view, which is the only place the external network's name " +
+			"and the name of the machine behind the address appear.",
+
 		ReadContext: dataSourceDtcloudElasticIPRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

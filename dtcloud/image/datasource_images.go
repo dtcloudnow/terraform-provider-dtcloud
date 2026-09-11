@@ -25,6 +25,14 @@ import (
 // therefore report an empty `os_type` for the same image.
 func DataSourceDtcloudImages() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists every image visible to the caller.\n\n" +
+			"Every filter is applied by the provider rather than passed to the API. The endpoint does " +
+			"take a visibility parameter, but it only separates public images from the rest: asking it " +
+			"for `private` returns the private, shared and community ones together. Filtering here means " +
+			"`visibility = \"private\"` returns private images, which is what it says.\n\n" +
+			"The list endpoint reports two fields the details endpoint does not, so `dtcloud_image` can " +
+			"report an empty `os_type` for an image that appears here with one.",
+
 		ReadContext: dataSourceDtcloudImagesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

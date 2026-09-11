@@ -39,6 +39,11 @@ func DataSourceDtcloudVM() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up a single virtual machine by id.\n\n" +
+			"Lookup is by id rather than by name because machine names are not unique -- the platform " +
+			"will hold several with the same name, and the multi-create path generates `name-1`, `name-2` " +
+			"and so on -- so a name could not resolve to one instance deterministically.",
+
 		ReadContext: dataSourceDtcloudVMRead,
 		Schema:      dsSchema,
 	}

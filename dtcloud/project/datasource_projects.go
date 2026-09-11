@@ -20,6 +20,9 @@ import (
 // DataSourceDtcloudProjects lists the projects on the account.
 func DataSourceDtcloudProjects() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the projects on the account, and reports which one the provider is currently scoped " +
+			"to.",
+
 		ReadContext: dataSourceDtcloudProjectsRead,
 		Schema: map[string]*schema.Schema{
 			"projects": {

@@ -26,6 +26,12 @@ import (
 // list before and after the call — the attach endpoint does not return it.
 func ResourceDtcloudVMNetworkInterface() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches an extra network interface to a virtual machine.\n\n" +
+			"Interfaces declared in a `dtcloud_vm` `network` block are created with the machine and live " +
+			"and die with it. This resource is for the ones added afterwards: they get their own port and " +
+			"can be detached without recreating the machine.\n\n" +
+			"The resource ID is `<vm-id>:<port-id>`.",
+
 		CreateContext: resourceDtcloudVMNetworkInterfaceCreate,
 		ReadContext:   resourceDtcloudVMNetworkInterfaceRead,
 		UpdateContext: resourceDtcloudVMNetworkInterfaceUpdate,

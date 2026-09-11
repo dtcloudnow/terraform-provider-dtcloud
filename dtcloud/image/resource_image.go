@@ -127,6 +127,15 @@ func ResourceDtcloudImage() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Manages a disk image and the file behind it.\n\n" +
+			"Creating one is two requests and a wait: the first opens an empty record, the second uploads " +
+			"the file, and the image is usable only once it reaches `active`. Both happen during apply, " +
+			"because an image with no data is a record no machine can boot from.\n\n" +
+			"`name`, `os_distro`, `min_disk` and `visibility` change in place. Everything else forces " +
+			"replacement, including the file: no endpoint replaces the data of an existing image.\n\n" +
+			"`protected` is deliberately not exposed. The API accepts it at create time but cannot clear " +
+			"it afterwards, which would make the image impossible to destroy through this provider.",
+
 		CreateContext: resourceDtcloudImageCreate,
 		ReadContext:   resourceDtcloudImageRead,
 		UpdateContext: resourceDtcloudImageUpdate,

@@ -30,6 +30,13 @@ import (
 // detach.
 func ResourceDtcloudVMVolumeAttachment() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches an existing volume to a virtual machine.\n\n" +
+			"The attachment is its own resource rather than a block on `dtcloud_vm` because it has its " +
+			"own lifecycle: a volume can be detached and re-attached elsewhere without touching either " +
+			"the machine or the volume. There is nothing to update -- only attach and detach -- so every " +
+			"argument forces replacement.\n\n" +
+			"The resource ID is `<vm-id>:<volume-id>`.",
+
 		CreateContext: resourceDtcloudVMVolumeAttachmentCreate,
 		ReadContext:   resourceDtcloudVMVolumeAttachmentRead,
 		DeleteContext: resourceDtcloudVMVolumeAttachmentDelete,

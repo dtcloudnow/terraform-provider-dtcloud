@@ -23,6 +23,11 @@ import (
 // the group with the singular `dtcloud_security_group` data source.
 func DataSourceDtcloudSecurityGroups() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the security groups visible to the caller.\n\n" +
+			"The `name` filter is applied by the provider: the list route takes no query parameters.\n\n" +
+			"The endpoint reports an id, a name and a description and nothing else. Rules would be one " +
+			"extra call per group, so read a group with `dtcloud_security_group` when you need them.",
+
 		ReadContext: dataSourceDtcloudSecurityGroupsRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

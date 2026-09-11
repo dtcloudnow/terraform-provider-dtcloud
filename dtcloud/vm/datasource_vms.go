@@ -19,6 +19,12 @@ import (
 // one instance.
 func DataSourceDtcloudVMs() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the virtual machines in the active region and project.\n\n" +
+			"The list endpoint returns a lighter record than the details endpoint -- no image, no SSH " +
+			"key, no timestamps -- so that is what this exposes. Use `dtcloud_vm` for the full picture of " +
+			"one instance.\n\n" +
+			"Every filter is applied by the provider, not by the API.",
+
 		ReadContext: dataSourceDtcloudVMsRead,
 		Schema: map[string]*schema.Schema{
 			"status": {

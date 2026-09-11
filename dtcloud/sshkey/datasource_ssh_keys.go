@@ -19,6 +19,11 @@ import (
 // the singular `dtcloud_ssh_key` data source.
 func DataSourceDtcloudSSHKeys() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the SSH keys on the account.\n\n" +
+			"The list endpoint reports less than the details one: a name and a creation timestamp, " +
+			"nothing else. Fingerprints and public keys would mean one extra call per key, so look a key " +
+			"up by name with `dtcloud_ssh_key` when you need those.",
+
 		ReadContext: dataSourceDtcloudSSHKeysRead,
 		Schema: map[string]*schema.Schema{
 			"ssh_keys": {

@@ -31,6 +31,15 @@ import (
 // `data.dtcloud_project_limits.mine.quotas["cores"]`.
 func DataSourceDtcloudProjectLimits() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reports every quota the platform tracks for a project.\n\n" +
+			"This is the full OpenStack table -- around forty entries covering compute, network, volume " +
+			"and VPN limits. It is the counterpart to `dtcloud_project_quotas`, which reports a handful " +
+			"of headline figures with current usage. This one reports limits only: what you are allowed, " +
+			"not what you are using.\n\n" +
+			"The keys are OpenStack's own (`cores`, `instances`, `security_group_rules`, and so on) and " +
+			"the platform can add more without warning, so they arrive as a map rather than a fixed set " +
+			"of attributes. Index it by name: `data.dtcloud_project_limits.mine.quotas[\"cores\"]`.",
+
 		ReadContext: dataSourceDtcloudProjectLimitsRead,
 		Schema: map[string]*schema.Schema{
 			"project_id": {

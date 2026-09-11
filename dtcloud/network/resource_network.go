@@ -28,6 +28,11 @@ import (
 // change.
 func ResourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a network and, when IPAM is enabled, the subnet inside it.\n\n" +
+			"`name` changes in place, as do the subnet's `gateway_ip`, `enable_dhcp`, `dns_nameservers` " +
+			"and `allocation_pools`. `ipam_enabled` and `cidr` force replacement: neither the subnet's " +
+			"address range nor its existence can be changed after the fact.",
+
 		CreateContext: resourceDtcloudNetworkCreate,
 		ReadContext:   resourceDtcloudNetworkRead,
 		UpdateContext: resourceDtcloudNetworkUpdate,

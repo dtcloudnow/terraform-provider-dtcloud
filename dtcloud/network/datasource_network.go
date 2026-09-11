@@ -18,6 +18,12 @@ import (
 // `terraform destroy` would take it down along with everything else.
 func DataSourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one network by id.\n\n" +
+			"Use it to reference a network Terraform did not create -- the common case, since networks " +
+			"tend to outlive the things attached to them. Declaring one as a resource instead would hand " +
+			"Terraform ownership of it, and a later `terraform destroy` would take it down along with " +
+			"everything else.",
+
 		ReadContext: dataSourceDtcloudNetworkRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

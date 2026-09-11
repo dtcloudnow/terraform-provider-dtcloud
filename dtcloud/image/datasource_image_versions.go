@@ -25,6 +25,15 @@ import (
 // a plan every time the catalogue gained an entry.
 func DataSourceDtcloudImageVersions() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reads the platform's own image catalogue.\n\n" +
+			"This is not the same list as `dtcloud_images`. That one is what the image service holds; " +
+			"this one is the curated set the platform offers, and it is the only place that says which " +
+			"flavors an image may be built on.\n\n" +
+			"The endpoint answers with a map keyed by family, each holding one entry per version. It is " +
+			"flattened into a single list here, sorted by family and then by version, because a map keyed " +
+			"by a value from the platform would reshuffle a plan every time the catalogue gained an " +
+			"entry.",
+
 		ReadContext: dataSourceDtcloudImageVersionsRead,
 		Schema: map[string]*schema.Schema{
 			"type": {

@@ -19,6 +19,10 @@ import (
 // and both `name` and `public_key` are ForceNew.
 func ResourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages an SSH key that can be injected into a virtual machine at boot.\n\n" +
+			"The API addresses keys by name and offers no update endpoint, so the Terraform ID is the key " +
+			"name and changing either `name` or `public_key` replaces the key.",
+
 		CreateContext: resourceDtcloudSSHKeyCreate,
 		ReadContext:   resourceDtcloudSSHKeyRead,
 		DeleteContext: resourceDtcloudSSHKeyDelete,

@@ -107,17 +107,59 @@ HCL. See `docs/index.md` for the full reference.
 
 ## Try it
 
-See [`examples/ssh-key`](examples/ssh-key), [`examples/vm`](examples/vm),
-[`examples/network`](examples/network), [`examples/security-group`](examples/security-group)
-and [`examples/elastic-ip`](examples/elastic-ip). With
+`examples/` has two kinds of configuration. `examples/resources/` and
+`examples/data-sources/` hold one minimal, per-type example each -- these are what the
+generated documentation embeds, so they are always in step with the schema.
+`examples/scenarios/` holds the multi-resource walkthroughs:
+[`ssh-key`](examples/scenarios/ssh-key), [`vm`](examples/scenarios/vm),
+[`network`](examples/scenarios/network),
+[`security-group`](examples/scenarios/security-group) and
+[`elastic-ip`](examples/scenarios/elastic-ip). With
 the env vars exported and the `dev_overrides` in place — note there is no
 `terraform init`, since `dev_overrides` bypasses provider installation:
 
 ```sh
-cd examples/ssh-key
+cd examples/scenarios/ssh-key
 terraform plan
 terraform apply
 ```
+
+## Documentation
+
+Nothing under `docs/` is written by hand. The provider schema is the source of truth and the
+pages are generated from it:
+
+```
+Go schema + examples/  --tfplugindocs-->  docs/  --cmd/gendoc-->  docusaurus (en + tr)
+   (Description strings)                (Registry format)         (docs.dtcloudnow.com)
+```
+
+| Command                | What it does                                                        |
+|------------------------|---------------------------------------------------------------------|
+| `make docs`            | Regenerates `docs/` from the schema, examples and templates.        |
+| `make docs_validate`   | Checks `docs/` against the Terraform Registry's rules.              |
+| `make docs_check`      | Regenerates and fails if the result differs from the commit.        |
+| `make docusaurus`      | Converts `docs/` into Docusaurus pages in `../docusaurus`.          |
+| `make docs_all`        | All of the above, in order. This is what CI runs.                   |
+
+So to change what a page says, change one of:
+
+* the `Description` strings on the resource, data source or field in `dtcloud/` -- this is
+  where nearly all page text lives, and keeping it next to the code is what stops the docs
+  drifting from it;
+* the example under `examples/resources/<type>/` or `examples/data-sources/<type>/`, which is
+  embedded as the page's *Example Usage*, and `import.sh` alongside it, which becomes the
+  *Import* section;
+* `templates/index.md.tmpl` for the provider landing page, or `templates/guides/` for guides;
+* `templates/resources.md.tmpl` / `templates/data-sources.md.tmpl` for the page layout shared
+  by every type, including the `subcategory` grouping.
+
+Then run `make docs` and commit the result. A new resource needs no template of its own.
+
+CI runs `docs_check` on every push, so a schema change with no regenerated docs behind it
+fails the pipeline. On the default branch it also converts `docs/` for the Docusaurus site and
+opens a merge request there, which a human approves -- the same flow `dt-cli` uses for the
+`dtctl` CLI reference.
 
 ## Tests
 

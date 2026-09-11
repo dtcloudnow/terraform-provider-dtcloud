@@ -19,6 +19,13 @@ import (
 // group is an error rather than an arbitrary pick.
 func DataSourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one security group, by id or by name.\n\n" +
+			"Name lookup exists because a security group id is the one value a machine cannot do without " +
+			"-- `security_groups` is required on every network interface -- and hand-copying a uuid out " +
+			"of the web panel is how that field gets filled otherwise.\n\n" +
+			"Names are not unique on the platform, so a name matching more than one group is an error " +
+			"rather than an arbitrary pick.",
+
 		ReadContext: dataSourceDtcloudSecurityGroupRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

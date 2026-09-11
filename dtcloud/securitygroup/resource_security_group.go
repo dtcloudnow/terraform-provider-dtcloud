@@ -26,6 +26,18 @@ import (
 // why they cannot be anything else.
 func ResourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a security group -- the set of firewall rules applied to a machine's network " +
+			"interfaces.\n\n" +
+			"The group is only a name and a description. The rules inside it are separate " +
+			"`dtcloud_security_group_rule` resources, so adding or removing one rule leaves the group and " +
+			"every other rule untouched. Both arguments change in place; nothing here forces replacement, " +
+			"which matters because the platform refuses to delete a group that instances still reference.\n\n" +
+			"`inbound_rule` and `outbound_rule` are a read-only snapshot of what the platform displays, " +
+			"not something to configure.\n\n" +
+			"A description cannot be cleared once set: the SDK drops an empty description from the update " +
+			"request, so the old value would stay. The plan refuses this rather than proposing a change " +
+			"that never converges.",
+
 		CreateContext: resourceDtcloudSecurityGroupCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRead,
 		UpdateContext: resourceDtcloudSecurityGroupUpdate,

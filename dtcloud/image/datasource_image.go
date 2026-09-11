@@ -66,6 +66,14 @@ func DataSourceDtcloudImage() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up one image, by id or by name.\n\n" +
+			"Use it to reference an image Terraform did not upload -- the platform's own catalogue, or " +
+			"one somebody built by hand. Declaring such an image as a resource would hand Terraform " +
+			"ownership of it, and a later destroy would delete it.\n\n" +
+			"A lookup by name reads the list endpoint and refuses an ambiguous answer: image names are " +
+			"not unique on the platform, and quietly picking the first match would build machines from an " +
+			"image nobody chose.",
+
 		ReadContext: dataSourceDtcloudImageRead,
 		Schema:      s,
 	}

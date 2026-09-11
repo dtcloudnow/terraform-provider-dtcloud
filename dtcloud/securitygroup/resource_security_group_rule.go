@@ -31,6 +31,13 @@ import (
 // rules cannot round-trip.
 func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages one rule inside a security group.\n\n" +
+			"The API has a create endpoint and a delete endpoint and nothing else, so the whole resource " +
+			"forces replacement. That is exactly what the platform does anyway -- delete the old rule, " +
+			"create the new one -- and the plan says so.\n\n" +
+			"The resource ID is `<security-group-id>:<rule-id>`: a rule is read by listing its group's " +
+			"rules, and a bare rule id cannot say which group to list.",
+
 		CreateContext: resourceDtcloudSecurityGroupRuleCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRuleRead,
 		DeleteContext: resourceDtcloudSecurityGroupRuleDelete,
