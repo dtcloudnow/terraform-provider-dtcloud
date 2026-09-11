@@ -57,8 +57,3 @@ require (
 	google.golang.org/grpc v1.51.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
-
-// Until dt-go v26.0.0 is published on GitHub this resolves the SDK from the
-// sibling checkout. Remove this line once the module is public:
-//   go get github.com/dtcloudnow/dt-go/v26@v26.0.0 && go mod tidy
-replace github.com/dtcloudnow/dt-go/v26 => ../dt-go
