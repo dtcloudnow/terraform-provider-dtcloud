@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 )
 
 // IsNotFound reports whether an error means "this resource does not exist".

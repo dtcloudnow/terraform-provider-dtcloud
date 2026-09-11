@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"

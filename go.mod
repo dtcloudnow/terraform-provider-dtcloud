@@ -3,7 +3,7 @@ module github.com/dtcloudnow/terraform-provider-dtcloud
 go 1.23.2
 
 require (
-	github.com/dtcloudnow/dt-go v0.0.0-00010101000000-000000000000
+	github.com/dtcloudnow/dt-go/v26 v26.0.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.26.1
 	golang.org/x/term v0.6.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -58,7 +58,7 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 )
 
-// DEV ONLY: build against the local, API-aligned dt-go checkout.
-// Before pushing, remove this replace and pin the published version:
-//   go get github.com/dtcloudnow/dt-go@<tag> && go mod tidy
-replace github.com/dtcloudnow/dt-go => ../dt-go
+// Until dt-go v26.0.0 is published on GitHub this resolves the SDK from the
+// sibling checkout. Remove this line once the module is public:
+//   go get github.com/dtcloudnow/dt-go/v26@v26.0.0 && go mod tidy
+replace github.com/dtcloudnow/dt-go/v26 => ../dt-go

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -545,7 +545,7 @@ func expandNetworks(raw []interface{}) []dtgo.VmNetwork {
 		// carries omitempty in dt-go, so a nil slice would be sent as null.
 		network := dtgo.VmNetwork{
 			UUID:                m["uuid"].(string),
-			PortSecurityEnabled: m["port_security_enabled"].(bool),
+			PortSecurityEnabled: dtgo.PtrTo(m["port_security_enabled"].(bool)),
 			SecurityGroups:      []string{},
 			FixedIPs:            []dtgo.FixedIP{},
 		}

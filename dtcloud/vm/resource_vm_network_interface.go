@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -147,7 +147,7 @@ func resourceDtcloudVMNetworkInterfaceCreate(ctx context.Context, d *schema.Reso
 	params := dtgo.AttachNetworkInterfaceToVmParams{
 		NetworkId:           networkID,
 		SecurityGroups:      expandStringList(d.Get("security_groups").([]interface{})),
-		PortSecurityEnabled: d.Get("port_security_enabled").(bool),
+		PortSecurityEnabled: dtgo.PtrTo(d.Get("port_security_enabled").(bool)),
 		FixedIps:            expandFixedIPs(d.Get("fixed_ip").([]interface{})),
 	}
 
@@ -212,7 +212,7 @@ func resourceDtcloudVMNetworkInterfaceUpdate(ctx context.Context, d *schema.Reso
 	portID := d.Get("port_id").(string)
 
 	params := dtgo.UpdateNetworkInterfaceParams{
-		PortSecurityEnabled: d.Get("port_security_enabled").(bool),
+		PortSecurityEnabled: dtgo.PtrTo(d.Get("port_security_enabled").(bool)),
 		SecurityGroups:      expandStringList(d.Get("security_groups").([]interface{})),
 		FixedIPs:            expandFixedIPs(d.Get("fixed_ip").([]interface{})),
 	}

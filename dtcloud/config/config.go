@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 )
 
 // Config holds the raw provider-level settings collected from the Terraform
