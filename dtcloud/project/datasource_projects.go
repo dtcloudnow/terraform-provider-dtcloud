@@ -1,9 +1,6 @@
 // Package project exposes the projects on the account and their resource usage.
-//
-// Read-only. The API also has `POST /openstack/projects/{id}`, which switches
-// the *caller's* active project — session state rather than infrastructure, and
-// driving it from a resource would silently change which project every other
-// call lands in. It is deliberately not exposed.
+// Read-only: the endpoint that switches the active project changes session
+// state rather than infrastructure, so it is not exposed.
 package project
 
 import (

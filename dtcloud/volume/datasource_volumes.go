@@ -14,14 +14,9 @@ import (
 // DataSourceDtcloudVolumes lists the volumes visible to the caller.
 //
 // The list endpoint reports a flatter, differently-typed shape than the details
-// one: it folds the attached VM's name and status up onto the volume and sends
-// the size as the string "20 GB" rather than the number 20. The size is
-// normalised back to an integer here so that it means the same thing on every
-// page of this provider; everything else is passed through as reported.
-//
-// The route accepts no query parameters, so unlike dtcloud_networks the `name`
-// filter is applied by the provider after the fact. It is a convenience for the
-// common "find the volume called X" case, not a smaller request.
+// one: the attached VM's name and status are folded onto the volume and the size
+// arrives as "20 GB". The size is normalised back to an integer; everything else
+// is passed through as reported, and the `name` filter is applied here.
 func DataSourceDtcloudVolumes() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDtcloudVolumesRead,
@@ -85,9 +80,8 @@ func dataSourceDtcloudVolumesRead(ctx context.Context, d *schema.ResourceData, m
 			"name":           v.Name,
 			"status":         v.Status,
 			"storage_policy": v.Policy,
-			// "20 GB" -> 20. The details endpoint sends this as a number, and a
-			// data source that disagreed with the resource about the type of
-			// `size` would be a trap.
+			// "20 GB" -> 20. The details endpoint sends a number, and a data source
+			// that disagreed with the resource about the type would be a trap.
 			"size":               parseSizeGB(v.Size),
 			"bootable":           parseBootable(v.Bootable),
 			"volume_type":        v.Type,

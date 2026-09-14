@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+office_cidr = "10.10.0.0/16"

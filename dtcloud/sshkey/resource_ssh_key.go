@@ -5,18 +5,16 @@ import (
 	"strings"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// ResourceDtcloudSSHKey manages an SSH key.
-//
-// The API (via dt-go) supports create / read / delete only — there is no
-// update — and it addresses keys by name, so the Terraform ID is the key name
-// and both `name` and `public_key` are ForceNew.
+// ResourceDtcloudSSHKey manages an SSH key. There is no update, and keys are
+// addressed by name, so the Terraform ID is the key name and both `name` and
+// `public_key` are ForceNew.
 func ResourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDtcloudSSHKeyCreate,

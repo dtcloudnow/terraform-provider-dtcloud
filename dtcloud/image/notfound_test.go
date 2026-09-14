@@ -4,23 +4,17 @@ import (
 	"encoding/json"
 	"testing"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 )
 
 // TestImageNotFoundIsClassified is the rule that a missing image is recognised
 // as missing rather than as a failed request.
 //
-// It matters more here than in the other services. Those answer a 404 with a
-// structured body carrying a numeric code, which is the reliable half of
-// dterr.IsNotFound. The images endpoints hand back the platform's own error,
-// and the platform answers with an HTML page — so `error` is a *string*, there
-// is no numeric code anywhere in the body, and the classification rests
-// entirely on what that string happens to contain.
-//
-// The bodies below are copied from the live API rather than guessed. If the
-// platform ever stops putting the status in its error page, this fails and the
-// SDK has to start carrying the HTTP status code instead.
+// It matters more here than in the other services: those answer with a numeric
+// code, while these routes hand back an HTML page wrapped in a string, so the
+// classification rests entirely on what that string contains. The bodies below
+// are copied from the live API rather than guessed.
 func TestImageNotFoundIsClassified(t *testing.T) {
 	const id = "00000000-0000-0000-0000-000000000000"
 

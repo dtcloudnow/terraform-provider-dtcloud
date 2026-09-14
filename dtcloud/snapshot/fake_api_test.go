@@ -14,20 +14,12 @@ import (
 // noHTML is the character rule the API applies to name and description.
 var noHTML = regexp.MustCompile(`^[^<>&"']*$`)
 
-// settleReads is how many reads a status change takes to land, so the create
-// and delete waiters are exercised rather than satisfied on the first poll.
-//
-// It has to exceed three: a wait that watches the wrong thing ends after two
-// reads, and the read that follows it costs a third. Below that threshold a
-// waiter that returned far too early is indistinguishable from one that waited.
+// settleReads is how many reads a status change takes to land. Above three, so
+// a waiter watching the wrong thing cannot pass by accident.
 const settleReads = 4
 
-// valueSettleReads is the same idea for a rename or a re-describe: the object
-// sits at its resting status still reporting its old value, so a waiter
-// watching only the status would return having done nothing.
-//
-// Larger than anything the platform actually does. The fake models the case the
-// waiter has to survive rather than the one that happens to be fast today.
+// valueSettleReads is the same for a rename or a re-describe, which sit at the
+// resting status still reporting the old value.
 const valueSettleReads = 4
 
 type fakeSnapshot struct {
@@ -57,12 +49,8 @@ type fakeSnapshot struct {
 }
 
 // tick advances every pending change by one read. The caller reports the
-// snapshot before calling this, so a change with a delay of n is invisible for
-// n reads.
-//
-// The counters advance together rather than in turn, so that waiting for one
-// change cannot settle another — which is how a wait that watches the wrong
-// thing gets covered by one that watches the right thing.
+// snapshot before calling this, and the counters advance together, so waiting on
+// one change cannot settle another.
 func (s *fakeSnapshot) tick() {
 	if s.deleteDelay > 0 {
 		s.deleteDelay--
@@ -96,33 +84,28 @@ func (s *fakeSnapshot) tick() {
 	}
 }
 
-// detailsSnapshot is a struct rather than a map on purpose: Go sorts map keys
-// alphabetically, which would move created_at away from the front and hide the
-// class of bug where a field that fails to decode takes everything declared
-// after it with it. The field order here matches the API's.
+// detailsSnapshot is a struct so the field order is the API's: a field that
+// fails to decode takes everything declared after it with it.
 type detailsSnapshot struct {
 	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt any    `json:"updated_at"`
 	Name      string `json:"name"`
-	// `any`, because an unset description arrives as JSON null rather than as
-	// an empty string. That difference is the point of the clear-by-null path
-	// in update below.
+	// `any`, because an unset description arrives as null rather than as an
+	// empty string. That is the point of the clear-by-null path in update below.
 	Description  any    `json:"description"`
 	VolumeID     string `json:"volume_id"`
 	VolumeTypeID string `json:"volume_type_id"`
 	Status       string `json:"status"`
 	Size         int    `json:"size"`
-	// Always empty, and nothing reads it. Present because the API sends it, and
-	// a fixture that drops fields stops being a copy of the API.
+	// Always empty and nothing reads it; present because the API sends it.
 	Metadata  map[string]any `json:"metadata"`
 	ProjectID string         `json:"os-extended-snapshot-attributes:project_id"`
 	Progress  string         `json:"os-extended-snapshot-attributes:progress"`
 }
 
 // listSnapshot is the same object as the list endpoint reports it. The two
-// extended attributes are absent there, which is why the plural data source
-// does not expose them.
+// extended attributes are absent there, so the plural data source omits them.
 type listSnapshot struct {
 	ID           string         `json:"id"`
 	CreatedAt    string         `json:"created_at"`
@@ -136,11 +119,8 @@ type listSnapshot struct {
 	Metadata     map[string]any `json:"metadata"`
 }
 
-// notFound writes the shape the API sends for a missing object.
-//
-// Deliberately not acctest.NotFound, which writes a flat message body. The real
-// 404 carries a nested status code, and reproducing it here exercises the
-// structured branch of dterr.IsNotFound rather than its text fallback.
+// notFound writes the shape the API sends for a missing object: a nested status
+// code, which exercises the structured branch of dterr.IsNotFound.
 func notFound(w http.ResponseWriter, message string) {
 	acctest.WriteJSON(w, http.StatusNotFound, map[string]any{
 		"error": map[string]any{
@@ -153,8 +133,8 @@ func notFound(w http.ResponseWriter, message string) {
 	})
 }
 
-// validationError reproduces the API's rejection body, including the leading
-// space and trailing comma the real one carries.
+// validationError reproduces the rejection body, leading space and trailing
+// comma included.
 func validationError(w http.ResponseWriter, message string) {
 	acctest.WriteJSON(w, http.StatusNotAcceptable, map[string]any{
 		"error": " " + message + ",",
@@ -164,20 +144,6 @@ func validationError(w http.ResponseWriter, message string) {
 
 // fakeSnapshotAPI stands in for the snapshot endpoints, plus the one volumes
 // endpoint this package reads.
-//
-// The rules it enforces are the API's, not the ones the provider would find
-// convenient. In particular it reproduces:
-//
-//   - the list reporting a volume type id where the rest of the provider
-//     reports a policy name;
-//   - create accepting no description, so one needs a follow-up update;
-//   - an empty name or description being rejected, while a null description
-//     clears the field;
-//   - a rename sitting at `available` with the old value for several reads;
-//   - created_at near the front of the response, ahead of everything that
-//     would be lost if it failed to decode;
-//   - updated_at arriving as null on a snapshot nobody has renamed;
-//   - delete answering with a bare status and no body.
 type fakeSnapshotAPI struct {
 	mu        sync.Mutex
 	snapshots map[string]*fakeSnapshot
@@ -189,14 +155,14 @@ type fakeSnapshotAPI struct {
 	detailsN int
 	restores int
 
-	// Volume ids create will accept. What matters is that an unknown one is
+	// Volume ids create will accept; what matters is that an unknown one is
 	// rejected at all.
 	volumes map[string]int
 
 	policies []map[string]string
 
-	// policiesFail makes the storage policies unreadable, so the best-effort
-	// lookup can be shown to degrade rather than fail a read.
+	// policiesFail makes the storage policies unreadable, so the best-effort lookup
+	// can be shown to degrade rather than fail a read.
 	policiesFail bool
 }
 
@@ -224,7 +190,7 @@ func (f *fakeSnapshotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// The provider reads one volumes endpoint: storage policies, to turn a
+	// The one volumes endpoint this provider reads: storage policies, to turn a
 	// volume type id into a policy name.
 	if r.URL.Path == "/openstack/volumes/storage-policies" && r.Method == http.MethodGet {
 		if f.policiesFail {
@@ -300,8 +266,7 @@ func (f *fakeSnapshotAPI) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create accepts no description at all. Failing loudly here is what forces
-	// the provider to make the follow-up call instead of hoping this one took.
+	// Create accepts no description. Failing loudly forces the follow-up call.
 	if _, sent := body["description"]; sent {
 		panic("the provider sent a description to create; the API accepts none")
 	}
@@ -315,8 +280,7 @@ func (f *fakeSnapshotAPI) create(w http.ResponseWriter, r *http.Request) {
 		Size:      size,
 		ProjectID: "proj-0001",
 		CreatedAt: acctest.FakeCreatedAt,
-		// Fresh snapshots are `creating` while the copy runs, with the progress
-		// counting up behind it.
+		// Fresh snapshots are `creating` while the copy runs, progress counting up.
 		Status:        "creating",
 		Progress:      "0%",
 		pendingStatus: "available",
@@ -356,7 +320,7 @@ func (f *fakeSnapshotAPI) detailsView(s *fakeSnapshot) detailsSnapshot {
 }
 
 // updateView is what an update answers with: the details object minus the two
-// extended attributes, the same width as the list endpoint.
+// extended attributes.
 func (f *fakeSnapshotAPI) updateView(s *fakeSnapshot) listSnapshot {
 	return listSnapshot{
 		ID:           s.ID,
@@ -379,15 +343,13 @@ func (f *fakeSnapshotAPI) details(w http.ResponseWriter, id string) {
 	}
 	f.detailsN++
 	view := f.detailsView(s)
-	// Reported before the tick, so a change with a delay of n really is
-	// invisible for n reads.
+	// Reported before the tick, so a delay of n really is invisible for n reads.
 	s.tick()
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"snapshot": view})
 }
 
 func (f *fakeSnapshotAPI) list(w http.ResponseWriter) {
-	// The list endpoint takes no filter and no sort: everything visible comes
-	// back in insertion order, and filtering is the provider's problem.
+	// No filter and no sort: everything comes back in insertion order.
 	out := []listSnapshot{}
 	for i := 1; i <= f.seq; i++ {
 		s, ok := f.snapshots[fmt.Sprintf("snap-%04d", i)]
@@ -423,8 +385,8 @@ func (f *fakeSnapshotAPI) update(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
-	// Three distinct requests, and the difference between the last two is why
-	// dt-go needs an explicit way to send a null:
+	// Three distinct requests, which is why dt-go needs an explicit way to send a
+	// null:
 	//
 	//	field absent -> leave it alone
 	//	""           -> rejected
@@ -447,8 +409,7 @@ func (f *fakeSnapshotAPI) update(w http.ResponseWriter, r *http.Request, id stri
 	}
 	if raw, sent := body["description"]; sent {
 		if raw == nil {
-			// A null clears it immediately: there is no new value to converge
-			// on, so the settle delay does not apply.
+			// A null clears it immediately; there is no new value to converge on.
 			s.Description = ""
 			s.pendingDesc, s.descDelay = "", 0
 			goto described
@@ -472,9 +433,8 @@ described:
 	s.UpdatedAt = "2026-07-09T11:02:44.120931"
 	f.updates++
 
-	// The response carries the object as it is now, which with the settle delay
-	// pending means the old values — harsher than the real API, so a provider
-	// that trusted this body instead of re-reading is caught here.
+	// The response carries the old values while the settle delay is pending —
+	// harsher than the real API, so a provider that trusted it is caught here.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"snapshot": f.updateView(s)})
 }
 
@@ -490,9 +450,8 @@ func (f *fakeSnapshotAPI) delete(w http.ResponseWriter, id string) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// snapshotToVolume is the restore endpoint. The provider reaches it through
-// source_snapshot_id on dtcloud_volume, so nothing in this package calls it; it
-// is here so a misrouted request fails visibly.
+// snapshotToVolume is the restore endpoint. Nothing in this package calls it;
+// it is here so a misrouted request fails visibly.
 func (f *fakeSnapshotAPI) snapshotToVolume(w http.ResponseWriter, r *http.Request, id string) {
 	s := f.get(w, id)
 	if s == nil {

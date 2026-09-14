@@ -1,20 +1,10 @@
 // Package network implements the dtcloud_network resource and its data sources.
 //
-// One resource covers both a network and its subnet, because the API does not
-// let them be managed apart: `POST /openstack/networks` creates the pair in a
-// single call, the details endpoint reports them together, and there is no
-// endpoint that creates a subnet on its own. A separate dtcloud_subnet resource
-// would have nothing to call.
+// One resource covers the network and its subnet: they are created in one call,
+// reported together, and no endpoint creates a subnet on its own.
 //
-// The pivot is `ipam_enabled`. It is one flag doing two jobs, which is worth
-// knowing before reading anything else here:
-//
-//   - it becomes the network's `port_security_enabled`, and
-//   - it decides whether a subnet is created at all.
-//
-// So an IPAM-disabled network has no subnet, no CIDR, no gateway and no DHCP —
-// the details endpoint simply omits the whole `subnets` object and the `ipam`
-// field. Verified live on DEV.
+// `ipam_enabled` does two things: it becomes the network's port security setting,
+// and it decides whether a subnet exists at all.
 package network
 
 import (
@@ -22,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -45,9 +35,8 @@ func allocationPoolSchema() *schema.Schema {
 }
 
 func expandAllocationPools(raw []interface{}) []dtgo.AllocationPool {
-	// Never nil: the update endpoint validates with Joi.array(), which rejects
-	// null outright. dt-go carries no omitempty on this field, so a nil slice
-	// would go out as `null` and be refused.
+	// Never nil: the update endpoint rejects null outright, and dt-go carries
+	// no omitempty here, so a nil slice would go out as `null`.
 	pools := make([]dtgo.AllocationPool, 0, len(raw))
 	for _, item := range raw {
 		m := item.(map[string]interface{})
@@ -68,7 +57,7 @@ func flattenAllocationPools(pools []dtgo.AllocationPool) []interface{} {
 }
 
 func expandStringList(raw []interface{}) []string {
-	// Same Joi.array() reasoning as expandAllocationPools.
+	// Same reasoning as expandAllocationPools.
 	out := make([]string, 0, len(raw))
 	for _, item := range raw {
 		out = append(out, fmt.Sprint(item))
@@ -76,12 +65,8 @@ func expandStringList(raw []interface{}) []string {
 	return out
 }
 
-// waitForNetwork blocks until a freshly created network can be read back.
-//
-// The API answers as soon as OpenStack accepts the request and then polls for
-// ACTIVE itself over a websocket. Terraform has no websocket, and the details
-// endpoint reports no status field to wait on — so the only signal available is
-// whether the network resolves at all.
+// waitForNetwork blocks until a freshly created network can be read back. The
+// details endpoint reports no status, so resolving at all is the only signal.
 func waitForNetwork(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},

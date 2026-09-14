@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -14,22 +14,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// ResourceDtcloudImage manages a disk image and the file behind it.
+// ResourceDtcloudImage manages a disk image and the file behind it. Create is
+// two requests and a wait: open the record, upload the file, wait for `active`.
 //
-// Creating one is two requests and a wait: the first opens an empty record,
-// the second uploads the file, and the image is only usable once it reaches
-// `active`. Both happen inside Create, because an image with no data is a
-// record no machine can boot from.
+// In place: name, os_distro, min_disk and visibility. Everything else is
+// ForceNew, the file included — nothing replaces the data of an existing image.
 //
-// In place: name, os_distro, min_disk and visibility — the four fields the
-// update endpoint accepts, one request each. Everything else is ForceNew,
-// including the file: there is no endpoint that replaces the data of an
-// existing image.
-//
-// `protected` is deliberately not exposed. The API accepts it at create time
-// but its update endpoint cannot clear it, so a protected image cannot be
-// deleted through this API at all — an argument that quietly made a resource
-// impossible to destroy.
+// `protected` is not exposed: it is accepted at create time but cannot be
+// cleared, which would leave the resource impossible to destroy.
 func ResourceDtcloudImage() *schema.Resource {
 	s := map[string]*schema.Schema{
 		"name": {
@@ -137,8 +129,7 @@ func ResourceDtcloudImage() *schema.Resource {
 		Schema: s,
 
 		Timeouts: &schema.ResourceTimeout{
-			// Create covers the upload itself, which is as long as it takes to
-			// send the file, so the default is generous.
+			// Create covers the upload itself, so the default is generous.
 			Create: schema.DefaultTimeout(2 * time.Hour),
 			Update: schema.DefaultTimeout(15 * time.Minute),
 			Delete: schema.DefaultTimeout(30 * time.Minute),
@@ -171,8 +162,8 @@ func resourceDtcloudImageCreate(ctx context.Context, d *schema.ResourceData, met
 		MinRAM:     d.Get("min_ram").(int),
 		Visibility: d.Get("visibility").(string),
 		Uefi:       dtgo.PtrTo(d.Get("uefi").(bool)),
-		// Declared up front so an image that is too large for the platform is
-		// refused now rather than after the whole file has been sent.
+		// Declared up front so an image too large for the platform is refused now
+		// rather than after the whole file has been sent.
 		FileSize: info.Size(),
 	}
 	if len(tags) > 0 {
@@ -190,13 +181,9 @@ func resourceDtcloudImageCreate(ctx context.Context, d *schema.ResourceData, met
 	}
 	d.SetId(id)
 
-	// The record exists but holds no data: it is `queued` until the file has
-	// been uploaded, and nothing can be built from it in the meantime.
-	//
-	// If this fails the platform removes the image it just created, so the id
-	// in state points at nothing. That is deliberate rather than repaired here:
-	// Terraform marks the resource tainted, and the destroy it runs before
-	// rebuilding is answered with a 404, which Delete already treats as done.
+	// The record is `queued` and holds no data until the file is uploaded. A
+	// failure here removes the image, and the destroy before the rebuild gets a
+	// 404, which Delete treats as done.
 	if _, err := client.Image.UploadImage(ctx, id, sourceFile, nil); err != nil {
 		return diag.Errorf("Error uploading %q to image %q: %s\n\n"+
 			"The platform deletes an image whose upload fails, so this one no longer exists; "+
@@ -231,17 +218,14 @@ func resourceDtcloudImageRead(ctx context.Context, d *schema.ResourceData, meta 
 	d.Set("visibility", details.Visibility)
 	d.Set("uefi", details.Uefi)
 
-	// min_disk comes back inside a formatted string, and as "-" when the
-	// platform has none to report. Leaving the configured value alone in that
-	// case keeps a plan from proposing a change to 0, which the API would
-	// reject anyway.
+	// min_disk arrives as a formatted string, or "-" when there is none. The
+	// configured value is kept in that case rather than reading back as 0.
 	if minDisk := parseSizeGB(details.MinVolumeSize); minDisk > 0 {
 		d.Set("min_disk", minDisk)
 	}
 
-	// disk_format, min_ram and tags are absent from every read endpoint, so
-	// there is nothing to compare them against; they keep whatever the
-	// configuration last set. After an import they are empty.
+	// disk_format, min_ram and tags are absent from every read endpoint, so they
+	// keep whatever the configuration last set. After an import they are empty.
 
 	setImageAttributes(d, details)
 
@@ -251,10 +235,8 @@ func resourceDtcloudImageRead(ctx context.Context, d *schema.ResourceData, meta 
 func resourceDtcloudImageUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	// The update endpoint takes one field per request, as a path/value pair,
-	// and accepts only these four. They go out in a fixed order so a failure
-	// halfway through leaves the same partial state every time; the read at the
-	// end reports whatever actually landed.
+	// One field per request, only these four, in a fixed order so a partial
+	// failure is repeatable.
 	updates := []struct {
 		key   string
 		path  string
@@ -276,9 +258,8 @@ func resourceDtcloudImageUpdate(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
-	// Wait on the values that were asked for rather than on the status: an
-	// image stays `active` throughout an update, so a status-only wait would be
-	// satisfied by one that still carried every old value.
+	// Wait on the values that were asked for rather than on the status: an image
+	// stays `active` throughout an update.
 	name := d.Get("name").(string)
 	osDistro := d.Get("os_distro").(string)
 	minDisk := d.Get("min_disk").(int)
@@ -305,9 +286,8 @@ func resourceDtcloudImageDelete(ctx context.Context, d *schema.ResourceData, met
 			d.SetId("")
 			return nil
 		}
-		// The platform refuses to delete an image that is marked protected, and
-		// its update endpoint cannot unmark one. The API's own message is
-		// passed through, with the reason it does not name.
+		// The platform refuses to delete a protected image and cannot unmark one,
+		// so its own message is passed through with the reason it does not name.
 		return diag.Errorf("Error deleting image %q: %s\n\n"+
 			"An image marked protected cannot be deleted through this API, and this provider "+
 			"never marks one; if that is the reason, it has to be cleared elsewhere.", d.Id(), err)

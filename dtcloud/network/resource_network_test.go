@@ -69,9 +69,8 @@ func TestAccDtcloudNetwork_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_network.test", "ip_version", "4"),
 					resource.TestCheckResourceAttr("dtcloud_network.test", "dns_nameservers.0", "8.8.8.8"),
 					resource.TestCheckResourceAttr("dtcloud_network.test", "allocation_pools.0.start", "10.20.30.10"),
-					// The id has to survive being buried in the createSubnet
-					// response as network_id — the create call never returns it
-					// at the top level when IPAM is on.
+					// The id has to survive being buried in the subnet response as
+					// network_id: with IPAM on, create never returns it at the top level.
 					resource.TestCheckResourceAttrSet("dtcloud_network.test", "subnet_id"),
 
 					resource.TestCheckResourceAttr("data.dtcloud_network.test", "name", "tf-acc-net"),
@@ -87,8 +86,7 @@ func TestAccDtcloudNetwork_lifecycle(t *testing.T) {
 				PlanOnly: true,
 			},
 			{
-				// A rename and a subnet edit together: both are in-place, and
-				// the network must not be recreated.
+				// A rename and a subnet edit together: both in place, no recreation.
 				Config: networkConfig(server.URL, "tf-acc-net-renamed", "10.20.30.254", false, `["1.1.1.1", "9.9.9.9"]`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_network.test", "name", "tf-acc-net-renamed"),
@@ -101,8 +99,8 @@ func TestAccDtcloudNetwork_lifecycle(t *testing.T) {
 						if api.creates != 1 {
 							return fmt.Errorf("in-place updates must not recreate the network; %d creates seen", api.creates)
 						}
-						// The subnet endpoint takes the whole set or nothing, so
-						// a partial patch would break the next unrelated edit.
+						// The subnet endpoint takes the whole set or nothing, so a partial
+						// patch would break the next unrelated edit.
 						if len(api.subnetUpdates) == 0 {
 							return fmt.Errorf("no subnet update was sent")
 						}
@@ -147,8 +145,8 @@ resource "dtcloud_network" "plain" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_network.plain", "ipam_enabled", "false"),
 					resource.TestCheckResourceAttr("dtcloud_network.plain", "subnet_id", ""),
-					// Not empty — absent. cidr is Optional with no Computed, so
-					// with no subnet to read one from it never enters state.
+					// Not empty — absent. cidr is Optional with no Computed, so with no
+					// subnet to read one from it never enters state.
 					resource.TestCheckNoResourceAttr("dtcloud_network.plain", "cidr"),
 					// The id came from a bare network object with no wrapper.
 					resource.TestCheckResourceAttrSet("dtcloud_network.plain", "id"),
@@ -159,11 +157,10 @@ resource "dtcloud_network" "plain" {
 				PlanOnly: true,
 			},
 			{
-				// The import that caught a real bug live: enable_dhcp has a
-				// schema default of true and no subnet to read it from, so a
-				// read that left it alone imported false, disagreed with the
-				// configuration, and the resulting "update" reached the subnet
-				// endpoint with no subnet to update.
+				// The import that caught a real bug: enable_dhcp has a schema default
+				// of true and no subnet to read it from, so a read that left it alone
+				// imported false and the resulting "update" reached the subnet endpoint
+				// with no subnet to update.
 				ResourceName:      "dtcloud_network.plain",
 				ImportState:       true,
 				ImportStateVerify: true,

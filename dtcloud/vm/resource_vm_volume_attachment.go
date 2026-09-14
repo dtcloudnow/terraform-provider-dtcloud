@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	dtgo "github.com/dtcloudnow/dt-go"
+	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -16,18 +16,9 @@ import (
 
 // ResourceDtcloudVMVolumeAttachment attaches an existing volume to a VM.
 //
-// This is a separate resource rather than a block on dtcloud_vm because the
-// attachment has its own lifecycle. A volume can be detached and re-attached
-// elsewhere without touching either the VM or the volume, and modelling it
-// inline would make every attachment change look like a change to the VM.
-//
-// It attaches volumes that already exist. The API's other path,
-// `POST /vms/{id}/add-attach-volume`, creates a volume *and* attaches it in one
-// call — that belongs to a future `dtcloud_volume` resource, which should own
-// creation, so that a volume's lifetime is not tied to the attachment's.
-//
-// The whole resource is ForceNew: there is nothing to update, only attach and
-// detach.
+// Separate from dtcloud_vm because the attachment has its own lifecycle: a
+// volume moves between machines without either changing. Creating a volume
+// belongs to dtcloud_volume. The whole resource is ForceNew — attach and detach.
 func ResourceDtcloudVMVolumeAttachment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDtcloudVMVolumeAttachmentCreate,
@@ -76,8 +67,8 @@ func ResourceDtcloudVMVolumeAttachment() *schema.Resource {
 	}
 }
 
-// volumeAttachmentID pairs the two ids, since the attachment itself has no id
-// of its own. The same shape is what `terraform import` expects.
+// volumeAttachmentID pairs the two ids, since the attachment has none of its
+// own. The same shape is what `terraform import` expects.
 func volumeAttachmentID(vmID, volumeID string) string {
 	return fmt.Sprintf("%s:%s", vmID, volumeID)
 }

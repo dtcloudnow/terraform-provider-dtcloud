@@ -75,7 +75,8 @@ resource "dtcloud_image" "installer" {
 * `disk_format` - (Required) Format of the file, such as `qcow2` or `iso`. The accepted values
   come from the platform's own configuration rather than from a list in the provider, so an
   unsupported one is refused by the API during apply rather than during plan. **Not the same
-  thing as the `type` attribute**, which is a display category derived from it.
+  thing as the `type` attribute**, which is a display category derived from it. Changing it
+  builds a new image — the format describes data already uploaded.
 * `os_distro` - (Required) Distribution the image carries. The accepted values are the
   platform's, like `disk_format`, and they **carry a version**: `ubuntu20.04`, `centos8`,
   `debian10`, `win2k19`. A bare `ubuntu` is refused. Can be changed in place.

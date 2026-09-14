@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/config"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/elasticip"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/securitygroup"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/router"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
@@ -48,6 +50,24 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_REGION_ID", nil),
 				Description: "Region / server id, sent as the serverId query parameter on every request.",
 			},
+
+			// Anything the four settings above leave empty is taken from a
+			// configuration file, so that credentials need not live in a .tf
+			// file or in the environment. See dtcloud/config/file.go.
+			"config_file": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_CONFIG_FILE", nil),
+				Description: "Path to the configuration file. Defaults to config.yaml in this machine's " +
+					"configuration directory, under terraform-provider-dtcloud.",
+			},
+			"profile": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_PROFILE", nil),
+				Description: "Which account in the configuration file to use. Defaults to the file's " +
+					"`default_profile`, then to `default`.",
+			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"dtcloud_ssh_key":  sshkey.DataSourceDtcloudSSHKey(),
@@ -60,6 +80,13 @@ func Provider() *schema.Provider {
 
 			"dtcloud_network":  network.DataSourceDtcloudNetwork(),
 			"dtcloud_networks": network.DataSourceDtcloudNetworks(),
+
+			"dtcloud_security_group":  securitygroup.DataSourceDtcloudSecurityGroup(),
+			"dtcloud_security_groups": securitygroup.DataSourceDtcloudSecurityGroups(),
+			"dtcloud_my_ip":           securitygroup.DataSourceDtcloudMyIP(),
+
+			"dtcloud_elastic_ip":  elasticip.DataSourceDtcloudElasticIP(),
+			"dtcloud_elastic_ips": elasticip.DataSourceDtcloudElasticIPs(),
 
 			"dtcloud_volume":           volume.DataSourceDtcloudVolume(),
 			"dtcloud_volumes":          volume.DataSourceDtcloudVolumes(),
@@ -92,6 +119,11 @@ func Provider() *schema.Provider {
 
 			"dtcloud_network": network.ResourceDtcloudNetwork(),
 
+			"dtcloud_security_group":      securitygroup.ResourceDtcloudSecurityGroup(),
+			"dtcloud_security_group_rule": securitygroup.ResourceDtcloudSecurityGroupRule(),
+
+			"dtcloud_elastic_ip": elasticip.ResourceDtcloudElasticIP(),
+
 			"dtcloud_volume": volume.ResourceDtcloudVolume(),
 
 			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
@@ -117,11 +149,24 @@ func providerConfigure(d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		SecretKey:   d.Get("secret_key").(string),
 		APIEndpoint: d.Get("api_endpoint").(string),
 		RegionID:    d.Get("region_id").(string),
+		ConfigFile:  d.Get("config_file").(string),
+		Profile:     d.Get("profile").(string),
 	}
 
-	client, err := conf.Client()
-	if err != nil {
-		return nil, diag.FromErr(err)
+	client, warnings, err := conf.Client()
+
+	// Warnings are surfaced even when the configuration then fails, because
+	// they are usually about the file the failure is also about.
+	var diags diag.Diagnostics
+	for _, w := range warnings {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  "dtcloud configuration file",
+			Detail:   w,
+		})
 	}
-	return client, nil
+	if err != nil {
+		return nil, append(diags, diag.FromErr(err)...)
+	}
+	return client, diags
 }

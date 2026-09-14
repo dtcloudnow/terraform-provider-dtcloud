@@ -9,7 +9,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// fakeFlavorAPI stands in for cloud-web-api's /openstack/flavors route.
+// fakeFlavorAPI stands in for the /openstack/flavors routes.
+//
+// The load balancer catalogue deliberately repeats a name across the two `ha`
+// settings, because the real one does: that is how HA is chosen, and it is why
+// a name on its own does not identify a flavor.
 func fakeFlavorAPI() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !acctest.RequireAuth(w, r) {

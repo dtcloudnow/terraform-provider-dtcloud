@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// fakeProjectAPI stands in for cloud-web-api's /openstack/projects routes.
+// fakeProjectAPI stands in for the /openstack/projects routes.
 //
 // The quota endpoint carries the region in its *path*, unlike every other call
 // in this provider, which takes it as the serverId query parameter. The fake

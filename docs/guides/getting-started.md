@@ -30,22 +30,71 @@ terraform version
 
 ## 2. Get your credentials
 
-You need three things from the DT Cloud console:
+You need three things from the DT Cloud console: an **API access key**, an **API secret key**,
+and the **region (server) id** your project lives in.
 
-| Value | Environment variable |
-|-------|----------------------|
-| API access key | `DTCLOUD_ACCESS_KEY` |
-| API secret key | `DTCLOUD_SECRET_KEY` |
-| Region (server) id | `DTCLOUD_REGION_ID` |
+Pick whichever way suits you — the provider takes them from the first place that has them.
+
+### Configure the machine once (recommended)
+
+```sh
+terraform-provider-dtcloud configure
+```
+
+It asks for the three values, checks them against the API before saving anything, and writes
+them to your user configuration directory with owner-only permissions. Every project on the
+machine then works with an empty provider block and no credentials in sight.
+
+The command is the provider binary itself, so there is nothing extra to install. If it is not
+on your `PATH`, the error you get from `terraform plan` prints the full path to it.
+
+### Or let Terraform ask, per project
+
+Declare the values as variables with no default and Terraform prompts for them on the first
+`plan`:
+
+```hcl
+variable "dtcloud_access_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "dtcloud_secret_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "dtcloud_region_id" {
+  type = string
+}
+
+provider "dtcloud" {
+  access_key = var.dtcloud_access_key
+  secret_key = var.dtcloud_secret_key
+  region_id  = var.dtcloud_region_id
+}
+```
+
+Put the values in `terraform.tfvars` once you tire of typing them, and add that file to your
+`.gitignore`.
+
+### Or environment variables, which is what CI should use
 
 ```sh
 export DTCLOUD_ACCESS_KEY="..."
 export DTCLOUD_SECRET_KEY="..."
-export DTCLOUD_REGION_ID="1"
+export DTCLOUD_REGION_ID="2"
 ```
 
-~> **Keep these out of your `.tf` files.** Anything you write there goes into version control,
-and `terraform.tfstate` is not encrypted either. Environment variables keep both clean.
+These override the configuration file, so a build agent never picks up a developer's account.
+
+~> **Keep credentials out of your `.tf` files.** Anything written there goes into version
+control, and `terraform.tfstate` is not encrypted either. Any of the three ways above keeps
+both clean.
+
+-> Keep an empty `provider "dtcloud" {}` block in your configuration even when it needs no
+arguments. Without one, a credentials problem is reported by Terraform first as *"requires
+explicit configuration"*, which points you the wrong way.
 
 ## 3. Find the ids you will need
 
