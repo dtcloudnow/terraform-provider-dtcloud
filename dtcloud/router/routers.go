@@ -186,6 +186,22 @@ func externalGatewayParams(networkID string, enableSnat bool) dtgo.AttachExterna
 	return params
 }
 
+// firstExternalSubnetID is the subnet the gateway's first address sits on, as
+// state currently has it, or "" when the router has no gateway address at all.
+// Used to tell a moved gateway from one that has not moved yet.
+func firstExternalSubnetID(d *schema.ResourceData) string {
+	ips, ok := d.Get("external_fixed_ip").([]interface{})
+	if !ok || len(ips) == 0 {
+		return ""
+	}
+	first, ok := ips[0].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	subnetID, _ := first["subnet_id"].(string)
+	return subnetID
+}
+
 // flattenExternalFixedIPs turns the addresses the platform gave the gateway
 // into state. There is no way to request particular ones, so they are read-only.
 func flattenExternalFixedIPs(details *dtgo.GetRouterDetails) []interface{} {

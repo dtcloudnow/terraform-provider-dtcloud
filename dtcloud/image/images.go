@@ -1,16 +1,20 @@
 // Package image implements the dtcloud_image resource and its data sources.
 //
-// An image takes two calls to create: one opens an empty `queued` record, the
-// other uploads the file. Create does both and waits for `active`.
+// An image is made by capturing a volume — the `osUploadImage` action on the
+// volume — not by uploading a file. The file-upload endpoint exists but
+// customer accounts are never granted `upload_image` and it answers 403, so a
+// volume is the only source the platform accepts.
 //
-// Three API behaviours shape it: a failed upload deletes the image, so a failed
-// create leaves nothing; only name, os_distro, min_disk and visibility change in
-// place; and sizes are reported as strings, so min_disk has to be parsed.
+// Four API behaviours shape the resource: the capture answers 200 with an empty
+// body, so the new image's id has to be found by diffing the image list; the
+// volume must be `available` and is held for the duration, so captures of one
+// volume cannot overlap; only name, os_distro, min_disk and visibility change in
+// place, and os_distro and min_disk are inherited from the volume unless set;
+// and sizes are reported as strings, so min_disk has to be parsed.
 package image
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -25,10 +29,6 @@ import (
 // noHTMLPattern mirrors the character rule on an image name, so a request
 // rejected halfway through an apply becomes an error during plan.
 const noHTMLPattern = `^[^<>&"']*$`
-
-// visibilities are the four values the API accepts. Fixed in code rather than
-// read from the platform, so it is safe to check during plan.
-var visibilities = []string{"public", "private", "shared", "community"}
 
 // imageSettled reports whether a status means the platform has finished.
 // `active` is the only usable resting state.
@@ -46,25 +46,83 @@ func imageFailed(status string) bool {
 	return false
 }
 
-// createdImageID reads the new image's id out of a create response, which is
-// the raw image object rather than the wrapped shape the other services use.
-func createdImageID(body string) (string, error) {
-	var bare struct {
-		ID      string `json:"id"`
-		ImageID string `json:"imageId"`
-		Image   struct {
-			ID string `json:"id"`
-		} `json:"image"`
+// imageIDs is the set of image ids visible right now, used to tell which image
+// a capture produced.
+func imageIDs(ctx context.Context, client *dtgo.Client) (map[string]bool, error) {
+	list, _, err := client.Image.ListImages(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal([]byte(body), &bare); err != nil {
-		return "", fmt.Errorf("the API response was not a JSON object: %w (body: %s)", err, body)
+	ids := make(map[string]bool, len(list))
+	for _, img := range list {
+		ids[img.ID] = true
 	}
-	for _, candidate := range []string{bare.ID, bare.ImageID, bare.Image.ID} {
-		if candidate != "" {
-			return candidate, nil
+	return ids, nil
+}
+
+// findCapturedImage identifies the image a volume capture just made. The action
+// answers 200 with an empty body and no Location header, so the only way to
+// name what it built is to look for an id that was not there before. Image names
+// are not unique, so the name narrows the search but never decides it on its own.
+//
+// Two matches means something else created an image of the same name at the same
+// moment; binding to either would be a guess, so it is an error instead.
+func findCapturedImage(ctx context.Context, client *dtgo.Client, name string, before map[string]bool, timeout time.Duration) (string, error) {
+	var found string
+
+	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		list, _, err := client.Image.ListImages(ctx, nil)
+		if err != nil {
+			return retry.NonRetryableError(err)
 		}
+
+		var fresh []string
+		for _, img := range list {
+			if !before[img.ID] && img.Name == name {
+				fresh = append(fresh, img.ID)
+			}
+		}
+
+		switch len(fresh) {
+		case 0:
+			// The record can take a moment to show up in the listing.
+			return retry.RetryableError(fmt.Errorf("no new image named %q yet", name))
+		case 1:
+			found = fresh[0]
+			return nil
+		default:
+			return retry.NonRetryableError(fmt.Errorf(
+				"%d new images are named %q (%s); the capture cannot be told apart from "+
+					"whatever else created one, so none is adopted",
+				len(fresh), name, strings.Join(fresh, ", ")))
+		}
+	})
+	if err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("no image id in the API response (body: %s)", body)
+	return found, nil
+}
+
+// waitForVolumeAvailable blocks until the volume can be captured. A volume busy
+// with another capture reports something other than `available`, and the action
+// is refused outright rather than queued.
+func waitForVolumeAvailable(ctx context.Context, client *dtgo.Client, volumeID string, timeout time.Duration) error {
+	return retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		details, _, err := client.Volume.GetVolumeDetails(ctx, volumeID, nil)
+		if err != nil {
+			return retry.NonRetryableError(err)
+		}
+		switch details.Status {
+		case "available":
+			return nil
+		case "error", "error_deleting":
+			return retry.NonRetryableError(fmt.Errorf(
+				"volume %q is in status %q", volumeID, details.Status))
+		default:
+			return retry.RetryableError(fmt.Errorf(
+				"volume %q is %q, not yet available", volumeID, details.Status))
+		}
+	})
 }
 
 // parseSizeGB turns the API's size strings back into whole GB. Anything that is
@@ -164,12 +222,12 @@ func imageAttributesSchema() map[string]*schema.Schema {
 			Computed: true,
 			Description: "Status reported by the platform. `active` is the only status a machine " +
 				"can be built from; `queued` and `saving` mean the data is not there yet, and " +
-				"`killed` means the upload failed.",
+				"`killed` means the capture failed.",
 		},
 		"size": {
 			Type:     schema.TypeString,
 			Computed: true,
-			Description: "Size of the uploaded data, as the platform formats it — `1.5 GB` or " +
+			Description: "Size of the captured data, as the platform formats it — `1.2 GB` or " +
 				"`250 MB`. There is no endpoint that reports it as a number. An image with no " +
 				"data yet reads as `0 MB`.",
 		},

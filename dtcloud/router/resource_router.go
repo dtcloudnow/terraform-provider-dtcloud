@@ -65,6 +65,18 @@ func ResourceDtcloudRouter() *schema.Resource {
 			},
 		}, routerAttributesSchema()),
 
+		// Moving the gateway to another network moves its address with it, and
+		// the platform picks the new one. Left alone, the plan carries the old
+		// address forward as if it were unchanged, so anything reading
+		// external_fixed_ip - an output, another resource - sees the previous
+		// network's IP for one whole apply.
+		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+			if d.Id() != "" && d.HasChange("external_network_id") {
+				return d.SetNewComputed("external_fixed_ip")
+			}
+			return nil
+		},
+
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -170,6 +182,12 @@ func resourceDtcloudRouterUpdate(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*config.CombinedConfig).DTClient()
 	id := d.Id()
 
+	// Read before anything changes: moving the gateway to another network also
+	// moves the address, and the only way to tell the new one from the old is
+	// to know which subnet the old one sat on.
+	networkChanged := d.HasChange("external_network_id")
+	oldSubnetID := firstExternalSubnetID(d)
+
 	// The name and the gateway travel in different request bodies, so changing
 	// both is two requests rather than one.
 	if d.HasChange("name") {
@@ -193,9 +211,20 @@ func resourceDtcloudRouterUpdate(ctx context.Context, d *schema.ResourceData, me
 	wantNetwork := d.Get("external_network_id").(string)
 	wantSnat := d.Get("enable_snat").(bool)
 	settled := func(details *dtgo.GetRouterDetails) bool {
-		return details.Name == wantName &&
-			details.ExternalGatewayInfo.NetworkID == wantNetwork &&
-			details.ExternalGatewayInfo.EnableSnat == wantSnat
+		if details.Name != wantName ||
+			details.ExternalGatewayInfo.NetworkID != wantNetwork ||
+			details.ExternalGatewayInfo.EnableSnat != wantSnat {
+			return false
+		}
+		if !networkChanged {
+			return true
+		}
+		// The platform reports the new network_id while the gateway is still
+		// holding the old network's address, so stopping here would let the
+		// read below write that stale address into state, where it stays until
+		// the next refresh. Wait for the address to move as well.
+		ips := details.ExternalGatewayInfo.ExternalFixedIps
+		return len(ips) > 0 && ips[0].SubnetID != oldSubnetID
 	}
 	if err := waitForRouter(ctx, client, id, d.Timeout(schema.TimeoutUpdate), settled); err != nil {
 		return diag.Errorf("Error waiting for the update of router %q to be applied: %s", id, err)

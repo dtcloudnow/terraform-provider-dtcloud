@@ -2,7 +2,6 @@ package image
 
 import (
 	"context"
-	"os"
 	"regexp"
 	"time"
 
@@ -14,11 +13,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// ResourceDtcloudImage manages a disk image and the file behind it. Create is
-// two requests and a wait: open the record, upload the file, wait for `active`.
+// ResourceDtcloudImage manages a disk image captured from a volume.
+//
+// An image is created by asking a volume to become one — the `osUploadImage`
+// action on POST /openstack/volumes/{id}/actions — and not by uploading a local
+// file. The upload endpoint exists but customer accounts are never granted
+// `upload_image`, so every call to it answers 403 and the path is unusable; a
+// volume is the only source the platform will accept. Build the contents by
+// making a volume (from an image, a snapshot or a machine), then capture it.
 //
 // In place: name, os_distro, min_disk and visibility. Everything else is
-// ForceNew, the file included — nothing replaces the data of an existing image.
+// ForceNew — nothing replaces the data of an existing image.
+//
+// `visibility = "public"` is refused: publishing needs `publicize_image`, which
+// is not granted either, on this path or on the update one.
 //
 // `protected` is not exposed: it is accepted at create time but cannot be
 // cleared, which would leave the resource impossible to destroy.
@@ -35,22 +43,24 @@ func ResourceDtcloudImage() *schema.Resource {
 			Description: "Name of the image. Can be changed in place. Names are not unique on " +
 				"the platform, which is why `dtcloud_image` prefers a lookup by id.",
 		},
-		"source_file": {
+		"source_volume_id": {
 			Type:         schema.TypeString,
 			Required:     true,
 			ForceNew:     true,
-			ValidateFunc: validation.NoZeroValues,
-			Description: "Path to the local disk file to upload. The file is read during apply " +
-				"and must still be there. There is no endpoint that replaces the data of an " +
-				"existing image, so changing this builds a new one.",
+			ValidateFunc: validation.IsUUID,
+			Description: "Volume to capture. Its contents at the moment of the call become the " +
+				"image; later writes to the volume do not reach it. The volume survives, and " +
+				"the image outlives it. There is no endpoint that replaces the data of an " +
+				"existing image, so pointing this at another volume builds a new one.",
 		},
-		"source_file_hash": {
-			Type:     schema.TypeString,
-			Optional: true,
-			ForceNew: true,
-			Description: "Hash of the file, used to notice that its contents changed while its " +
-				"path did not — set it to `filesha256(var.path)` or similar. Nothing reads the " +
-				"file during plan, so without this a modified file goes unnoticed.",
+		"container_format": {
+			Type:         schema.TypeString,
+			Optional:     true,
+			Default:      "bare",
+			ForceNew:     true,
+			ValidateFunc: validation.NoZeroValues,
+			Description: "Container wrapped around the disk data, `bare` unless you have a " +
+				"reason. Write-only: no endpoint reports it back.",
 		},
 		"disk_format": {
 			Type:         schema.TypeString,
@@ -64,54 +74,43 @@ func ResourceDtcloudImage() *schema.Resource {
 		},
 		"os_distro": {
 			Type:         schema.TypeString,
-			Required:     true,
+			Optional:     true,
+			Computed:     true,
 			ValidateFunc: validation.NoZeroValues,
-			Description: "Distribution the image carries, such as `ubuntu`. Like `disk_format`, " +
-				"the accepted values are the platform's and are checked by the API. Can be " +
-				"changed in place.",
+			Description: "Distribution the image carries, such as `debian12`. The capture takes " +
+				"this from the source volume, so leaving it out inherits whatever the volume " +
+				"was built from. Set it to override, on create or later; the accepted values " +
+				"are the platform's and are checked by the API.",
 		},
 		"min_disk": {
 			Type:         schema.TypeInt,
-			Required:     true,
+			Optional:     true,
+			Computed:     true,
 			ValidateFunc: validation.IntBetween(1, 512),
-			Description: "Smallest volume, in GB, a machine built from this image needs. Can be " +
-				"changed in place. The API reports it as the text `20 GB`, which the provider " +
+			Description: "Smallest volume, in GB, a machine built from this image needs. The " +
+				"capture derives it from the size of the source volume; set it to override, on " +
+				"create or later. The API reports it as the text `20 GB`, which the provider " +
 				"parses back into a number.",
 		},
 		"visibility": {
-			Type:         schema.TypeString,
-			Optional:     true,
-			Default:      "shared",
-			ValidateFunc: validation.StringInSlice(visibilities, false),
-			Description: "Who can see the image: `public`, `private`, `shared` or `community`. " +
-				"Defaults to `shared`, which is what the API applies when the field is omitted. " +
-				"Can be changed in place.",
-		},
-		"min_ram": {
-			Type:         schema.TypeInt,
-			Optional:     true,
-			ForceNew:     true,
-			ValidateFunc: validation.IntAtLeast(0),
-			Description: "Smallest amount of RAM, in MB, a machine built from this image needs. " +
-				"Write-only: no endpoint reports it back, so it cannot drift and does not " +
-				"survive an import.",
-		},
-		"tags": {
-			Type:     schema.TypeSet,
+			Type:     schema.TypeString,
 			Optional: true,
-			ForceNew: true,
-			Elem:     &schema.Schema{Type: schema.TypeString},
-			Description: "Tags to attach to the image. Write-only, like `min_ram`: accepted on " +
-				"create and reported by nothing.",
+			Default:  "shared",
+			ValidateFunc: validation.StringInSlice(
+				[]string{"private", "shared", "community"}, false),
+			Description: "Who can see the image: `private`, `shared` or `community`. Defaults " +
+				"to `shared`. Can be changed in place. `public` is not accepted: publishing " +
+				"needs the `publicize_image` permission, which customer accounts are not " +
+				"granted, and the platform answers 403 on both the capture and the update.",
 		},
+		// uefi is reported back but nothing accepts it: the capture action takes
+		// only a name, a disk format, a container format and a visibility, and the
+		// update endpoint does not carry it either. Read-only.
 		"uefi": {
 			Type:     schema.TypeBool,
-			Optional: true,
-			Default:  false,
-			ForceNew: true,
-			Description: "Boot the image with UEFI firmware instead of BIOS. Unlike the other " +
-				"create-only arguments this one is reported back, so a change made elsewhere " +
-				"shows up as drift.",
+			Computed: true,
+			Description: "Whether the image boots with UEFI firmware. Inherited from the source " +
+				"volume; there is no endpoint that sets it.",
 		},
 	}
 	for name, attr := range imageAttributesSchema() {
@@ -129,7 +128,8 @@ func ResourceDtcloudImage() *schema.Resource {
 		Schema: s,
 
 		Timeouts: &schema.ResourceTimeout{
-			// Create covers the upload itself, so the default is generous.
+			// Create covers waiting for the volume, the capture and the copy that
+			// follows it, which scales with the size of the volume.
 			Create: schema.DefaultTimeout(2 * time.Hour),
 			Update: schema.DefaultTimeout(15 * time.Minute),
 			Delete: schema.DefaultTimeout(30 * time.Minute),
@@ -140,61 +140,82 @@ func ResourceDtcloudImage() *schema.Resource {
 func resourceDtcloudImageCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	sourceFile := d.Get("source_file").(string)
-	info, err := os.Stat(sourceFile)
+	name := d.Get("name").(string)
+	volumeID := d.Get("source_volume_id").(string)
+
+	// The platform refuses the capture unless the volume is `available`, and a
+	// capture already running holds it, so a second image off the same volume
+	// fails with "Volume ... status must be available" rather than queueing.
+	if err := waitForVolumeAvailable(ctx, client, volumeID, d.Timeout(schema.TimeoutCreate)); err != nil {
+		return diag.Errorf("Error waiting for volume %q to be available for capture: %s", volumeID, err)
+	}
+
+	// The action reports nothing about what it made: 200, an empty body and no
+	// Location header. The id has to be found by looking at what appeared, so
+	// the ids that already exist are recorded first. Matching on the name alone
+	// would be wrong - image names are not unique on this platform.
+	before, err := imageIDs(ctx, client)
 	if err != nil {
-		return diag.Errorf("Error reading the image file %q: %s", sourceFile, err)
-	}
-	if info.IsDir() {
-		return diag.Errorf("Error reading the image file %q: it is a directory", sourceFile)
+		return diag.Errorf("Error listing images before capturing volume %q: %s", volumeID, err)
 	}
 
-	tags := []string{}
-	for _, t := range d.Get("tags").(*schema.Set).List() {
-		tags = append(tags, t.(string))
+	action := dtgo.PerformActionParams{
+		OsUploadImage: &dtgo.OsUploadImage{
+			ImageName:       name,
+			DiskFormat:      d.Get("disk_format").(string),
+			ContainerFormat: d.Get("container_format").(string),
+			Visibility:      d.Get("visibility").(string),
+		},
+	}
+	if _, err := client.Volume.PerformActionOnVolume(ctx, volumeID, action, nil); err != nil {
+		return diag.Errorf("Error capturing volume %q as image %q: %s", volumeID, name, err)
 	}
 
-	params := dtgo.CreateImageParams{
-		Name:       d.Get("name").(string),
-		Type:       d.Get("disk_format").(string),
-		OsDistro:   d.Get("os_distro").(string),
-		MinDisk:    d.Get("min_disk").(int),
-		MinRAM:     d.Get("min_ram").(int),
-		Visibility: d.Get("visibility").(string),
-		Uefi:       dtgo.PtrTo(d.Get("uefi").(bool)),
-		// Declared up front so an image too large for the platform is refused now
-		// rather than after the whole file has been sent.
-		FileSize: info.Size(),
-	}
-	if len(tags) > 0 {
-		params.Tags = tags
-	}
-
-	body, err := client.Image.CreateImage(ctx, params, nil)
+	id, err := findCapturedImage(ctx, client, name, before, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf("Error creating image %q: %s", params.Name, err)
-	}
-
-	id, err := createdImageID(body)
-	if err != nil {
-		return diag.Errorf("Error reading the created image's id: %s", err)
+		return diag.Errorf("Error finding the image captured from volume %q: %s\n\n"+
+			"The capture itself was accepted, so an image named %q may well exist; it is not "+
+			"in Terraform's state and has to be imported or removed by hand.", volumeID, err, name)
 	}
 	d.SetId(id)
-
-	// The record is `queued` and holds no data until the file is uploaded. A
-	// failure here removes the image, and the destroy before the rebuild gets a
-	// 404, which Delete treats as done.
-	if _, err := client.Image.UploadImage(ctx, id, sourceFile, nil); err != nil {
-		return diag.Errorf("Error uploading %q to image %q: %s\n\n"+
-			"The platform deletes an image whose upload fails, so this one no longer exists; "+
-			"the next apply will create it again.", sourceFile, id, err)
-	}
 
 	if err := waitForImage(ctx, client, id, d.Timeout(schema.TimeoutCreate), nil); err != nil {
 		return diag.Errorf("Error waiting for image %q to become active: %s", id, err)
 	}
 
+	// os_distro and min_disk are not arguments of the capture: it inherits the
+	// distribution from the volume and sizes min_disk to the volume. Anything
+	// the configuration asked for is applied afterwards, through the same
+	// endpoint an update uses.
+	if diags := applyImageOverrides(ctx, d, client); diags != nil {
+		return diags
+	}
+
 	return resourceDtcloudImageRead(ctx, d, meta)
+}
+
+// applyImageOverrides patches the fields the capture cannot take, but only when
+// the configuration actually set them - left out, they keep what was inherited.
+func applyImageOverrides(ctx context.Context, d *schema.ResourceData, client *dtgo.Client) diag.Diagnostics {
+	overrides := []struct {
+		key   string
+		path  string
+		value interface{}
+	}{
+		{"os_distro", "/os_distro", d.Get("os_distro")},
+		{"min_disk", "/min_disk", d.Get("min_disk")},
+	}
+
+	for _, o := range overrides {
+		if _, set := d.GetOkExists(o.key); !set {
+			continue
+		}
+		params := dtgo.PerformImageActionParams{Op: "replace", Path: o.path, Value: o.value}
+		if _, err := client.Image.PerformImageAction(ctx, d.Id(), params, nil); err != nil {
+			return diag.Errorf("Error setting %s on the captured image %q: %s", o.key, d.Id(), err)
+		}
+	}
+	return nil
 }
 
 func resourceDtcloudImageRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -224,8 +245,10 @@ func resourceDtcloudImageRead(ctx context.Context, d *schema.ResourceData, meta 
 		d.Set("min_disk", minDisk)
 	}
 
-	// disk_format, min_ram and tags are absent from every read endpoint, so they
-	// keep whatever the configuration last set. After an import they are empty.
+	// disk_format and container_format are absent from every read endpoint, so
+	// they keep whatever the configuration last set. After an import they are
+	// empty, and the first plan wants to replace the image to "fix" that -
+	// see the import scenario under tests/.
 
 	setImageAttributes(d, details)
 
