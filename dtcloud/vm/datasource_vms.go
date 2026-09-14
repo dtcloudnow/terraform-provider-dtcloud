@@ -16,6 +16,8 @@ import (
 // timestamps — so use the singular data source for the full picture.
 func DataSourceDtcloudVMs() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the virtual machines in the active region and project.",
+
 		ReadContext: dataSourceDtcloudVMsRead,
 		Schema: map[string]*schema.Schema{
 			"status": {

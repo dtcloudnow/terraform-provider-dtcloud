@@ -22,6 +22,8 @@ import (
 // Read finds the rule by listing that group's rules. See the package comment.
 func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages one rule inside a security group.",
+
 		CreateContext: resourceDtcloudSecurityGroupRuleCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRuleRead,
 		DeleteContext: resourceDtcloudSecurityGroupRuleDelete,

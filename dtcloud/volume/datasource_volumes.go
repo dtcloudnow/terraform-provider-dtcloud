@@ -19,6 +19,8 @@ import (
 // is passed through as reported, and the `name` filter is applied here.
 func DataSourceDtcloudVolumes() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the volumes visible to the caller.",
+
 		ReadContext: dataSourceDtcloudVolumesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

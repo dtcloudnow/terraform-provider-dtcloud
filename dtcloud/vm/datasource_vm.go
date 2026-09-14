@@ -36,6 +36,8 @@ func DataSourceDtcloudVM() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up a single virtual machine by id.",
+
 		ReadContext: dataSourceDtcloudVMRead,
 		Schema:      dsSchema,
 	}

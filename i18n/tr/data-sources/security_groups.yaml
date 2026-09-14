@@ -1,0 +1,28 @@
+- en: |-
+    Lists the security groups visible to the caller.
+  tr: |-
+    Çağıranın görebildiği güvenlik gruplarını listeler.
+- en: |-
+    The list endpoint reports an id, a name and a description, and nothing else. Rules would be one more call per group, so read a group with `dtcloud_security_group` when you need them.
+  tr: |-
+    Liste uç noktası bir kimlik, bir ad ve bir açıklama bildirir, başka bir şey değil. Kurallar grup başına bir çağrı daha gerektirir; ihtiyaç duyduğunuzda grubu `dtcloud_security_group` ile okuyun.
+- en: |-
+    Only return security groups with this exact name. Names are not unique, so this can still match several.
+  tr: |-
+    Yalnızca tam olarak bu ada sahip güvenlik gruplarını döndürür. Adlar benzersiz olmadığından bu yine de birden fazla grupla eşleşebilir.
+- en: |-
+    Just the ids, for the common case of filling a VM interface's `security_groups`, which takes ids.
+  tr: |-
+    Yalnızca kimlikler; kimlik alan bir sanal makine arayüzünün `security_groups` alanını doldurmak gibi yaygın durum için.
+- en: |-
+    The security groups that matched.
+  tr: |-
+    Eşleşen güvenlik grupları.
+- en: |-
+    **`name` is applied by the provider**, since the list route takes no query parameters, and it can still match several groups.
+  tr: |-
+    **`name` sağlayıcı tarafından uygulanır**, çünkü liste yolu sorgu parametresi almaz; yine de birden fazla grupla eşleşebilir.
+- en: |-
+    **`ids` follows the order of `security_groups`.** For one specific group, look it up with the `dtcloud_security_group` data source rather than indexing into the list.
+  tr: |-
+    **`ids`, `security_groups` ile aynı sırayı izler.** Belirli bir grup için listede dizinle erişmek yerine onu `dtcloud_security_group` veri kaynağıyla arayın.

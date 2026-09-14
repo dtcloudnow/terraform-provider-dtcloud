@@ -269,6 +269,8 @@ func ResourceDtcloudVM() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Manages a virtual machine.",
+
 		CreateContext: resourceDtcloudVMCreate,
 		ReadContext:   resourceDtcloudVMRead,
 		UpdateContext: resourceDtcloudVMUpdate,

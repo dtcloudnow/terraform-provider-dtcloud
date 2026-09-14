@@ -59,6 +59,8 @@ func DataSourceDtcloudImage() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up one image, by id or by name.",
+
 		ReadContext: dataSourceDtcloudImageRead,
 		Schema:      s,
 	}

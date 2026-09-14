@@ -14,6 +14,8 @@ import (
 // external network's name and what the address is attached to.
 func DataSourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one elastic IP, by id or by address.",
+
 		ReadContext: dataSourceDtcloudElasticIPRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

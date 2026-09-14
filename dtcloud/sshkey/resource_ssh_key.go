@@ -17,6 +17,8 @@ import (
 // `public_key` are ForceNew.
 func ResourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages an SSH key that can be injected into a virtual machine at boot.",
+
 		CreateContext: resourceDtcloudSSHKeyCreate,
 		ReadContext:   resourceDtcloudSSHKeyRead,
 		DeleteContext: resourceDtcloudSSHKeyDelete,

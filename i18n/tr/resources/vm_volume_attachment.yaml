@@ -1,0 +1,56 @@
+- en: |-
+    Attaches an existing volume to a virtual machine.
+  tr: |-
+    Mevcut bir diski bir sanal makineye bağlar.
+- en: |-
+    The attachment is its own resource rather than a block on `dtcloud_vm` because it has its own lifecycle: a volume can be detached and attached elsewhere without touching the machine or the volume. The resource ID is `<vm-id>:<volume-id>`.
+  tr: |-
+    Bağlantı, `dtcloud_vm` üzerinde bir blok değil ayrı bir kaynaktır, çünkü kendi yaşam döngüsü vardır: bir disk makineye ya da diske dokunmadan ayrılıp başka bir yere bağlanabilir. Kaynak kimliği `<vm-id>:<volume-id>`'dir.
+- en: |-
+    The volume and the machine each have their own resource; this is only the attachment between them, so the volume can be detached and re-attached elsewhere without either being rebuilt.
+  tr: |-
+    Diskin ve makinenin kendi kaynakları vardır; bu yalnızca ikisi arasındaki bağlantıdır, böylece disk ikisi de yeniden oluşturulmadan ayrılıp başka bir yere bağlanabilir.
+- en: |-
+    ID of the virtual machine to attach to.
+  tr: |-
+    Bağlanılacak sanal makinenin kimliği.
+- en: |-
+    ID of the existing volume to attach.
+  tr: |-
+    Bağlanacak mevcut diskin kimliği.
+- en: |-
+    Size of the attached volume in GB.
+  tr: |-
+    Bağlı diskin GB cinsinden boyutu.
+- en: |-
+    Storage policy / volume type of the attached volume.
+  tr: |-
+    Bağlı diskin depolama politikası / disk tipi.
+- en: |-
+    Name of the attached volume.
+  tr: |-
+    Bağlı diskin adı.
+- en: |-
+    **Detaching does not unmount.** Detaching a volume that is mounted inside the guest can lose data. Terraform does not stop the machine or unmount anything first.
+  tr: |-
+    **Ayırmak, bağlamayı (mount) kaldırmaz.** Misafir işletim sistemi içinde bağlı (mount edilmiş) bir diski ayırmak veri kaybına yol açabilir. Terraform önce makineyi durdurmaz ve hiçbir şeyin bağlamasını kaldırmaz.
+- en: |-
+    **There is nothing to update.** An attachment is made or broken, so every argument forces a new one.
+  tr: |-
+    **Güncellenecek bir şey yoktur.** Bir bağlantı ya kurulur ya da kaldırılır; bu yüzden her argüman değişikliği yeni bir bağlantı gerektirir.
+- en: |-
+    **The volume must already exist.** Create it with `dtcloud_volume`; this resource only attaches it.
+  tr: |-
+    **Disk zaten var olmalıdır.** Onu `dtcloud_volume` ile oluşturun; bu kaynak yalnızca bağlar.
+- en: |-
+    **A volume detached outside Terraform** drops the attachment from state, and the next plan attaches it again.
+  tr: |-
+    **Terraform dışında ayrılan bir disk**, bağlantıyı state'ten düşürür ve bir sonraki plan onu yeniden bağlar.
+- en: |-
+    **`dtcloud_vm.volume` is a snapshot** from that resource's last refresh. A volume attached here in the same apply appears there after the next refresh; read this resource's attributes instead.
+  tr: |-
+    **`dtcloud_vm.volume`, o kaynağın son yenilemesinden alınmış bir anlık kopyadır.** Aynı apply'da burada bağlanan bir disk orada bir sonraki yenilemeden sonra görünür; bunun yerine bu kaynağın özniteliklerini okuyun.
+- en: |-
+    `create` and `delete` each default to 10 minutes. Attaching and detaching are asynchronous: the provider waits until the volume appears on, or disappears from, the machine. Override them with a `timeouts` block:
+  tr: |-
+    `create` ve `delete` için varsayılan süre 10 dakikadır. Bağlama ve ayırma eşzamansızdır: sağlayıcı disk makinede görünene ya da makineden kaybolana kadar bekler. Bunları bir `timeouts` bloğuyla değiştirin:

@@ -1,0 +1,64 @@
+- en: |-
+    Looks up one image, by id or by name.
+  tr: |-
+    Tek bir imajı kimliğine ya da adına göre bulur.
+- en: |-
+    Use it to reference an image Terraform did not upload: one from the platform's own catalogue, or one somebody built by hand. Declaring such an image as a resource would hand Terraform ownership of it, and a later destroy would delete it.
+  tr: |-
+    Terraform'un yüklemediği bir imaja başvurmak için kullanın: platformun kendi kataloğundan bir imaj ya da birinin elle oluşturduğu bir imaj. Böyle bir imajı kaynak olarak tanımlamak onun sahipliğini Terraform'a verir ve sonraki bir destroy imajı siler.
+- en: |-
+    By name. The lookup refuses an ambiguous answer rather than picking the first match, because image names are not unique on the platform.
+  tr: |-
+    Ada göre. Platformda imaj adları benzersiz olmadığından arama, ilk eşleşmeyi seçmek yerine belirsiz bir yanıtı reddeder.
+- en: |-
+    ID of the image to look up. Give this or `name`.
+  tr: |-
+    Aranacak imajın kimliği. Bunu ya da `name` değerini verin.
+- en: |-
+    Name of the image to look up. Give this or `id`. It is an error for more than one image to carry the name.
+  tr: |-
+    Aranacak imajın adı. Bunu ya da `id` değerini verin. Bu adı birden fazla imajın taşıması hatadır.
+- en: |-
+    Smallest volume, in GB, a machine built from this image needs. `0` when the platform reports none.
+  tr: |-
+    Bu imajdan oluşturulan bir makinenin ihtiyaç duyduğu en küçük disk, GB cinsinden. Platform bir değer bildirmezse `0`.
+- en: |-
+    Distribution the image carries.
+  tr: |-
+    İmajın taşıdığı dağıtım.
+- en: |-
+    `linux` or `windows`, when the platform reports it. Frequently empty here: the details endpoint passes the value straight through, while the list endpoint behind `dtcloud_images` guesses it from `os_distro` when it is missing.
+  tr: |-
+    Platform bildiriyorsa `linux` ya da `windows`. Burada sık sık boştur: ayrıntı uç noktası değeri olduğu gibi aktarır, `dtcloud_images`'ın arkasındaki liste uç noktası ise değer eksikse onu `os_distro`'dan tahmin eder.
+- en: |-
+    Size of the uploaded data, as the platform formats it — `1.5 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
+  tr: |-
+    Yüklenen verinin, platformun biçimlendirdiği haliyle boyutu: `1.5 GB` ya da `250 MB`. Bunu sayı olarak bildiren bir uç nokta yoktur. Henüz verisi olmayan bir imaj `0 MB` olarak okunur.
+- en: |-
+    Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the upload failed.
+  tr: |-
+    Platformun bildirdiği durum. Makine oluşturulabilen tek durum `active`'dir; `queued` ve `saving` verinin henüz gelmediğini, `killed` ise yüklemenin başarısız olduğunu gösterir.
+- en: |-
+    How the platform categorises the image: `ISO` or `Template (VM)`. This is not `disk_format` — it is derived from it, and the two are not interchangeable.
+  tr: |-
+    Platformun imajı nasıl sınıflandırdığı: `ISO` ya da `Template (VM)`. Bu `disk_format` değildir; ondan türetilir ve ikisi birbirinin yerine kullanılamaz.
+- en: |-
+    Whether the image boots with UEFI firmware rather than BIOS.
+  tr: |-
+    İmajın BIOS yerine UEFI yazılımıyla önyüklenip önyüklenmediği.
+- en: |-
+    Who can see the image: `public`, `private`, `shared` or `community`.
+  tr: |-
+    İmajı kimin görebileceği: `public`, `private`, `shared` ya da `community`.
+- en: |-
+    **A name must match exactly one image.** Image names are not unique on the platform. A lookup that matches several fails and lists the matching ids, rather than building machines from an image nobody chose.
+  tr: |-
+    **Bir ad tam olarak bir imajla eşleşmelidir.** Platformda imaj adları benzersiz değildir. Birden fazla imajla eşleşen bir arama, kimsenin seçmediği bir imajdan makine oluşturmak yerine başarısız olur ve eşleşen kimlikleri listeler.
+- en: |-
+    **Both lookups end on the details endpoint**, so the same fields come back however the image was found. That endpoint often reports an empty `os_type`; `dtcloud_images` fills it in from `os_distro`.
+  tr: |-
+    **İki arama da ayrıntı uç noktasında sonlanır**, bu yüzden imaj nasıl bulunursa bulunsun aynı alanlar döner. Bu uç nokta `os_type` değerini çoğu zaman boş bildirir; `dtcloud_images` onu `os_distro`'dan doldurur.
+- en: |-
+    **An image that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir imaj hatadır**, boş bir sonuç değil.

@@ -1,0 +1,24 @@
+- en: |-
+    Lists the snapshots taken of one volume.
+  tr: |-
+    Tek bir diskten alınan anlık görüntüleri listeler.
+- en: |-
+    Read-only on purpose: snapshots are managed by `dtcloud_snapshot`, and creating one here would put two resources in charge of the same object. What this is for is seeing what a destroy would take with it, since deleting a volume deletes its snapshots too.
+  tr: |-
+    Bilerek salt okunurdur: anlık görüntüleri `dtcloud_snapshot` yönetir ve burada bir tane oluşturmak aynı nesnenin sorumluluğunu iki kaynağa verirdi. Asıl amacı bir destroy'un yanında neyi götüreceğini görmektir, çünkü bir disk silinince anlık görüntüleri de silinir.
+- en: |-
+    ID of the volume whose snapshots to list.
+  tr: |-
+    Anlık görüntüleri listelenecek diskin kimliği.
+- en: |-
+    Snapshots of the volume, newest first — the API sorts by creation date descending.
+  tr: |-
+    Diskin anlık görüntüleri, en yeniden eskiye; API oluşturulma tarihine göre azalan sırayla sıralar.
+- en: |-
+    **Newest first**, as the API sorts them by creation date.
+  tr: |-
+    **En yeniden eskiye**, çünkü API onları oluşturulma tarihine göre sıralar.
+- en: |-
+    **A volume with no snapshots returns an empty list**; a volume that does not exist is an error.
+  tr: |-
+    **Anlık görüntüsü olmayan bir disk boş bir liste döndürür**; var olmayan bir disk ise hatadır.

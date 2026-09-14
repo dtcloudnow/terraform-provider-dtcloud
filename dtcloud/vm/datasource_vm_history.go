@@ -19,6 +19,8 @@ import (
 // included, so use it for outputs rather than for a resource argument.
 func DataSourceDtcloudVMHistory() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists what has been done to a virtual machine.",
+
 		ReadContext: dataSourceDtcloudVMHistoryRead,
 		Schema: map[string]*schema.Schema{
 			"vm_id": {
@@ -82,6 +84,8 @@ func dataSourceDtcloudVMHistoryRead(ctx context.Context, d *schema.ResourceData,
 // endpoint leaves out `status`, and fetching it per entry would cost a call each.
 func DataSourceDtcloudVMHistoryEntry() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reads one virtual machine history entry in full.",
+
 		ReadContext: dataSourceDtcloudVMHistoryEntryRead,
 		Schema: map[string]*schema.Schema{
 			"vm_id": {

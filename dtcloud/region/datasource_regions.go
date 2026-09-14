@@ -32,6 +32,8 @@ type regionMetadata struct {
 // DataSourceDtcloudRegions lists the regions available to the account.
 func DataSourceDtcloudRegions() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the regions available to the account.",
+
 		ReadContext: dataSourceDtcloudRegionsRead,
 		Schema: map[string]*schema.Schema{
 			"regions": {

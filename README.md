@@ -107,17 +107,68 @@ HCL. See `docs/index.md` for the full reference.
 
 ## Try it
 
-See [`examples/ssh-key`](examples/ssh-key), [`examples/vm`](examples/vm),
-[`examples/network`](examples/network), [`examples/security-group`](examples/security-group)
-and [`examples/elastic-ip`](examples/elastic-ip). With
+`examples/` has two kinds of configuration. `examples/resources/` and
+`examples/data-sources/` hold one minimal, per-type example each -- these are what the
+generated documentation embeds, so they are always in step with the schema.
+`examples/scenarios/` holds the multi-resource walkthroughs:
+[`ssh-key`](examples/scenarios/ssh-key), [`vm`](examples/scenarios/vm),
+[`network`](examples/scenarios/network),
+[`security-group`](examples/scenarios/security-group) and
+[`elastic-ip`](examples/scenarios/elastic-ip). With
 the env vars exported and the `dev_overrides` in place — note there is no
 `terraform init`, since `dev_overrides` bypasses provider installation:
 
 ```sh
-cd examples/ssh-key
+cd examples/scenarios/ssh-key
 terraform plan
 terraform apply
 ```
+
+## Documentation
+
+Nothing under `docs/` is written by hand. The pages are generated from the code, the examples
+and one template per page, and the Docusaurus site in English and Turkish is generated from
+`docs/`:
+
+```
+Go schema + examples/ + templates/  --tfplugindocs-->  docs/  --cmd/gendoc + i18n/tr-->  docusaurus (en + tr)
+                                                  (Registry format)                     (docs.dtcloudnow.com)
+```
+
+| Command                | What it does                                                          |
+|------------------------|-----------------------------------------------------------------------|
+| `make docs`            | Regenerates `docs/` from the schema, examples and templates.          |
+| `make docs_validate`   | Checks `docs/` against the Terraform Registry's rules.                |
+| `make docs_check`      | Regenerates and fails if the result differs from the commit.          |
+| `make docs_i18n_check` | Fails if a text has no Turkish translation, or one is no longer used. |
+| `make docusaurus`      | Converts `docs/` into Docusaurus pages in `../docusaurus`.            |
+| `make docs_all`        | Generate, validate, check translations, convert. This is what CI runs. |
+
+Where each part of a page is edited:
+
+| Part of the page                                     | Edited in                                                        |
+|------------------------------------------------------|------------------------------------------------------------------|
+| The summary sentence under the title                 | the resource's or data source's `Description` in `dtcloud/` -- one sentence |
+| Every argument and attribute in *Schema*             | each field's `Description` in `dtcloud/`; `dtcloud/schema_docs.go` adds "Changing this forces a new resource to be created." to ForceNew arguments |
+| *Example Usage* and the import command               | `examples/resources/<type>/` (`resource.tf`, `import.sh`) or `examples/data-sources/<type>/` |
+| The subcategory, notes, *Behaviour worth knowing*, *Timeouts*, import notes | `templates/resources/<name>.md.tmpl` or `templates/data-sources/<name>.md.tmpl` |
+| The Turkish text of all of the above                 | `i18n/tr/<resources or data-sources>/<name>.yaml`                |
+| The provider page and the guides                     | `templates/index.md.tmpl`, `templates/guides/`, `i18n/tr/index.yaml`, `i18n/tr/guides/` |
+
+Every page template has the same sections in the same order -- summary, *Example Usage*, notes,
+*Schema*, *Behaviour worth knowing*, *Timeouts*, *Import* -- and leaves out a section with nothing
+to say. What a template states about the code, such as timeout defaults or what an import reads
+back, is written by hand, so re-check it when that code changes.
+
+Adding a resource or data source therefore takes its `Description` strings, an example, and a page
+template (copy a sibling's; `TestEveryTypeHasADocsTemplate` fails without one). Run `make docs`,
+then `make docs_i18n_check`: it prints every English text that has no translation yet as YAML, to
+be translated into `i18n/tr/`. Commit all of it together.
+
+CI runs `docs_check` and `docs_i18n_check` on every push, so a schema change with no regenerated
+docs or no translation behind it fails the pipeline. On the default branch it also converts `docs/` for the Docusaurus site and
+opens a merge request there, which a human approves -- the same flow `dt-cli` uses for the
+`dtctl` CLI reference.
 
 ## Tests
 

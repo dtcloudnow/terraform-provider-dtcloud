@@ -1,0 +1,36 @@
+- en: |-
+    Lists every image visible to the caller.
+  tr: |-
+    Çağıranın görebildiği tüm imajları listeler.
+- en: |-
+    Every filter is applied by the provider. The endpoint's own visibility parameter only separates public images from the rest: asking it for `private` returns private, shared and community images together. Filtering here means `visibility = "private"` returns private images, which is what it says.
+  tr: |-
+    Tüm filtreler sağlayıcı tarafından uygulanır. Uç noktanın kendi görünürlük parametresi yalnızca genel imajları diğerlerinden ayırır: ondan `private` istemek özel, paylaşılan ve topluluk imajlarını birlikte döndürür. Filtrelemenin burada yapılması, `visibility = "private"` değerinin söylediği gibi yalnızca özel imajları döndürmesini sağlar.
+- en: |-
+    Only return images with this exact name. Applied by the provider.
+  tr: |-
+    Yalnızca tam olarak bu ada sahip imajları döndürür. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return images carrying this distribution. Applied by the provider.
+  tr: |-
+    Yalnızca bu dağıtımı taşıyan imajları döndürür. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return images in this status, e.g. `active`. Applied by the provider.
+  tr: |-
+    Yalnızca bu durumdaki imajları döndürür, örn. `active`. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return images with this visibility. Applied by the provider, because the endpoint's own filter only separates public images from the rest.
+  tr: |-
+    Yalnızca bu görünürlüğe sahip imajları döndürür. Uç noktanın kendi filtresi yalnızca genel imajları diğerlerinden ayırdığı için sağlayıcı tarafından uygulanır.
+- en: |-
+    The images that matched, in the order the platform returned them.
+  tr: |-
+    Eşleşen imajlar, platformun döndürdüğü sırayla.
+- en: |-
+    **How the filters match.** `name` must match exactly; `os_distro`, `visibility` and `status` ignore case. The whole list is fetched either way.
+  tr: |-
+    **Filtreler nasıl eşleşir.** `name` tam olarak eşleşmelidir; `os_distro`, `visibility` ve `status` büyük/küçük harfi yok sayar. Her durumda listenin tamamı çekilir.
+- en: |-
+    **`os_type` is filled in here, and not elsewhere.** The list endpoint guesses it from `os_distro` when the platform holds no value. `dtcloud_image` and the resource read the details endpoint, which makes no such guess, so the same image can report an empty `os_type` there.
+  tr: |-
+    **`os_type` burada doldurulur, başka yerde değil.** Platform bir değer tutmadığında liste uç noktası onu `os_distro`'dan tahmin eder. `dtcloud_image` ve kaynak ise böyle bir tahmin yapmayan ayrıntı uç noktasını okur; bu yüzden aynı imaj orada boş bir `os_type` bildirebilir.

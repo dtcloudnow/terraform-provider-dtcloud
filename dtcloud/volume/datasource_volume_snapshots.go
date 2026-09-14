@@ -20,6 +20,8 @@ import (
 // `cascade: true`, so a volume's snapshots go with it.
 func DataSourceDtcloudVolumeSnapshots() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the snapshots taken of one volume.",
+
 		ReadContext: dataSourceDtcloudVolumeSnapshotsRead,
 		Schema: map[string]*schema.Schema{
 			"volume_id": {

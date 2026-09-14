@@ -54,6 +54,8 @@ func ResourceDtcloudSnapshot() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Manages a point-in-time copy of a volume.",
+
 		CreateContext: resourceDtcloudSnapshotCreate,
 		ReadContext:   resourceDtcloudSnapshotRead,
 		UpdateContext: resourceDtcloudSnapshotUpdate,

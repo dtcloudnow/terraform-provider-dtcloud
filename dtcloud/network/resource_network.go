@@ -25,6 +25,8 @@ import (
 // on the next unrelated change.
 func ResourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a network and, when IPAM is enabled, the subnet inside it.",
+
 		CreateContext: resourceDtcloudNetworkCreate,
 		ReadContext:   resourceDtcloudNetworkRead,
 		UpdateContext: resourceDtcloudNetworkUpdate,

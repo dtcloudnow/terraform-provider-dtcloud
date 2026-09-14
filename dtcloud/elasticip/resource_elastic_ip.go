@@ -20,6 +20,8 @@ import (
 // address is an in-place update; it is never released to change what it points at.
 func ResourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
+		Description: "Allocates a public (elastic) IP address and, optionally, points it at a port.",
+
 		CreateContext: resourceDtcloudElasticIPCreate,
 		ReadContext:   resourceDtcloudElasticIPRead,
 		UpdateContext: resourceDtcloudElasticIPUpdate,

@@ -1,0 +1,76 @@
+- en: |-
+    Looks up a single virtual machine by id.
+  tr: |-
+    Tek bir sanal makineyi kimliğine göre bulur.
+- en: |-
+    Lookup is by id because machine names are not unique: the platform holds several machines with the same name, and its multi-create path generates `name-1`, `name-2` and so on, so a name could not resolve to one instance.
+  tr: |-
+    Arama kimliğe göredir, çünkü makine adları benzersiz değildir: platform aynı adı taşıyan birden fazla makine tutar ve toplu oluşturma yolu `name-1`, `name-2` gibi adlar üretir; bu yüzden bir ad tek bir makineye çözülemez.
+- en: |-
+    ID of the virtual machine to look up.
+  tr: |-
+    Aranacak sanal makinenin kimliği.
+- en: |-
+    When the VM was created, in RFC 3339 format.
+  tr: |-
+    Sanal makinenin oluşturulduğu zaman, RFC 3339 biçiminde.
+- en: |-
+    Human-readable name of the VM's flavor.
+  tr: |-
+    Sanal makinenin flavor'ının okunabilir adı.
+- en: |-
+    Name of the image the VM was built from.
+  tr: |-
+    Sanal makinenin oluşturulduğu imajın adı.
+- en: |-
+    OS family of the image, e.g. linux or windows.
+  tr: |-
+    İmajın işletim sistemi ailesi, örn. linux ya da windows.
+- en: |-
+    When the VM was last modified, in RFC 3339 format.
+  tr: |-
+    Sanal makinenin son değiştirildiği zaman, RFC 3339 biçiminde.
+- en: |-
+    Name of the virtual machine.
+  tr: |-
+    Sanal makinenin adı.
+- en: |-
+    Network interfaces currently attached to the VM.
+  tr: |-
+    Sanal makineye şu anda bağlı ağ arayüzleri.
+- en: |-
+    Convenience shortcut: the primary IP of the first public interface, falling back to the first interface with an address.
+  tr: |-
+    Kolaylık kısayolu: ilk genel arayüzün birincil IP'si; yoksa adresi olan ilk arayüzünki.
+- en: |-
+    Memory as reported by the API, e.g. "512 MB".
+  tr: |-
+    API'nin bildirdiği haliyle bellek, örn. "512 MB".
+- en: |-
+    Name of the SSH key injected into the VM.
+  tr: |-
+    Sanal makineye eklenen SSH anahtarının adı.
+- en: |-
+    Current power/provisioning state, e.g. ACTIVE, SHUTOFF, ERROR.
+  tr: |-
+    Güncel güç/hazırlama durumu, örn. ACTIVE, SHUTOFF, ERROR.
+- en: |-
+    In-flight OpenStack task, empty when the VM is settled.
+  tr: |-
+    Süren OpenStack görevi; sanal makine kararlı durumdaysa boş.
+- en: |-
+    Number of virtual CPUs.
+  tr: |-
+    Sanal CPU sayısı.
+- en: |-
+    Volumes currently attached to the VM, including the boot disk.
+  tr: |-
+    Önyükleme diski dahil, sanal makineye şu anda bağlı diskler.
+- en: |-
+    **Interfaces and volumes come from their own endpoints**, as on the resource. If one of them cannot be read, the lookup still succeeds with a warning and that list stays empty.
+  tr: |-
+    **Arayüzler ve diskler kendi uç noktalarından gelir**, kaynakta olduğu gibi. Biri okunamazsa arama bir uyarıyla yine başarılı olur ve o liste boş kalır.
+- en: |-
+    **A machine that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir makine hatadır**, boş bir sonuç değil.

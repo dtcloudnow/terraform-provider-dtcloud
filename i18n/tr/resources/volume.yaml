@@ -1,0 +1,112 @@
+- en: |-
+    Manages a block storage volume.
+  tr: |-
+    Bir blok depolama diskini yönetir.
+- en: |-
+    This resource owns the volume itself: creating it, renaming it, growing it and changing its storage policy. Attaching it to a machine is a separate resource, `dtcloud_vm_volume_attachment`. A disk a machine boots from is not a `dtcloud_volume`: it comes from the `block_device` block on `dtcloud_vm`.
+  tr: |-
+    Bu kaynak diskin kendisinden sorumludur: onu oluşturmak, yeniden adlandırmak, büyütmek ve depolama politikasını değiştirmek. Onu bir makineye bağlamak ayrı bir kaynağın işidir: `dtcloud_vm_volume_attachment`. Bir makinenin önyüklendiği disk bir `dtcloud_volume` değildir: `dtcloud_vm` üzerindeki `block_device` bloğundan gelir.
+- en: |-
+    A blank data disk.
+  tr: |-
+    Boş bir veri diski.
+- en: |-
+    A volume seeded from an image. The source is fixed at create time: changing it replaces the volume.
+  tr: |-
+    İçeriği bir imajdan gelen disk. Kaynak oluşturma anında sabitlenir: değiştirmek diski yeniden oluşturur.
+- en: |-
+    `image_id`, `source_volume_id` and `source_snapshot_id` are mutually exclusive: set one to seed the volume's contents, or none for a blank volume.
+  tr: |-
+    `image_id`, `source_volume_id` ve `source_snapshot_id` birlikte kullanılamaz: diskin içeriğini doldurmak için birini ayarlayın ya da boş bir disk için hiçbirini ayarlamayın.
+- en: |-
+    Name of the volume. Can be changed in place.
+  tr: |-
+    Diskin adı. Yerinde değiştirilebilir.
+- en: |-
+    Size in GB, between 1 and 8192. Can be grown in place; shrinking is impossible and is refused when applied.
+  tr: |-
+    GB cinsinden boyut, 1 ile 8192 arasında. Yerinde büyütülebilir; küçültmek mümkün değildir ve apply sırasında reddedilir.
+- en: |-
+    Name of the storage policy backing the volume, as listed by the dtcloud_storage_policies data source. Changing it retypes the volume in place.
+  tr: |-
+    Diski destekleyen depolama politikasının adı; dtcloud_storage_policies veri kaynağının listelediği haliyle. Değiştirmek diskin tipini yerinde değiştirir.
+- en: |-
+    Free-text description. Write-only: the API accepts it but never reports it back, so it does not drift, does not survive import, and cannot be cleared.
+  tr: |-
+    Serbest metin açıklama. Yalnızca yazılabilir: API kabul eder ama hiç geri bildirmez; bu yüzden sapma göstermez, içe aktarmada korunmaz ve temizlenemez.
+- en: |-
+    Create the volume from this image, making it bootable. Changing it recreates the volume.
+  tr: |-
+    Diski bu imajdan oluşturur ve önyüklenebilir yapar. Değiştirmek diski yeniden oluşturur.
+- en: |-
+    Restore the volume from this snapshot. `size` must be at least the snapshot's size. Changing it recreates the volume.
+  tr: |-
+    Diski bu anlık görüntüden geri yükler. `size` en az anlık görüntünün boyutu kadar olmalıdır. Değiştirmek diski yeniden oluşturur.
+- en: |-
+    Create the volume as a clone of this one. Changing it recreates the volume.
+  tr: |-
+    Diski bunun bir klonu olarak oluşturur. Değiştirmek diski yeniden oluşturur.
+- en: |-
+    Name of the VM this volume is attached to, empty when detached.
+  tr: |-
+    Bu diskin bağlı olduğu sanal makinenin adı; ayrılmışsa boş.
+- en: |-
+    ID of the VM this volume is attached to, empty when detached.
+  tr: |-
+    Bu diskin bağlı olduğu sanal makinenin kimliği; ayrılmışsa boş.
+- en: |-
+    Whether the volume can be booted from. True for volumes built from an image.
+  tr: |-
+    Diskten önyükleme yapılıp yapılamayacağı. İmajdan oluşturulan diskler için true.
+- en: |-
+    When the volume was created, as reported by the platform.
+  tr: |-
+    Diskin oluşturulduğu zaman, platformun bildirdiği haliyle.
+- en: |-
+    When the volume last changed, as reported by the platform.
+  tr: |-
+    Diskin son değiştiği zaman, platformun bildirdiği haliyle.
+- en: |-
+    Status reported by the platform, e.g. available or in-use.
+  tr: |-
+    Platformun bildirdiği durum, örn. available ya da in-use.
+- en: |-
+    HDD, or CD-ROM when the volume holds an ISO. Derived by the platform, not the storage policy.
+  tr: |-
+    HDD; disk bir ISO tutuyorsa CD-ROM. Depolama politikası değildir, platform tarafından türetilir.
+- en: |-
+    **An attached volume cannot be deleted.** The platform refuses to delete a volume that is `in-use`, so the provider checks first and names the machine it is attached to. It will not detach the volume for you. When the attachment is a `dtcloud_vm_volume_attachment` that references this volume, Terraform removes the attachment first on its own.
+  tr: |-
+    **Bağlı bir disk silinemez.** Platform `in-use` durumundaki bir diski silmeyi reddeder; bu yüzden sağlayıcı önce kontrol eder ve diskin bağlı olduğu makinenin adını verir. Diski sizin yerinize ayırmaz. Bağlantı bu diske referans veren bir `dtcloud_vm_volume_attachment` ise Terraform önce bağlantıyı kendiliğinden kaldırır.
+- en: |-
+    **What changes in place.** `name`, `description`, `size` and `storage_policy`. The three sources force a new volume: they seed its contents at create time, and no endpoint seeds an existing one again.
+  tr: |-
+    **Yerinde değişenler.** `name`, `description`, `size` ve `storage_policy`. Üç kaynak argümanı yeni bir disk gerektirir: içeriği oluşturma anında doldururlar ve mevcut bir diski yeniden dolduran bir uç nokta yoktur.
+- en: |-
+    **`size` can only be grown.** A lower value is refused rather than turned into a replacement, which would destroy the data. It is refused at apply, not at plan, because a plan cannot tell a lowered number from a volume grown outside Terraform, and refusing at plan would also block `terraform destroy`. If a plan proposes to shrink a volume you did not edit, raise `size` to match.
+  tr: |-
+    **`size` yalnızca büyütülebilir.** Daha düşük bir değer, veriyi yok edecek bir yeniden oluşturmaya dönüştürülmek yerine reddedilir. Plan aşamasında değil apply sırasında reddedilir, çünkü bir plan düşürülmüş bir sayıyı Terraform dışında büyütülmüş bir diskten ayırt edemez ve plan aşamasında reddetmek `terraform destroy`'u da engellerdi. Bir plan sizin düzenlemediğiniz bir diski küçültmeyi öneriyorsa `size` değerini diskin gerçek boyutuna eşitleyin.
+- en: |-
+    **`description` is write-only.** The API never reports it back, so it cannot drift, does not survive an import and cannot be cleared. It is applied by a second call after the volume is created.
+  tr: |-
+    **`description` yalnızca yazılabilir.** API onu hiç geri bildirmez; bu yüzden sapma gösteremez, içe aktarmada korunmaz ve temizlenemez. Disk oluşturulduktan sonra ikinci bir çağrıyla uygulanır.
+- en: |-
+    **Growing and retyping look finished before they are.** The volume stays `available` with its old size or policy for a while, so the provider waits for the value it asked for rather than for the status.
+  tr: |-
+    **Büyütme ve tip değiştirme, bitmeden bitmiş gibi görünür.** Disk bir süre eski boyutu ya da politikasıyla `available` durumunda kalır; bu yüzden sağlayıcı durumu değil, istediği değeri bekler.
+- en: |-
+    **`storage_policy` is a name.** A volume created with a volume type id reads back as the name, and every later plan proposes a change. `dtcloud_storage_policies` lists the names.
+  tr: |-
+    **`storage_policy` bir addır.** Bir disk tipi kimliğiyle oluşturulan disk ad olarak geri okunur ve sonraki her plan bir değişiklik önerir. Adları `dtcloud_storage_policies` listeler.
+- en: |-
+    **Deleting takes the snapshots with it.** The delete cascades, so every snapshot of the volume goes too, including snapshots managed as `dtcloud_snapshot`, without a warning from Terraform. Check with `dtcloud_volume_snapshots` first. Snapshots that reference this volume in `volume_id` are destroyed before it.
+  tr: |-
+    **Silmek anlık görüntüleri de götürür.** Silme işlemi bağlı kayıtları da siler; bu yüzden `dtcloud_snapshot` olarak yönetilenler dahil diskin tüm anlık görüntüleri de gider ve Terraform uyarmaz. Önce `dtcloud_volume_snapshots` ile kontrol edin. `volume_id` içinde bu diske referans veren anlık görüntüler diskten önce yok edilir.
+- en: |-
+    `create` and `update` each default to 30 minutes, `delete` to 20 minutes. All three are asynchronous, and creating from an image or growing a large volume takes a while, so the defaults are generous. Override them with a `timeouts` block:
+  tr: |-
+    `create` ve `update` için varsayılan süre 30 dakika, `delete` için 20 dakikadır. Üçü de eşzamansızdır ve imajdan oluşturmak ya da büyük bir diski büyütmek zaman alır, bu yüzden varsayılanlar cömerttir. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    `description`, `image_id`, `source_volume_id` and `source_snapshot_id` are not reported by the details endpoint, so they are empty after an import. `image_metadata.image_id` is not a substitute: it names the image the contents came from, which a clone or a restore inherits. The three sources force a new volume, so if the configuration sets one, the first plan after an import proposes a rebuild. Ignore it to keep the imported volume:
+  tr: |-
+    `description`, `image_id`, `source_volume_id` ve `source_snapshot_id` ayrıntı uç noktası tarafından bildirilmez, bu yüzden içe aktarmadan sonra boştur. `image_metadata.image_id` bunların yerine geçmez: içeriğin geldiği imajı gösterir ve bir klon ya da geri yükleme bunu kaynağından devralır. Üç kaynak argümanı yeni bir disk gerektirir; bu yüzden yapılandırma birini ayarlıyorsa içe aktarmadan sonraki ilk plan yeniden oluşturmayı önerir. İçe aktarılan diski korumak için bunu yok sayın:

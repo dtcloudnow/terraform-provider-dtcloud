@@ -17,6 +17,8 @@ import (
 // snapshots with it.
 func DataSourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one volume by id.",
+
 		ReadContext: dataSourceDtcloudVolumeRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

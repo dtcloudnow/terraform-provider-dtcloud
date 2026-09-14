@@ -1,0 +1,68 @@
+- en: |-
+    Looks up one snapshot by id.
+  tr: |-
+    Tek bir anlık görüntüyü kimliğine göre bulur.
+- en: |-
+    Use it to reference a snapshot Terraform did not take. Declaring such a snapshot as a resource would hand Terraform ownership of it, and a later destroy would delete the copy it was there to protect.
+  tr: |-
+    Terraform'un almadığı bir anlık görüntüye başvurmak için kullanın. Böyle bir anlık görüntüyü kaynak olarak tanımlamak onun sahipliğini Terraform'a verir ve sonraki bir destroy, korunmak için alınmış olan kopyayı siler.
+- en: |-
+    ID of the snapshot to look up.
+  tr: |-
+    Aranacak anlık görüntünün kimliği.
+- en: |-
+    When the snapshot was taken, as the platform reports it. The API sends no timezone, and the value is passed through unchanged.
+  tr: |-
+    Anlık görüntünün alındığı zaman, platformun bildirdiği haliyle. API saat dilimi göndermez ve değer değiştirilmeden aktarılır.
+- en: |-
+    Free-text description, as the platform reports it.
+  tr: |-
+    Platformun bildirdiği haliyle serbest metin açıklama.
+- en: |-
+    Name of the snapshot.
+  tr: |-
+    Anlık görüntünün adı.
+- en: |-
+    How far the copy has got, as a percentage string such as `100%`. The only visible sign that a large snapshot is still being written.
+  tr: |-
+    Kopyalamanın ne kadar ilerlediği, `100%` gibi bir yüzde dizesi olarak. Büyük bir anlık görüntünün hâlâ yazıldığının görünen tek işaretidir.
+- en: |-
+    ID of the project the snapshot belongs to.
+  tr: |-
+    Anlık görüntünün ait olduğu projenin kimliği.
+- en: |-
+    Size in GB, inherited from the source volume. A snapshot cannot be resized; it is as large as the volume was when it was taken.
+  tr: |-
+    GB cinsinden boyut, kaynak diskten gelir. Bir anlık görüntü yeniden boyutlandırılamaz; alındığı anda disk ne kadar büyükse o kadardır.
+- en: |-
+    Status reported by the platform. `available` is the only resting state.
+  tr: |-
+    Platformun bildirdiği durum. Tek kararlı durum `available`'dır.
+- en: |-
+    Name of the storage policy backing the snapshot, resolved from `volume_type_id`. Empty if the storage-policies endpoint could not be read.
+  tr: |-
+    Anlık görüntüyü destekleyen depolama politikasının adı, `volume_type_id`'den çözülür. Depolama politikaları uç noktası okunamadıysa boştur.
+- en: |-
+    When the snapshot's metadata last changed. Empty until it is first renamed or re-described.
+  tr: |-
+    Anlık görüntünün meta verisinin son değiştiği zaman. İlk kez yeniden adlandırılana ya da açıklaması değiştirilene kadar boştur.
+- en: |-
+    ID of the volume the snapshot was taken from.
+  tr: |-
+    Anlık görüntünün alındığı diskin kimliği.
+- en: |-
+    ID of the volume type backing the snapshot, as the snapshots endpoint reports it. `storage_policy` is the same thing by name.
+  tr: |-
+    Anlık görüntüler uç noktasının bildirdiği haliyle, anlık görüntüyü destekleyen disk tipinin kimliği. `storage_policy` aynı şeyin adıdır.
+- en: |-
+    **The same fields as the resource**, `description` included, read from the same endpoint.
+  tr: |-
+    **Kaynakla aynı alanlar**, `description` dahil, aynı uç noktadan okunur.
+- en: |-
+    **`storage_policy` is resolved by the provider** from `volume_type_id`, and is empty if the storage-policies endpoint cannot be read.
+  tr: |-
+    **`storage_policy`, sağlayıcı tarafından** `volume_type_id`'den **çözülür** ve depolama politikaları uç noktası okunamazsa boştur.
+- en: |-
+    **A snapshot that does not exist is an error**, not an empty result, so a configuration that depends on it fails here rather than somewhere further down.
+  tr: |-
+    **Var olmayan bir anlık görüntü hatadır**, boş bir sonuç değil; böylece ona bağlı bir yapılandırma çok daha ileride değil burada başarısız olur.

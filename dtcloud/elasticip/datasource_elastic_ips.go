@@ -17,6 +17,8 @@ import (
 // Filters are applied here, since the route takes no query parameters.
 func DataSourceDtcloudElasticIPs() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the elastic IPs allocated to the caller.",
+
 		ReadContext: dataSourceDtcloudElasticIPsRead,
 		Schema: map[string]*schema.Schema{
 			"status": {

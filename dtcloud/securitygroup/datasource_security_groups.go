@@ -17,6 +17,8 @@ import (
 // rules.
 func DataSourceDtcloudSecurityGroups() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the security groups visible to the caller.",
+
 		ReadContext: dataSourceDtcloudSecurityGroupsRead,
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -37,11 +39,10 @@ func DataSourceDtcloudSecurityGroups() *schema.Resource {
 				},
 			},
 			"ids": {
-				Type:     schema.TypeList,
-				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Description: "Just the ids, for the common case of filling a VM interface's `security_groups`, " +
-					"which takes ids and requires at least one.",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "Just the ids, for the common case of filling a VM interface's `security_groups`, which takes ids.",
 			},
 		},
 	}
