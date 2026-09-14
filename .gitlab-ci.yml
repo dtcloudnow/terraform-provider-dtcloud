@@ -52,6 +52,7 @@ docs-check:
   script:
     - make docs_check
     - make docs_validate
+    - make docs_i18n_check
   tags:
     - $DOCS_RUNNER_TAG
 

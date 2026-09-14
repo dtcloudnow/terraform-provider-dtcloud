@@ -17,12 +17,7 @@ import (
 // both as the volume type id and as the resolved name.
 func DataSourceDtcloudSnapshots() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists every snapshot visible to the caller.\n\n" +
-			"Not a duplicate of `dtcloud_volume_snapshots`, which reads a different endpoint scoped to " +
-			"one volume and sorted newest-first. This one is unfiltered and in the platform's own order, " +
-			"so the filters below are applied by the provider.\n\n" +
-			"The storage policy is reported both as the raw volume type id and as the resolved name, so " +
-			"this data source agrees with the rest of the provider.",
+		Description: "Lists every snapshot visible to the caller.",
 
 		ReadContext: dataSourceDtcloudSnapshotsRead,
 		Schema: map[string]*schema.Schema{

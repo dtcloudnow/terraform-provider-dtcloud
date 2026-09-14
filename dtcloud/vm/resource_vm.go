@@ -269,17 +269,7 @@ func ResourceDtcloudVM() *schema.Resource {
 	}
 
 	return &schema.Resource{
-		Description: "Manages a virtual machine.\n\n" +
-			"`name`, `flavor_id`, `state` and `enable_hot_plug` change in place -- changing `flavor_id` " +
-			"resizes the machine, which stops it first unless hot plug is enabled. The `network` and " +
-			"`block_device` blocks and the boot-time arguments (`key_name`, `user_data`, `script`, " +
-			"`is_gpu_image`) all force replacement, because the API cannot change them on a live " +
-			"instance.\n\n" +
-			"Interfaces and volumes can still be added after boot, but through " +
-			"`dtcloud_vm_network_interface` and `dtcloud_vm_volume_attachment` rather than by editing " +
-			"this resource's blocks.\n\n" +
-			"No endpoint echoes the boot-time arguments back, so drift in them is invisible to Terraform. " +
-			"To build several machines, use Terraform's own `count` or `for_each`.",
+		Description: "Manages a virtual machine.",
 
 		CreateContext: resourceDtcloudVMCreate,
 		ReadContext:   resourceDtcloudVMRead,

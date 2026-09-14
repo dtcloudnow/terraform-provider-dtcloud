@@ -20,17 +20,7 @@ import (
 // `outbound_rule` are a read-only display snapshot.
 func ResourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a security group -- the set of firewall rules applied to a machine's network " +
-			"interfaces.\n\n" +
-			"The group is only a name and a description. The rules inside it are separate " +
-			"`dtcloud_security_group_rule` resources, so adding or removing one rule leaves the group and " +
-			"every other rule untouched. Both arguments change in place; nothing here forces replacement, " +
-			"which matters because the platform refuses to delete a group that instances still reference.\n\n" +
-			"`inbound_rule` and `outbound_rule` are a read-only snapshot of what the platform displays, " +
-			"not something to configure.\n\n" +
-			"A description cannot be cleared once set: the SDK drops an empty description from the update " +
-			"request, so the old value would stay. The plan refuses this rather than proposing a change " +
-			"that never converges.",
+		Description: "Manages a security group -- the set of firewall rules applied to a machine's network interfaces.",
 
 		CreateContext: resourceDtcloudSecurityGroupCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRead,
@@ -54,8 +44,7 @@ func ResourceDtcloudSecurityGroup() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validation.StringMatch(nameCharset, "description "+nameCharsetMessage),
-				Description: "Description of the security group. Can be changed in place, but see the note on " +
-					"clearing it: an existing description cannot be emptied.",
+				Description:  "Description of the security group. Can be changed in place, and removing it clears it.",
 			},
 
 			"inbound_rule":  cookedRuleSchema("Inbound rules as the platform displays them. Read-only; manage rules with dtcloud_security_group_rule."),

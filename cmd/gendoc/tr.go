@@ -14,9 +14,8 @@ import (
 // blocking a docs update.
 //
 // What is translated here is the *chrome*: the section headings and the fixed
-// sentences tfplugindocs generates. The body text of a page comes from the
-// Description strings on the provider schema and is left in English until those
-// carry a Turkish translation of their own.
+// sentences tfplugindocs generates. The text of a page -- Description strings,
+// template prose, example comments -- comes from the catalog in i18n.go.
 
 // tr translates a label used by this generator (sidebar labels, folder names).
 func tr(g *generator, en string) string {
@@ -58,6 +57,10 @@ var trLine = map[string]string{
 	"Read-Only:":       "Salt Okunur:",
 	"Import is supported using the following syntax:": "İçe aktarma aşağıdaki söz dizimiyle desteklenir:",
 	"## Authentication": "## Kimlik Doğrulama",
+
+	// Hand-written sections every page template uses, in the same order.
+	"## Behaviour worth knowing": "## Bilinmesi Gerekenler",
+	"## Timeouts":                "## Zaman Aşımları",
 }
 
 // trPhrase holds fragments that appear inside a line.

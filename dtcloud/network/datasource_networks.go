@@ -24,11 +24,7 @@ type listNetworkOptions struct {
 // DHCP as a word; reading the full subnet would cost one call per network.
 func DataSourceDtcloudNetworks() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists the networks visible to the caller.\n\n" +
-			"The list endpoint reports a flatter shape than the details one: it folds the subnet's CIDR " +
-			"and gateway up onto the network and reports DHCP as a word rather than a boolean. That is " +
-			"what is exposed here -- reading the full subnet for every network would mean one extra call " +
-			"each.",
+		Description: "Lists the networks visible to the caller.",
 
 		ReadContext: dataSourceDtcloudNetworksRead,
 		Schema: map[string]*schema.Schema{

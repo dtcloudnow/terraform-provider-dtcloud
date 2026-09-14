@@ -1,0 +1,88 @@
+- en: |-
+    Manages a network and, when IPAM is enabled, the subnet inside it.
+  tr: |-
+    Bir ağı ve IPAM etkinse içindeki alt ağı yönetir.
+- en: |-
+    One resource covers both because the API does not manage them apart: a single call creates the network and its subnet, and the details endpoint reports them together.
+  tr: |-
+    İkisini tek bir kaynak kapsar, çünkü API onları ayrı ayrı yönetmez: tek bir çağrı ağı ve alt ağını oluşturur, ayrıntı uç noktası da ikisini birlikte bildirir.
+- en: |-
+    A network with IPAM on: the provider also manages the subnet inside it.
+  tr: |-
+    IPAM'ı açık bir ağ: sağlayıcı içindeki alt ağı da yönetir.
+- en: |-
+    With IPAM off there is no subnet, and addresses are managed outside Terraform.
+  tr: |-
+    IPAM kapalıyken alt ağ yoktur ve adresler Terraform dışında yönetilir.
+- en: |-
+    Name of the network. Can be changed in place.
+  tr: |-
+    Ağın adı. Yerinde değiştirilebilir.
+- en: |-
+    Address ranges the subnet allocates from. The platform picks a sensible default when omitted.
+  tr: |-
+    Alt ağın adres ayırdığı aralıklar. Verilmezse platform makul bir varsayılan seçer.
+- en: |-
+    IPv4 range for the subnet, e.g. 10.0.0.0/24. Required when ipam_enabled is true, and rejected when it is false.
+  tr: |-
+    Alt ağ için IPv4 aralığı, örn. 10.0.0.0/24. ipam_enabled true olduğunda zorunludur, false olduğunda reddedilir.
+- en: |-
+    DNS servers advertised to instances on this network.
+  tr: |-
+    Bu ağdaki makinelere duyurulan DNS sunucuları.
+- en: |-
+    Gateway address. The platform picks the first usable address when omitted.
+  tr: |-
+    Ağ geçidi adresi. Verilmezse platform kullanılabilir ilk adresi seçer.
+- en: |-
+    Whether the platform manages addressing on this network. With it on, a subnet is created from `cidr` and port security is enabled. With it off there is no subnet at all: no CIDR, no gateway, no DHCP.
+  tr: |-
+    Bu ağda adreslemeyi platformun yönetip yönetmediği. Açıkken `cidr`'dan bir alt ağ oluşturulur ve bağlantı noktası güvenliği etkinleştirilir. Kapalıyken hiç alt ağ yoktur: CIDR, ağ geçidi ve DHCP de yoktur.
+- en: |-
+    IP version of the subnet. The API creates IPv4 only.
+  tr: |-
+    Alt ağın IP sürümü. API yalnızca IPv4 oluşturur.
+- en: |-
+    Virtual or Physical, as reported by the platform.
+  tr: |-
+    Platformun bildirdiği haliyle Virtual ya da Physical.
+- en: |-
+    ID of the subnet, empty when ipam_enabled is false.
+  tr: |-
+    Alt ağın kimliği; ipam_enabled false ise boş.
+- en: |-
+    Last address in the range.
+  tr: |-
+    Aralıktaki son adres.
+- en: |-
+    First address in the range.
+  tr: |-
+    Aralıktaki ilk adres.
+- en: |-
+    **`ipam_enabled` is one flag doing two jobs.** It becomes the network's port security setting, and it decides whether a subnet exists at all. With it off there is no subnet, so `cidr`, `gateway_ip`, `dns_nameservers`, `allocation_pools` and `enable_dhcp = false` have nothing to apply to, and setting any of them is refused at plan time.
+  tr: |-
+    **`ipam_enabled` iki iş yapan tek bir bayraktır.** Ağın bağlantı noktası güvenliği ayarı olur ve bir alt ağın var olup olmadığına karar verir. Kapalıyken alt ağ yoktur; bu yüzden `cidr`, `gateway_ip`, `dns_nameservers`, `allocation_pools` ve `enable_dhcp = false` uygulanacak bir şey bulamaz ve herhangi birinin ayarlanması plan aşamasında reddedilir.
+- en: |-
+    **What changes in place.** `name`, and the subnet's `gateway_ip`, `enable_dhcp`, `dns_nameservers` and `allocation_pools`. `ipam_enabled` and `cidr` force a new network: neither the subnet's address range nor its existence can be changed afterwards.
+  tr: |-
+    **Yerinde değişenler.** `name` ve alt ağın `gateway_ip`, `enable_dhcp`, `dns_nameservers` ve `allocation_pools` değerleri. `ipam_enabled` ve `cidr` yeni bir ağ gerektirir: alt ağın adres aralığı da, var olup olmaması da sonradan değiştirilemez.
+- en: |-
+    **Subnet edits send the complete set.** The subnet endpoint requires `enable_dhcp`, `dns_nameservers` and `allocation_pools` together, so changing one of them sends all four subnet settings, `gateway_ip` included. A change made outside Terraform to one of them is overwritten the next time any of them changes here.
+  tr: |-
+    **Alt ağ düzenlemeleri tüm değerleri birlikte gönderir.** Alt ağ uç noktası `enable_dhcp`, `dns_nameservers` ve `allocation_pools` değerlerini birlikte ister; bu yüzden birini değiştirmek, `gateway_ip` dahil dört alt ağ ayarının hepsini gönderir. Bunlardan birinde Terraform dışında yapılan bir değişiklik, burada herhangi biri bir sonraki değiştiğinde üzerine yazılır.
+- en: |-
+    **`ip_version` is not an argument.** The API creates IPv4 subnets whatever the request asks for, so the version is only reported back.
+  tr: |-
+    **`ip_version` bir argüman değildir.** API istek ne derse desin IPv4 alt ağlar oluşturur, bu yüzden sürüm yalnızca geri bildirilir.
+- en: |-
+    **Creating and deleting are asynchronous.** A network has no status to poll, so the provider waits until it reads back, or stops resolving.
+  tr: |-
+    **Oluşturma ve silme eşzamansızdır.** Bir ağın yoklanacak bir durumu yoktur; bu yüzden sağlayıcı ağ geri okunana ya da artık bulunamayana kadar bekler.
+- en: |-
+    `create` defaults to 15 minutes, `update` to 10 minutes and `delete` to 15 minutes. Override them with a `timeouts` block:
+  tr: |-
+    `create` için varsayılan süre 15 dakika, `update` için 10 dakika, `delete` için 15 dakikadır. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    Everything is read back, the subnet settings included, so a plan straight after an import is empty when the configuration matches the network.
+  tr: |-
+    Alt ağ ayarları dahil her şey geri okunur; bu yüzden yapılandırma ağla eşleştiğinde içe aktarmanın hemen ardından gelen plan boştur.

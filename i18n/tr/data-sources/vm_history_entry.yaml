@@ -1,0 +1,36 @@
+- en: |-
+    Reads one virtual machine history entry in full.
+  tr: |-
+    Tek bir sanal makine geçmişi girdisini eksiksiz okur.
+- en: |-
+    The list endpoint leaves out `status`; this is the only way to get it. It is a separate data source rather than the list reading every entry in full, which would cost one call per entry.
+  tr: |-
+    Liste uç noktası `status` alanını dışarıda bırakır; onu almanın tek yolu budur. Listenin her girdiyi eksiksiz okuması yerine ayrı bir veri kaynağıdır, çünkü öbür türlü girdi başına bir çağrı gerekirdi.
+- en: |-
+    The most recent entry from dtcloud_vm_history, read in full to get its status.
+  tr: |-
+    dtcloud_vm_history'deki en son girdi, durumunu almak için eksiksiz okunur.
+- en: |-
+    ID of the entry, from dtcloud_vm_history.
+  tr: |-
+    Girdinin kimliği, dtcloud_vm_history'den.
+- en: |-
+    What was done.
+  tr: |-
+    Ne yapıldığı.
+- en: |-
+    When it happened.
+  tr: |-
+    Ne zaman olduğu.
+- en: |-
+    Who or what did it.
+  tr: |-
+    Kimin ya da neyin yaptığı.
+- en: |-
+    Outcome of the action. Reported only by this endpoint, not by the list.
+  tr: |-
+    İşlemin sonucu. Liste tarafından değil yalnızca bu uç nokta tarafından bildirilir.
+- en: |-
+    The same warning as `dtcloud_vm_history` applies: this is an event log, and its content moves. Keep it out of resource arguments.
+  tr: |-
+    `dtcloud_vm_history` için yapılan uyarı burada da geçerlidir: bu bir olay günlüğüdür ve içeriği değişir. Kaynak argümanlarından uzak tutun.

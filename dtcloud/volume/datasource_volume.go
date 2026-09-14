@@ -17,10 +17,7 @@ import (
 // snapshots with it.
 func DataSourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
-		Description: "Looks up one volume by id.\n\n" +
-			"Use it to reference a volume Terraform did not create -- attaching an existing disk to a new " +
-			"machine, for instance. Declaring it as a resource instead would hand Terraform ownership of " +
-			"it, and a later `terraform destroy` would delete the volume and its snapshots.",
+		Description: "Looks up one volume by id.",
 
 		ReadContext: dataSourceDtcloudVolumeRead,
 		Schema: map[string]*schema.Schema{

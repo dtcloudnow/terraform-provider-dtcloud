@@ -20,11 +20,7 @@ import (
 // `cascade: true`, so a volume's snapshots go with it.
 func DataSourceDtcloudVolumeSnapshots() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists the snapshots taken of one volume.\n\n" +
-			"Read-only on purpose: snapshots have their own service and their own routes, and creating " +
-			"one here would put two resources in charge of the same object.\n\n" +
-			"What this is for is seeing what would be lost. Deleting a volume cascades, so destroying one " +
-			"destroys its snapshots too, and this is the way to check before running it.",
+		Description: "Lists the snapshots taken of one volume.",
 
 		ReadContext: dataSourceDtcloudVolumeSnapshotsRead,
 		Schema: map[string]*schema.Schema{

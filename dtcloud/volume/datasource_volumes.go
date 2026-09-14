@@ -19,14 +19,7 @@ import (
 // is passed through as reported, and the `name` filter is applied here.
 func DataSourceDtcloudVolumes() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists the volumes visible to the caller.\n\n" +
-			"The list endpoint reports a flatter, differently-typed shape than the details one: it folds " +
-			"the attached machine's name and status up onto the volume and sends the size as the string " +
-			"`\"20 GB\"` rather than the number 20. The size is normalised back to an integer here so it " +
-			"means the same thing on every page of this provider; everything else is passed through as " +
-			"reported.\n\n" +
-			"The route accepts no query parameters, so the filters are applied by the provider after the " +
-			"fact. They are a convenience, not a smaller request.",
+		Description: "Lists the volumes visible to the caller.",
 
 		ReadContext: dataSourceDtcloudVolumesRead,
 		Schema: map[string]*schema.Schema{

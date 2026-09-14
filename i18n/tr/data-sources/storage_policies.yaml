@@ -1,0 +1,28 @@
+- en: |-
+    Lists the storage policies available in the region.
+  tr: |-
+    Bölgede kullanılabilir depolama politikalarını listeler.
+- en: |-
+    `storage_policy` is required on every volume and has no default, so this is how to find the valid values. The endpoint returns only the policies with a non-zero quota for the project, so what comes back is what this project can actually create volumes on, not the whole platform catalogue.
+  tr: |-
+    `storage_policy` her diskte zorunludur ve varsayılan değeri yoktur; geçerli değerleri bulmanın yolu budur. Uç nokta yalnızca proje için kotası sıfırdan büyük olan politikaları döndürür; bu yüzden dönen liste platformun tüm kataloğu değil, bu projenin gerçekten disk oluşturabileceği politikalardır.
+- en: |-
+    Only return the policy with this exact name. Applied by the provider — the API has no filter.
+  tr: |-
+    Yalnızca tam olarak bu ada sahip politikayı döndürür. Sağlayıcı tarafından uygulanır; API'nin filtresi yoktur.
+- en: |-
+    Just the policy names, for when all you need is to check one is available.
+  tr: |-
+    Yalnızca politika adları; tek ihtiyacınız birinin kullanılabilir olduğunu kontrol etmekse.
+- en: |-
+    Storage policies this project has quota for.
+  tr: |-
+    Bu projenin kotası olan depolama politikaları.
+- en: |-
+    **Pass the `name`, not the `id`.** The volume details endpoint reports the policy by name, so a volume created with an id reads back as a name and every later plan proposes a change that never converges.
+  tr: |-
+    **`id` değil `name` değerini verin.** Disk ayrıntı uç noktası politikayı adıyla bildirir; bu yüzden kimlikle oluşturulan bir disk ad olarak geri okunur ve sonraki her plan hiçbir zaman sonuçlanmayan bir değişiklik önerir.
+- en: |-
+    **`name` is applied by the provider** and must match exactly.
+  tr: |-
+    **`name` sağlayıcı tarafından uygulanır** ve tam olarak eşleşmelidir.

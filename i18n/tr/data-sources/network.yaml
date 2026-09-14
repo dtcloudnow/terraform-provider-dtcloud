@@ -1,0 +1,60 @@
+- en: |-
+    Looks up one network by id.
+  tr: |-
+    Tek bir ağı kimliğine göre bulur.
+- en: |-
+    Use it to reference a network Terraform did not create, which is the common case, since networks tend to outlive the things attached to them. Declaring one as a resource instead would hand Terraform ownership of it, and a later `terraform destroy` would take it down with everything else.
+  tr: |-
+    Terraform'un oluşturmadığı bir ağa başvurmak için kullanın; ağlar kendilerine bağlı şeylerden daha uzun ömürlü olduğundan yaygın durum budur. Onu kaynak olarak tanımlamak sahipliğini Terraform'a verir ve sonraki bir `terraform destroy` ağı diğer her şeyle birlikte kaldırır.
+- en: |-
+    ID of the network to look up.
+  tr: |-
+    Aranacak ağın kimliği.
+- en: |-
+    Address ranges the subnet allocates from.
+  tr: |-
+    Alt ağın adres ayırdığı aralıklar.
+- en: |-
+    Address range of the subnet.
+  tr: |-
+    Alt ağın adres aralığı.
+- en: |-
+    DNS servers advertised on this network.
+  tr: |-
+    Bu ağda duyurulan DNS sunucuları.
+- en: |-
+    Whether the subnet hands out addresses over DHCP.
+  tr: |-
+    Alt ağın DHCP üzerinden adres dağıtıp dağıtmadığı.
+- en: |-
+    Gateway address of the subnet.
+  tr: |-
+    Alt ağın ağ geçidi adresi.
+- en: |-
+    IP version of the subnet.
+  tr: |-
+    Alt ağın IP sürümü.
+- en: |-
+    Whether the platform manages addressing, i.e. whether there is a subnet.
+  tr: |-
+    Adreslemeyi platformun yönetip yönetmediği, yani bir alt ağ olup olmadığı.
+- en: |-
+    Name of the network.
+  tr: |-
+    Ağın adı.
+- en: |-
+    Virtual or Physical.
+  tr: |-
+    Virtual ya da Physical.
+- en: |-
+    ID of the subnet, empty when IPAM is off.
+  tr: |-
+    Alt ağın kimliği; IPAM kapalıysa boş.
+- en: |-
+    **A network with IPAM off has no subnet**, so `subnet_id`, `cidr`, `gateway_ip`, `enable_dhcp`, `ip_version`, `dns_nameservers` and `allocation_pools` are empty. Check `ipam_enabled` before relying on them.
+  tr: |-
+    **IPAM'ı kapalı bir ağın alt ağı yoktur**, bu yüzden `subnet_id`, `cidr`, `gateway_ip`, `enable_dhcp`, `ip_version`, `dns_nameservers` ve `allocation_pools` boştur. Bunlara güvenmeden önce `ipam_enabled` değerini kontrol edin.
+- en: |-
+    **A network that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir ağ hatadır**, boş bir sonuç değil.

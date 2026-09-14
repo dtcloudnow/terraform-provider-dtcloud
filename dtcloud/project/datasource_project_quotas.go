@@ -30,12 +30,7 @@ func DataSourceDtcloudProjectQuotas() *schema.Resource {
 	}
 
 	return &schema.Resource{
-		Description: "Reports what a project is using against what it is allowed.\n\n" +
-			"This is the console's summary view: a handful of headline figures with usage and quota side " +
-			"by side. For the full OpenStack quota table -- every limit the platform tracks -- use " +
-			"`dtcloud_project_limits` instead.\n\n" +
-			"A quota of `-1` means unlimited, and is reported as `-1` rather than being translated, so " +
-			"arithmetic on it stays honest.",
+		Description: "Reports what a project is using against what it is allowed.",
 
 		ReadContext: dataSourceDtcloudProjectQuotasRead,
 		Schema: map[string]*schema.Schema{

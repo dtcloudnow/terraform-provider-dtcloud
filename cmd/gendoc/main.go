@@ -13,6 +13,7 @@
 // Usage:
 //
 //	go run ./cmd/gendoc --out ../docusaurus [--lang en|tr]
+//	go run ./cmd/gendoc --lang tr --check
 package main
 
 import (
@@ -58,6 +59,8 @@ func main() {
 	lang := flag.String("lang", "en", "language to generate: en|tr")
 	slug := flag.String("slug", "terraform", "folder name to write inside the site's docs tree")
 	position := flag.Int("position", 11, "sidebar position of the whole section")
+	catalogDir := flag.String("catalog", filepath.Join("i18n", "tr"), "translation catalog for --lang tr")
+	check := flag.Bool("check", false, "write nothing; list missing and unused translations and fail if there are any (needs --lang tr)")
 	flag.Parse()
 
 	var root string
@@ -71,10 +74,31 @@ func main() {
 		os.Exit(2)
 	}
 
-	g := &generator{in: *in, root: root, lang: *lang, slug: *slug, position: *position}
+	g := &generator{in: *in, root: root, lang: *lang, slug: *slug, position: *position, check: *check}
+	if *lang == "tr" {
+		cat, err := loadCatalog(*catalogDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gendoc: reading the translation catalog: %v\n", err)
+			os.Exit(1)
+		}
+		g.cat = cat
+	} else if *check {
+		fmt.Fprintln(os.Stderr, "gendoc: --check needs --lang tr: English is the source, there is nothing to check")
+		os.Exit(2)
+	}
+
 	if err := g.run(); err != nil {
 		fmt.Fprintf(os.Stderr, "gendoc: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *check {
+		if n := g.cat.report(os.Stdout); n > 0 {
+			fmt.Fprintf(os.Stderr, "\ngendoc: %d translation problem(s) in %s; see above\n", n, *catalogDir)
+			os.Exit(1)
+		}
+		fmt.Printf("gendoc: every %s text is translated\n", *lang)
+		return
 	}
 	fmt.Printf("gendoc: wrote the %s Terraform reference to %s\n", *lang, root)
 }
@@ -85,10 +109,13 @@ type generator struct {
 	lang     string
 	slug     string
 	position int
+	cat      *catalog // nil for English, the source language
+	check    bool     // translate everything, write nothing
 }
 
 // page is one converted Registry markdown file.
 type page struct {
+	id          string // path under docs/ without .md, e.g. "resources/volume"
 	name        string // file name without .md, e.g. "volume"
 	title       string // page_title from the frontmatter
 	subcategory string
@@ -103,10 +130,10 @@ func (g *generator) run() error {
 
 	// The whole tree is rewritten on every run so that a resource deleted
 	// upstream cannot leave a stale page behind on the site.
-	if err := resetDir(g.root); err != nil {
+	if err := g.reset(g.root); err != nil {
 		return err
 	}
-	if err := writeFile(filepath.Join(g.root, "_category_.json"),
+	if err := g.write(filepath.Join(g.root, "_category_.json"),
 		categoryJSON(tr(g, "Terraform Provider"), g.position, true)); err != nil {
 		return err
 	}
@@ -116,7 +143,8 @@ func (g *generator) run() error {
 	if err != nil {
 		return err
 	}
-	if err := writeFile(filepath.Join(g.root, "intro.md"), g.render(index, introFrontMatter(g))); err != nil {
+	index.id = "index"
+	if err := g.write(filepath.Join(g.root, "intro.md"), g.render(index, introFrontMatter(g))); err != nil {
 		return err
 	}
 
@@ -147,6 +175,11 @@ func (g *generator) writeSection(sec section, position int) error {
 		if err != nil {
 			return err
 		}
+		p.id = sec.dir + "/" + p.name
+		p.description = g.text(p.id, p.description)
+		if sec.dir == "guides" {
+			p.title = g.text(p.id, p.title) // a guide's title is its sidebar label
+		}
 		pages = append(pages, p)
 	}
 	if len(pages) == 0 {
@@ -155,11 +188,11 @@ func (g *generator) writeSection(sec section, position int) error {
 	sortPages(pages)
 
 	outDir := filepath.Join(g.root, sec.dir)
-	if err := writeFile(filepath.Join(outDir, "_category_.json"),
+	if err := g.write(filepath.Join(outDir, "_category_.json"),
 		categoryJSON(tr(g, sec.label), position, true)); err != nil {
 		return err
 	}
-	if err := writeFile(filepath.Join(outDir, "intro.md"), g.sectionIntro(sec, pages)); err != nil {
+	if err := g.write(filepath.Join(outDir, "intro.md"), g.sectionIntro(sec, pages)); err != nil {
 		return err
 	}
 
@@ -170,7 +203,7 @@ func (g *generator) writeSection(sec section, position int) error {
 			fm += fmt.Sprintf("description: %q\n", firstSentence(p.description))
 		}
 		fm += "---\n\n"
-		if err := writeFile(filepath.Join(outDir, p.name+".md"), g.render(p, fm)); err != nil {
+		if err := g.write(filepath.Join(outDir, p.name+".md"), g.render(p, fm)); err != nil {
 			return err
 		}
 	}
@@ -210,13 +243,93 @@ func (g *generator) sectionIntro(sec section, pages []page) string {
 }
 
 // render turns a Registry page into a Docusaurus one: the given front matter,
-// then the body with the Registry's own generated notice dropped, translated if
-// this is a non-English run, and made safe for MDX.
+// then the body translated if this is a non-English run, with the Registry's own
+// generated notice dropped, and made safe for MDX.
 func (g *generator) render(p page, frontMatter string) string {
 	body := strings.TrimSpace(p.body)
+	body = g.translate(p.id, body)
 	body = trBody(g, body)
+	body = dropHTMLComments(body)
 	body = hoistAnchors(body)
+	body = convertCallouts(body)
 	return frontMatter + mdxSafe(body) + "\n"
+}
+
+// text translates a single string, such as a page description, for the
+// catalog's language. English runs return it unchanged.
+func (g *generator) text(page, s string) string {
+	if g.cat == nil || strings.TrimSpace(s) == "" {
+		return s
+	}
+	v, _ := g.cat.text(page, s)
+	return v
+}
+
+var htmlCommentLineRe = regexp.MustCompile(`^\s*<!--.*-->\s*$`)
+
+// dropHTMLComments removes whole-line HTML comments, such as the
+// "schema generated by tfplugindocs" marker. MDX has no comment syntax of that
+// kind: left in, the escaping below would print the marker as visible text.
+func dropHTMLComments(body string) string {
+	lines := strings.Split(body, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inFence = !inFence
+		}
+		if !inFence && htmlCommentLineRe.MatchString(line) {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
+// calloutKinds maps the Registry's callout markers to Docusaurus admonitions.
+// The Registry draws a paragraph that starts with one of these as a coloured
+// box; Docusaurus would print the marker as literal text.
+var calloutKinds = []struct{ marker, kind string }{
+	{"-> ", "note"},
+	{"~> ", "warning"},
+	{"!> ", "danger"},
+}
+
+// convertCallouts rewrites each callout paragraph -- from its marker to the
+// next blank line -- as a Docusaurus `:::kind` block. Code fences are left
+// alone, since `->` is ordinary text inside an example.
+func convertCallouts(body string) string {
+	lines := strings.Split(body, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inFence = !inFence
+			out = append(out, line)
+			continue
+		}
+		kind, first := "", ""
+		if !inFence {
+			for _, c := range calloutKinds {
+				if strings.HasPrefix(line, c.marker) {
+					kind, first = c.kind, strings.TrimPrefix(line, c.marker)
+					break
+				}
+			}
+		}
+		if kind == "" {
+			out = append(out, line)
+			continue
+		}
+		para := []string{first}
+		for i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "" {
+			i++
+			para = append(para, lines[i])
+		}
+		out = append(out, ":::"+kind, "", strings.Join(para, "\n"), "", ":::")
+	}
+	return strings.Join(out, "\n")
 }
 
 // hoistAnchors turns the anchor tags tfplugindocs writes above each nested
@@ -470,14 +583,22 @@ func firstSentence(s string) string {
 	return s
 }
 
-func resetDir(dir string) error {
+// reset empties dir, so a page deleted upstream does not survive on the site.
+// A check run writes nothing.
+func (g *generator) reset(dir string) error {
+	if g.check {
+		return nil
+	}
 	if err := os.RemoveAll(dir); err != nil {
 		return err
 	}
 	return os.MkdirAll(dir, 0o755)
 }
 
-func writeFile(path, content string) error {
+func (g *generator) write(path, content string) error {
+	if g.check {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

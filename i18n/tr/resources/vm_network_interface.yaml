@@ -1,0 +1,72 @@
+- en: |-
+    Attaches an extra network interface to a virtual machine.
+  tr: |-
+    Bir sanal makineye ek bir ağ arayüzü bağlar.
+- en: |-
+    Interfaces declared in a `dtcloud_vm` `network` block are created with the machine and live and die with it. Use this resource for interfaces added afterwards: they get their own port, and can be detached without rebuilding the machine. The resource ID is `<vm-id>:<port-id>`.
+  tr: |-
+    Bir `dtcloud_vm` `network` bloğunda tanımlanan arayüzler makineyle birlikte oluşturulur ve makineyle birlikte silinir. Sonradan eklenen arayüzler için bu kaynağı kullanın: kendi bağlantı noktaları olur ve makine yeniden oluşturulmadan ayrılabilirler. Kaynak kimliği `<vm-id>:<port-id>`'dir.
+- en: |-
+    An interface added after the machine was built. It has its own lifecycle and can be detached without recreating the VM.
+  tr: |-
+    Makine oluşturulduktan sonra eklenen bir arayüz. Kendi yaşam döngüsü vardır ve sanal makine yeniden oluşturulmadan ayrılabilir.
+- en: |-
+    Pin the address instead of letting the platform choose one.
+  tr: |-
+    Adresi platformun seçmesine bırakmak yerine sabitleyin.
+- en: |-
+    **Same arguments as the `network` block on `dtcloud_vm`.** Both describe a port on a network, so a block that works inline works here unchanged, except that the network is named `uuid` there and `network_id` here. Use the inline block for interfaces the machine boots with, and this resource for the ones added afterwards.
+  tr: |-
+    **`dtcloud_vm` üzerindeki `network` bloğuyla aynı argümanlar.** İkisi de bir ağdaki bir bağlantı noktasını tanımlar; bu yüzden satır içinde çalışan bir blok burada da değiştirilmeden çalışır, tek fark ağın orada `uuid`, burada `network_id` olarak adlandırılmasıdır. Makinenin önyüklendiği arayüzler için satır içi bloğu, sonradan eklenenler için bu kaynağı kullanın.
+- en: |-
+    ID of the virtual machine to attach the interface to.
+  tr: |-
+    Arayüzün bağlanacağı sanal makinenin kimliği.
+- en: |-
+    Whether the interface is on a public network.
+  tr: |-
+    Arayüzün genel bir ağda olup olmadığı.
+- en: |-
+    MAC address the platform assigned to this interface.
+  tr: |-
+    Platformun bu arayüze atadığı MAC adresi.
+- en: |-
+    ID of the port the platform created for this interface.
+  tr: |-
+    Platformun bu arayüz için oluşturduğu bağlantı noktasının kimliği.
+- en: |-
+    Primary IP address on this interface.
+  tr: |-
+    Bu arayüzdeki birincil IP adresi.
+- en: |-
+    **An interface never ends up without an address.** To the platform an empty address list means "no address", not "allocate one", so when `fixed_ip` is left out the provider requests one address instead of sending an empty list.
+  tr: |-
+    **Bir arayüz asla adressiz kalmaz.** Platform için boş bir adres listesi "adres ayır" değil "adres yok" demektir; bu yüzden `fixed_ip` yazılmadığında sağlayıcı boş bir liste göndermek yerine tek bir adres ister.
+- en: |-
+    **`port_security_enabled` left unset is not sent at all**, so the network's own setting applies. The setting the platform settles on is reported back.
+  tr: |-
+    **Ayarlanmamış `port_security_enabled` hiç gönderilmez**, bu yüzden ağın kendi ayarı geçerli olur. Platformun sonunda uyguladığı ayar geri bildirilir.
+- en: |-
+    **Changing `fixed_ip` moves `primary_ip`.** The plan shows `primary_ip` as known after apply.
+  tr: |-
+    **`fixed_ip`'yi değiştirmek `primary_ip`'yi taşır.** Plan `primary_ip`'yi apply sonrasında bilinecek olarak gösterir.
+- en: |-
+    **How the port id is found.** The attach endpoint does not report which port it created, so the provider lists the machine's interfaces before and after the call and takes the new one. If something else attaches an interface to the same machine at the same moment, the wrong port could be picked up. This only matters when one machine gets interfaces from two places concurrently.
+  tr: |-
+    **Bağlantı noktası kimliği nasıl bulunur.** Bağlama uç noktası hangi bağlantı noktasını oluşturduğunu bildirmez; bu yüzden sağlayıcı çağrıdan önce ve sonra makinenin arayüzlerini listeler ve yeni olanı alır. Aynı anda başka bir şey aynı makineye bir arayüz bağlarsa yanlış bağlantı noktası alınabilir. Bu yalnızca bir makine eşzamanlı olarak iki yerden arayüz aldığında önemlidir.
+- en: |-
+    **`dtcloud_vm.network_interface` is a snapshot** from that resource's last refresh. An interface attached here in the same apply appears there only after the next refresh.
+  tr: |-
+    **`dtcloud_vm.network_interface`, o kaynağın son yenilemesinden alınmış bir anlık kopyadır.** Aynı apply'da burada bağlanan bir arayüz orada ancak bir sonraki yenilemeden sonra görünür.
+- en: |-
+    `create`, `update` and `delete` each default to 10 minutes. Override them with a `timeouts` block:
+  tr: |-
+    `create`, `update` ve `delete` için varsayılan süre 10 dakikadır. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    The port id is assigned by the platform at attach time: <vm-id>:<port-id>
+  tr: |-
+    Bağlantı noktası kimliğini bağlama sırasında platform atar: <vm-id>:<port-id>
+- en: |-
+    The addresses, security groups and port security setting are read back from the platform after import, so nothing needs to be declared by hand to match the interface.
+  tr: |-
+    Adresler, güvenlik grupları ve bağlantı noktası güvenliği ayarı içe aktarmadan sonra platformdan geri okunur; bu yüzden arayüzle eşleşmesi için hiçbir şeyin elle tanımlanması gerekmez.

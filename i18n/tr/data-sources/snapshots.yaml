@@ -1,0 +1,36 @@
+- en: |-
+    Lists every snapshot visible to the caller.
+  tr: |-
+    Çağıranın görebildiği tüm anlık görüntüleri listeler.
+- en: |-
+    Not a duplicate of `dtcloud_volume_snapshots`, which reads a different endpoint scoped to one volume and sorted newest first. This one covers every snapshot, in the platform's own order.
+  tr: |-
+    `dtcloud_volume_snapshots` ile aynı şey değildir; o, tek bir diskle sınırlı ve en yeniden eskiye sıralanmış farklı bir uç noktayı okur. Bu ise tüm anlık görüntüleri platformun kendi sırasıyla kapsar.
+- en: |-
+    Only return snapshots with this exact name. Applied by the provider.
+  tr: |-
+    Yalnızca tam olarak bu ada sahip anlık görüntüleri döndürür. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return snapshots in this status, e.g. `available`. Applied by the provider.
+  tr: |-
+    Yalnızca bu durumdaki anlık görüntüleri döndürür, örn. `available`. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return snapshots of this volume. Applied by the provider.
+  tr: |-
+    Yalnızca bu diskin anlık görüntülerini döndürür. Sağlayıcı tarafından uygulanır.
+- en: |-
+    The snapshots that matched, in the order the platform returned them.
+  tr: |-
+    Eşleşen anlık görüntüler, platformun döndürdüğü sırayla.
+- en: |-
+    **The filters are applied by the provider**, since the list endpoint takes none, and they combine. `volume_id` and `name` match exactly and `status` ignores case. A filter that matches nothing returns an empty list.
+  tr: |-
+    **Filtreler sağlayıcı tarafından uygulanır**, çünkü liste uç noktası filtre almaz; filtreler birlikte uygulanır. `volume_id` ve `name` tam olarak eşleşir, `status` büyük/küçük harfi yok sayar. Hiçbir şeyle eşleşmeyen bir filtre boş bir liste döndürür.
+- en: |-
+    **`storage_policy` is resolved once per run** from `volume_type_id`, and is empty if that lookup fails.
+  tr: |-
+    **`storage_policy`, her çalıştırmada bir kez** `volume_type_id`'den **çözülür** ve bu arama başarısız olursa boştur.
+- en: |-
+    **There is no `progress` or `project_id` here.** The list endpoint does not report them; read one snapshot with `dtcloud_snapshot` when you need either.
+  tr: |-
+    **Burada `progress` ya da `project_id` yoktur.** Liste uç noktası bunları bildirmez; ikisinden birine ihtiyacınız olduğunda tek bir anlık görüntüyü `dtcloud_snapshot` ile okuyun.

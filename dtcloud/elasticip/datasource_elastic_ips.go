@@ -17,14 +17,7 @@ import (
 // Filters are applied here, since the route takes no query parameters.
 func DataSourceDtcloudElasticIPs() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists the elastic IPs allocated to the caller.\n\n" +
-			"The most useful thing it answers is what you are paying for that nothing is using: an " +
-			"allocated address that is not associated still occupies quota and is still billed. `status = " +
-			"\"DOWN\"` is that question.\n\n" +
-			"Filters are applied by the provider, since the list route takes no query parameters. Every " +
-			"address is fetched either way and the API builds each row from three further calls of its " +
-			"own, so this is not a cheap read -- prefer `dtcloud_elastic_ip` when you already know which " +
-			"address you want.",
+		Description: "Lists the elastic IPs allocated to the caller.",
 
 		ReadContext: dataSourceDtcloudElasticIPsRead,
 		Schema: map[string]*schema.Schema{

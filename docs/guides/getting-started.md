@@ -172,11 +172,11 @@ output "address" {
 
 Two things that trip people up on the first try:
 
-* **`security_groups` and `fixed_ip` are required on every interface.** An interface built
-  without a fixed IP comes up with no address and the machine is unreachable, so Terraform
-  refuses at plan time rather than letting you build it.
 * **At least one of `key_name`, `user_data` or `script` is required.** They are the only ways
   in; a VM with none of the three boots with no way to log into it.
+* **Leave `fixed_ip` out unless you want a specific address.** The provider then asks for one
+  address and the platform allocates it; `primary_ip` reports it after apply. Without
+  `security_groups` the interface gets the project's default group.
 
 ## 5. Run it
 
@@ -222,9 +222,10 @@ terraform import dtcloud_vm.first <vm-id>
 terraform plan
 ```
 
-The plan afterwards is the important part. Terraform fills in what the API reports; anything it
-cannot read has to be written into your configuration by hand, or the first apply will propose
-to rebuild the machine. Each resource page lists exactly which arguments those are.
+The plan afterwards is the important part. Terraform fills in what the API reports. Anything it
+cannot read stays empty in state, and when such an argument forces a new resource, the first plan
+proposes to rebuild the machine. Each resource page lists those arguments and how to keep the
+imported resource.
 
 ## Where to go next
 

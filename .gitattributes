@@ -5,4 +5,5 @@
 docs/** text eol=lf
 examples/** text eol=lf
 templates/** text eol=lf
+i18n/** text eol=lf
 scripts/** text eol=lf

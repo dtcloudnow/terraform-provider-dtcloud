@@ -126,38 +126,47 @@ terraform apply
 
 ## Documentation
 
-Nothing under `docs/` is written by hand. The provider schema is the source of truth and the
-pages are generated from it:
+Nothing under `docs/` is written by hand. The pages are generated from the code, the examples
+and one template per page, and the Docusaurus site in English and Turkish is generated from
+`docs/`:
 
 ```
-Go schema + examples/  --tfplugindocs-->  docs/  --cmd/gendoc-->  docusaurus (en + tr)
-   (Description strings)                (Registry format)         (docs.dtcloudnow.com)
+Go schema + examples/ + templates/  --tfplugindocs-->  docs/  --cmd/gendoc + i18n/tr-->  docusaurus (en + tr)
+                                                  (Registry format)                     (docs.dtcloudnow.com)
 ```
 
-| Command                | What it does                                                        |
-|------------------------|---------------------------------------------------------------------|
-| `make docs`            | Regenerates `docs/` from the schema, examples and templates.        |
-| `make docs_validate`   | Checks `docs/` against the Terraform Registry's rules.              |
-| `make docs_check`      | Regenerates and fails if the result differs from the commit.        |
-| `make docusaurus`      | Converts `docs/` into Docusaurus pages in `../docusaurus`.          |
-| `make docs_all`        | All of the above, in order. This is what CI runs.                   |
+| Command                | What it does                                                          |
+|------------------------|-----------------------------------------------------------------------|
+| `make docs`            | Regenerates `docs/` from the schema, examples and templates.          |
+| `make docs_validate`   | Checks `docs/` against the Terraform Registry's rules.                |
+| `make docs_check`      | Regenerates and fails if the result differs from the commit.          |
+| `make docs_i18n_check` | Fails if a text has no Turkish translation, or one is no longer used. |
+| `make docusaurus`      | Converts `docs/` into Docusaurus pages in `../docusaurus`.            |
+| `make docs_all`        | Generate, validate, check translations, convert. This is what CI runs. |
 
-So to change what a page says, change one of:
+Where each part of a page is edited:
 
-* the `Description` strings on the resource, data source or field in `dtcloud/` -- this is
-  where nearly all page text lives, and keeping it next to the code is what stops the docs
-  drifting from it;
-* the example under `examples/resources/<type>/` or `examples/data-sources/<type>/`, which is
-  embedded as the page's *Example Usage*, and `import.sh` alongside it, which becomes the
-  *Import* section;
-* `templates/index.md.tmpl` for the provider landing page, or `templates/guides/` for guides;
-* `templates/resources.md.tmpl` / `templates/data-sources.md.tmpl` for the page layout shared
-  by every type, including the `subcategory` grouping.
+| Part of the page                                     | Edited in                                                        |
+|------------------------------------------------------|------------------------------------------------------------------|
+| The summary sentence under the title                 | the resource's or data source's `Description` in `dtcloud/` -- one sentence |
+| Every argument and attribute in *Schema*             | each field's `Description` in `dtcloud/`; `dtcloud/schema_docs.go` adds "Changing this forces a new resource to be created." to ForceNew arguments |
+| *Example Usage* and the import command               | `examples/resources/<type>/` (`resource.tf`, `import.sh`) or `examples/data-sources/<type>/` |
+| The subcategory, notes, *Behaviour worth knowing*, *Timeouts*, import notes | `templates/resources/<name>.md.tmpl` or `templates/data-sources/<name>.md.tmpl` |
+| The Turkish text of all of the above                 | `i18n/tr/<resources or data-sources>/<name>.yaml`                |
+| The provider page and the guides                     | `templates/index.md.tmpl`, `templates/guides/`, `i18n/tr/index.yaml`, `i18n/tr/guides/` |
 
-Then run `make docs` and commit the result. A new resource needs no template of its own.
+Every page template has the same sections in the same order -- summary, *Example Usage*, notes,
+*Schema*, *Behaviour worth knowing*, *Timeouts*, *Import* -- and leaves out a section with nothing
+to say. What a template states about the code, such as timeout defaults or what an import reads
+back, is written by hand, so re-check it when that code changes.
 
-CI runs `docs_check` on every push, so a schema change with no regenerated docs behind it
-fails the pipeline. On the default branch it also converts `docs/` for the Docusaurus site and
+Adding a resource or data source therefore takes its `Description` strings, an example, and a page
+template (copy a sibling's; `TestEveryTypeHasADocsTemplate` fails without one). Run `make docs`,
+then `make docs_i18n_check`: it prints every English text that has no translation yet as YAML, to
+be translated into `i18n/tr/`. Commit all of it together.
+
+CI runs `docs_check` and `docs_i18n_check` on every push, so a schema change with no regenerated
+docs or no translation behind it fails the pipeline. On the default branch it also converts `docs/` for the Docusaurus site and
 opens a merge request there, which a human approves -- the same flow `dt-cli` uses for the
 `dtctl` CLI reference.
 

@@ -54,13 +54,7 @@ func ResourceDtcloudSnapshot() *schema.Resource {
 	}
 
 	return &schema.Resource{
-		Description: "Manages a point-in-time copy of a volume.\n\n" +
-			"`name` and `description` change in place. Everything else is fixed when the copy is taken: " +
-			"size and storage policy come from the source volume, and a snapshot cannot be re-pointed at " +
-			"another one, so `volume_id` forces replacement. The source volume may be attached to a " +
-			"running machine.\n\n" +
-			"Restoring is not done here. A restore produces a volume, so it belongs to `dtcloud_volume` " +
-			"via `source_snapshot_id`.",
+		Description: "Manages a point-in-time copy of a volume.",
 
 		CreateContext: resourceDtcloudSnapshotCreate,
 		ReadContext:   resourceDtcloudSnapshotRead,

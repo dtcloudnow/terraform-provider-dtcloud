@@ -20,13 +20,7 @@ import (
 // address is an in-place update; it is never released to change what it points at.
 func ResourceDtcloudElasticIP() *schema.Resource {
 	return &schema.Resource{
-		Description: "Allocates a public (elastic) IP address and, optionally, points it at a port.\n\n" +
-			"The three verbs map onto Terraform directly: create allocates, update associates and " +
-			"disassociates, delete releases. Moving the address between machines is an in-place update, " +
-			"so the address itself -- the part worth keeping -- is never released to change what it " +
-			"reaches.\n\n" +
-			"`port_id` is the association, and the only argument that writes it. There is no separate " +
-			"association resource.",
+		Description: "Allocates a public (elastic) IP address and, optionally, points it at a port.",
 
 		CreateContext: resourceDtcloudElasticIPCreate,
 		ReadContext:   resourceDtcloudElasticIPRead,

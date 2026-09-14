@@ -51,6 +51,8 @@ if ! git diff --quiet -- docs/; then
   exit 1
 fi
 make docs_validate
+# The Turkish pages fall back to English for untranslated text; refuse to publish that.
+make docs_i18n_check
 
 # ---------------------------------------------------------------------------
 # 2. Clone the site.

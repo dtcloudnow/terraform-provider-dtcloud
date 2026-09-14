@@ -1,0 +1,44 @@
+- en: |-
+    Looks up one security group, by id or by name.
+  tr: |-
+    Tek bir güvenlik grubunu kimliğine ya da adına göre bulur.
+- en: |-
+    Use it to reference a group Terraform did not create. The name lookup spares a hand-copied id: `security_groups` on a machine's network interface takes ids.
+  tr: |-
+    Terraform'un oluşturmadığı bir gruba başvurmak için kullanın. Adla arama, elle kopyalanan bir kimlik ihtiyacını ortadan kaldırır: bir makinenin ağ arayüzündeki `security_groups` kimlik alır.
+- en: |-
+    By id.
+  tr: |-
+    Kimliğe göre.
+- en: |-
+    Or by name -- the lookup fails rather than guessing if the name matches more than one group.
+  tr: |-
+    Ya da ada göre: ad birden fazla grupla eşleşirse arama tahmin yürütmek yerine başarısız olur.
+- en: |-
+    ID of the security group to look up. Give this or `name`.
+  tr: |-
+    Aranacak güvenlik grubunun kimliği. Bunu ya da `name` değerini verin.
+- en: |-
+    Name of the security group to look up. Give this or `id`. Must match exactly one group.
+  tr: |-
+    Aranacak güvenlik grubunun adı. Bunu ya da `id` değerini verin. Tam olarak bir grupla eşleşmelidir.
+- en: |-
+    Description of the security group.
+  tr: |-
+    Güvenlik grubunun açıklaması.
+- en: |-
+    Inbound rules as the platform displays them.
+  tr: |-
+    Platformun gösterdiği haliyle gelen trafik kuralları.
+- en: |-
+    Outbound rules as the platform displays them.
+  tr: |-
+    Platformun gösterdiği haliyle giden trafik kuralları.
+- en: |-
+    **A name must match exactly one group.** Names are not unique on the platform, so a name that matches several groups is an error rather than an arbitrary pick. Look the group up by id instead.
+  tr: |-
+    **Bir ad tam olarak bir grupla eşleşmelidir.** Platformda adlar benzersiz değildir; bu yüzden birden fazla grupla eşleşen bir ad, gelişigüzel bir seçim yerine hatadır. Grubu bunun yerine kimliğiyle arayın.
+- en: |-
+    **The rule blocks are a display**, as on the resource: `protocol` is a display name, `port_range` is text, and `source` is a CIDR or another group's name. Their `id` is the second half of a `dtcloud_security_group_rule` import id.
+  tr: |-
+    **Kural blokları bir görüntüdür**, kaynakta olduğu gibi: `protocol` görünen bir addır, `port_range` metindir ve `source` bir CIDR ya da başka bir grubun adıdır. `id` değerleri bir `dtcloud_security_group_rule` içe aktarma kimliğinin ikinci yarısıdır.

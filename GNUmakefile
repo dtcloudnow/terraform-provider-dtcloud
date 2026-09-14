@@ -57,6 +57,14 @@ docs_validate:
 	@echo "==> validate docs/ against the Registry's rules"
 	@$(TFPLUGINDOCS) validate --provider-dir .. --provider-name $(NAME)
 
+# docs_i18n_check is the same gate for the Turkish site: it fails when a text in
+# docs/ has no translation under i18n/tr, or a translation is no longer used, and
+# prints the missing text as YAML ready to be filled in.
+.PHONY: docs_i18n_check
+docs_i18n_check:
+	@echo "==> ensure every text in docs/ has a Turkish translation"
+	@go run ./cmd/gendoc --lang tr --check
+
 # DOCS_OUT is the Docusaurus site root the reference is written into. Defaults
 # to a sibling checkout, matching the dt-cli setup.
 DOCS_OUT = $(shell echo $${DOCS_OUT:-$(CURDIR)/../docusaurus})
@@ -69,6 +77,6 @@ docusaurus:
 
 # Everything, in order: what CI runs before opening the docs merge request.
 .PHONY: docs_all
-docs_all: docs docs_validate docusaurus
+docs_all: docs docs_validate docs_i18n_check docusaurus
 
 .PHONY: default build test testacc fmt fmtcheck vet

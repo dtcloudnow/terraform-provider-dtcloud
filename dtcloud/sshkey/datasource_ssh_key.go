@@ -11,9 +11,7 @@ import (
 // DataSourceDtcloudSSHKey looks up a single SSH key by name.
 func DataSourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
-		Description: "Looks up a single SSH key by name.\n\n" +
-			"Use it to reference a key that Terraform did not create -- declaring one as a resource " +
-			"instead would hand Terraform ownership of it, and a later destroy would remove it.",
+		Description: "Looks up a single SSH key by name.",
 
 		ReadContext: dataSourceDtcloudSSHKeyRead,
 		Schema:      sshKeySchema(),

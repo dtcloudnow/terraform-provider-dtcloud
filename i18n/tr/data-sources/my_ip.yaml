@@ -1,0 +1,28 @@
+- en: |-
+    Reports the address the API sees the caller coming from.
+  tr: |-
+    API'nin, çağıranın hangi adresten geldiğini gördüğünü bildirir.
+- en: |-
+    Its purpose is scoping a rule to your own address: let me in, and nobody else. It is not necessarily your public address. It is your address on whatever network you reached the API over, so behind a corporate VPN it is the VPN address, which is usually the useful answer, since that is also the address a machine sees.
+  tr: |-
+    Amacı bir kuralı kendi adresinizle sınırlamaktır: beni içeri al, başka kimseyi alma. Bu, genel adresiniz olmak zorunda değildir. API'ye hangi ağ üzerinden ulaştıysanız o ağdaki adresinizdir; kurumsal bir VPN'in arkasındaysanız VPN adresidir. Bu çoğu zaman işe yarayan yanıttır, çünkü bir makinenin gördüğü adres de odur.
+- en: |-
+    Scope an administrative rule to whoever is running Terraform. Read the note on the data source page before using this for anything a service depends on.
+  tr: |-
+    Yönetimsel bir kuralı Terraform'u çalıştıran kişiyle sınırlayın. Bunu bir servisin bağımlı olduğu herhangi bir şey için kullanmadan önce veri kaynağı sayfasındaki notu okuyun.
+- en: |-
+    The same address as a single-host CIDR — `/32` for IPv4, `/128` for IPv6 — which is the form `remote_ip_prefix` takes.
+  tr: |-
+    Aynı adresin tek bir ana bilgisayarı kapsayan CIDR hali (IPv4 için `/32`, IPv6 için `/128`); `remote_ip_prefix` bu biçimi alır.
+- en: |-
+    The address the API saw the request come from.
+  tr: |-
+    API'nin isteğin geldiğini gördüğü adres.
+- en: |-
+    **Read this before using it in a rule.** The value changes when you change network, and a connection can renumber on its own. A security group rule forces replacement, so a changed address means the next plan deletes the rule and creates a new one. That is right for an administrative allow-rule and a poor idea for anything a service depends on. It also means whoever ran the last apply decides who has access, which is rarely right from CI; use an explicit CIDR there.
+  tr: |-
+    **Bir kuralda kullanmadan önce bunu okuyun.** Ağ değiştirdiğinizde değer değişir ve bir bağlantının adresi kendiliğinden de değişebilir. Güvenlik grubu kuralı değiştirilince yeniden oluşturulur; bu yüzden değişen bir adres, bir sonraki planın kuralı silip yenisini oluşturması demektir. Bu, yönetimsel bir izin kuralı için doğrudur, bir servisin bağımlı olduğu her şey için kötü bir fikirdir. Ayrıca erişimin kime açık olduğuna son apply'ı çalıştıran kişinin karar vermesi demektir ki bu CI'da nadiren doğrudur; orada açık bir CIDR kullanın.
+- en: |-
+    **An IPv4-mapped address is unwrapped.** An address the API reports as `::ffff:192.0.2.10` comes back as `192.0.2.10`, with a `/32` CIDR.
+  tr: |-
+    **IPv4 eşlemeli bir adres açılır.** API'nin `::ffff:192.0.2.10` olarak bildirdiği bir adres `/32` CIDR ile `192.0.2.10` olarak döner.

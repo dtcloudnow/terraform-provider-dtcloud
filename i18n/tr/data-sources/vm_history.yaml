@@ -1,0 +1,28 @@
+- en: |-
+    Lists what has been done to a virtual machine.
+  tr: |-
+    Bir sanal makineye yapılanları listeler.
+- en: |-
+    This is an event log rather than desired state, which is why it is a data source: there is nothing to create, change or destroy.
+  tr: |-
+    Bu, istenen durum değil bir olay günlüğüdür; veri kaynağı olmasının nedeni de budur: oluşturulacak, değiştirilecek ya da yok edilecek bir şey yoktur.
+- en: |-
+    Newest first, so the first entry is the most recent action.
+  tr: |-
+    En yeniden eskiye sıralıdır, bu yüzden ilk girdi en son yapılan işlemdir.
+- en: |-
+    ID of the virtual machine.
+  tr: |-
+    Sanal makinenin kimliği.
+- en: |-
+    Actions recorded against the VM, newest first as the API reports them.
+  tr: |-
+    Sanal makine üzerinde kaydedilen işlemler, API'nin bildirdiği gibi en yeniden eskiye.
+- en: |-
+    **Keep it out of resource arguments.** The content changes whenever anything happens to the machine, Terraform's own changes included, so a resource that depends on it sees a new value on every plan and never settles. Use it for outputs, for `terraform console`, or for a check outside the dependency graph.
+  tr: |-
+    **Bunu kaynak argümanlarından uzak tutun.** Makineye herhangi bir şey olduğunda, Terraform'un kendi değişiklikleri dahil, içerik değişir; bu yüzden ona bağlı bir kaynak her planda yeni bir değer görür ve hiçbir zaman kararlı hale gelmez. Output'lar, `terraform console` ya da bağımlılık grafiğinin dışındaki bir kontrol için kullanın.
+- en: |-
+    **There is no `status` here.** The list endpoint leaves it out; `dtcloud_vm_history_entry` reads one entry in full.
+  tr: |-
+    **Burada `status` yoktur.** Liste uç noktası onu dışarıda bırakır; `dtcloud_vm_history_entry` tek bir girdiyi eksiksiz okur.

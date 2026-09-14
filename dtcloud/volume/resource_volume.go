@@ -26,13 +26,7 @@ import (
 // to satisfy the plan.
 func ResourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a block storage volume.\n\n" +
-			"`name`, `description`, `size` and `storage_policy` change in place. `image_id`, " +
-			"`source_volume_id` and `source_snapshot_id` force replacement: all three seed the volume's " +
-			"contents at create time and no endpoint re-seeds an existing volume.\n\n" +
-			"`size` is grow-only. The platform cannot shrink a volume, and forcing replacement instead " +
-			"would quietly destroy the data to satisfy the plan.\n\n" +
-			"Attaching a volume to a machine is a separate resource, `dtcloud_vm_volume_attachment`.",
+		Description: "Manages a block storage volume.",
 
 		CreateContext: resourceDtcloudVolumeCreate,
 		ReadContext:   resourceDtcloudVolumeRead,

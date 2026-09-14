@@ -1,0 +1,84 @@
+- en: |-
+    Looks up one elastic IP, by id or by address.
+  tr: |-
+    Tek bir elastik IP'yi kimliğine ya da adresine göre bulur.
+- en: |-
+    Address lookup is the useful half: an address is what a person knows, since it is in a DNS record or in a firewall rule, while its id is written down nowhere outside the platform.
+  tr: |-
+    Asıl işe yarayan adresle aramadır: insanların bildiği şey adrestir, çünkü bir DNS kaydında ya da bir güvenlik duvarı kuralında yazılıdır; kimliği ise platformun dışında hiçbir yerde yazmaz.
+- en: |-
+    By address -- the half that is actually useful, since an address is what is written down in DNS or in somebody's firewall rule.
+  tr: |-
+    Adrese göre: asıl işe yarayan yol budur, çünkü DNS'te ya da birinin güvenlik duvarı kuralında yazılı olan adrestir.
+- en: |-
+    ID of the elastic IP to look up. Give this or `ip_address`.
+  tr: |-
+    Aranacak elastik IP'nin kimliği. Bunu ya da `ip_address` değerini verin.
+- en: |-
+    Public address to look up. Give this or `id`. Addresses are unique.
+  tr: |-
+    Aranacak genel adres. Bunu ya da `id` değerini verin. Adresler benzersizdir.
+- en: |-
+    ID of the VM or load balancer the platform reports the address as assigned to.
+  tr: |-
+    Platformun, adresin atandığını bildirdiği sanal makinenin ya da yük dengeleyicinin kimliği.
+- en: |-
+    Name of that VM or load balancer.
+  tr: |-
+    O sanal makinenin ya da yük dengeleyicinin adı.
+- en: |-
+    `VM`, `LB`, or empty when the address is unassociated.
+  tr: |-
+    `VM`, `LB` ya da adres ilişkilendirilmemişse boş.
+- en: |-
+    When the address was allocated, in RFC 3339 format.
+  tr: |-
+    Adresin ayrıldığı zaman, RFC 3339 biçiminde.
+- en: |-
+    Description of the address.
+  tr: |-
+    Adresin açıklaması.
+- en: |-
+    ID of the resource behind the port.
+  tr: |-
+    Bağlantı noktasının arkasındaki kaynağın kimliği.
+- en: |-
+    What kind of thing is behind the port, e.g. `compute:nova`.
+  tr: |-
+    Bağlantı noktasının arkasında ne tür bir şey olduğu, örn. `compute:nova`.
+- en: |-
+    Address on that port the traffic is mapped to.
+  tr: |-
+    O bağlantı noktasında trafiğin yönlendirildiği adres.
+- en: |-
+    ID of the external network the address came from.
+  tr: |-
+    Adresin alındığı dış ağın kimliği.
+- en: |-
+    Name of that external network, as the platform reports it.
+  tr: |-
+    Platformun bildirdiği haliyle o dış ağın adı.
+- en: |-
+    Port the address is pointed at, empty when unassociated.
+  tr: |-
+    Adresin yönlendirildiği bağlantı noktası; ilişkilendirilmemişse boş.
+- en: |-
+    Router carrying the traffic.
+  tr: |-
+    Trafiği taşıyan yönlendirici.
+- en: |-
+    `ACTIVE` when associated, `DOWN` when not.
+  tr: |-
+    İlişkilendirilmişse `ACTIVE`, değilse `DOWN`.
+- en: |-
+    When it was last changed, in RFC 3339 format.
+  tr: |-
+    Son değiştirildiği zaman, RFC 3339 biçiminde.
+- en: |-
+    **Every read costs two calls.** The list endpoint resolves an address to an id, and it is the only place the external network's name and the name of the machine behind the address appear (`network_name`, `assigned_to`). The details endpoint carries the raw fields. The API builds each row of that list from further calls of its own, so avoid this inside a large `for_each`.
+  tr: |-
+    **Her okuma iki çağrıya mal olur.** Liste uç noktası bir adresi kimliğe çözer ve dış ağın adıyla adresin arkasındaki makinenin adının (`network_name`, `assigned_to`) göründüğü tek yerdir. Ayrıntı uç noktası ham alanları taşır. API o listenin her satırını kendi yaptığı ek çağrılarla oluşturur; bu yüzden bunu büyük bir `for_each` içinde kullanmaktan kaçının.
+- en: |-
+    **An address that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir adres hatadır**, boş bir sonuç değil.

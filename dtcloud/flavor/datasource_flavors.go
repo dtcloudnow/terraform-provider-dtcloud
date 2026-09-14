@@ -12,9 +12,7 @@ import (
 // DataSourceDtcloudFlavors lists the compute flavors available for VMs.
 func DataSourceDtcloudFlavors() *schema.Resource {
 	return &schema.Resource{
-		Description: "Lists the compute flavors available for virtual machines.\n\n" +
-			"The endpoint takes no filters, so the full list is fetched either way and `name` is applied " +
-			"by the provider.",
+		Description: "Lists the compute flavors available for virtual machines.",
 
 		ReadContext: dataSourceDtcloudFlavorsRead,
 		Schema: map[string]*schema.Schema{

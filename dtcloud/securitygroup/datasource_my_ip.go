@@ -18,17 +18,7 @@ import (
 // so whichever machine ran the last apply decides who has access.
 func DataSourceDtcloudMyIP() *schema.Resource {
 	return &schema.Resource{
-		Description: "Reports the address the API sees the caller coming from.\n\n" +
-			"Its purpose is scoping a rule to your own address -- \"let me in, and nobody else\". Note that " +
-			"this is not necessarily the caller's public address: it is their address on whatever network " +
-			"they reached the API over, so behind a corporate VPN it comes back as the VPN address. That " +
-			"is usually the useful answer, since it is the address a machine sees too.\n\n" +
-			"Read this before using it in a rule. The value changes when the caller changes network, and " +
-			"a connection may renumber on its own. Because a security group rule forces replacement, a " +
-			"changed address means the next plan deletes the rule and creates a new one. That is usually " +
-			"what you want from an administrative allow-rule and a poor idea for anything a service " +
-			"depends on. It also means the machine that ran the last apply decides who has access, which " +
-			"is rarely right from CI.",
+		Description: "Reports the address the API sees the caller coming from.",
 
 		ReadContext: dataSourceDtcloudMyIPRead,
 		Schema: map[string]*schema.Schema{

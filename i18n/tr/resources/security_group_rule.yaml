@@ -1,0 +1,92 @@
+- en: |-
+    Manages one rule inside a security group.
+  tr: |-
+    Bir güvenlik grubunun içindeki tek bir kuralı yönetir.
+- en: |-
+    The API has a create endpoint and a delete endpoint and nothing else, so every argument forces a new rule. That is what the platform does anyway: delete the old rule, create the new one. The resource ID is `<security-group-id>:<rule-id>`, because a rule is read by listing its group's rules.
+  tr: |-
+    API'nin bir oluşturma ve bir silme uç noktası vardır, başka hiçbir şeyi yoktur; bu yüzden her argüman değişikliği yeni bir kural gerektirir. Platform zaten bunu yapar: eski kuralı siler, yenisini oluşturur. Kaynak kimliği `<security-group-id>:<rule-id>`'dir, çünkü bir kural, grubunun kuralları listelenerek okunur.
+- en: |-
+    Allow SSH from one address range.
+  tr: |-
+    Tek bir adres aralığından SSH'ye izin verin.
+- en: |-
+    Allow traffic from every machine in another group. Referring to a group rather than to an address keeps the rule correct as machines come and go.
+  tr: |-
+    Başka bir gruptaki tüm makinelerden gelen trafiğe izin verin. Bir adres yerine bir gruba başvurmak, makineler eklenip çıkarıldıkça kuralı doğru tutar.
+- en: |-
+    Leave out both `remote_ip_prefix` and `remote_group_id` and the rule applies to the whole address family: `0.0.0.0/0` for IPv4, `::/0` for IPv6.
+  tr: |-
+    `remote_ip_prefix` ve `remote_group_id` değerlerinin ikisini de yazmazsanız kural tüm adres ailesine uygulanır: IPv4 için `0.0.0.0/0`, IPv6 için `::/0`.
+- en: |-
+    Traffic direction: `ingress` (inbound) or `egress` (outbound).
+  tr: |-
+    Trafik yönü: `ingress` (gelen) ya da `egress` (giden).
+- en: |-
+    ID of the security group this rule belongs to.
+  tr: |-
+    Bu kuralın ait olduğu güvenlik grubunun kimliği.
+- en: |-
+    Address family: `IPv4` or `IPv6`. Defaults to whatever the platform picks, which is `IPv4`.
+  tr: |-
+    Adres ailesi: `IPv4` ya da `IPv6`. Varsayılan olarak platformun seçtiği değerdir, yani `IPv4`.
+- en: |-
+    Last port in the range. For `icmp` this is the ICMP **code**, not a port. Omit for all ports.
+  tr: |-
+    Aralıktaki son bağlantı noktası. `icmp` için bu bir bağlantı noktası değil, ICMP **kodudur**. Tüm bağlantı noktaları için yazmayın.
+- en: |-
+    First port in the range. For `icmp` this is the ICMP **type**, not a port. Omit for all ports. See the note on 0 below.
+  tr: |-
+    Aralıktaki ilk bağlantı noktası. `icmp` için bu bir bağlantı noktası değil, ICMP **tipidir**. Tüm bağlantı noktaları için yazmayın. Aşağıdaki 0 notuna bakın.
+- en: |-
+    Protocol the rule matches, e.g. `tcp`, `udp`, `icmp`, or a protocol number. Omit it to match every protocol. Not restricted to a fixed list, because the platform accepts more than the common names.
+  tr: |-
+    Kuralın eşleştiği protokol, örn. `tcp`, `udp`, `icmp` ya da bir protokol numarası. Tüm protokollerle eşleşmek için yazmayın. Platform yaygın adlardan fazlasını kabul ettiği için sabit bir listeyle sınırlı değildir.
+- en: |-
+    ID of another security group whose members the rule applies to. An **id**, not a name — the platform does not resolve names here. Mutually exclusive with `remote_ip_prefix`.
+  tr: |-
+    Kuralın üyelerine uygulandığı başka bir güvenlik grubunun kimliği. Ad değil **kimlik**: platform burada adları çözmez. `remote_ip_prefix` ile birlikte kullanılamaz.
+- en: |-
+    CIDR the rule applies to, e.g. `10.0.0.0/24`. Mutually exclusive with `remote_group_id`.
+  tr: |-
+    Kuralın uygulandığı CIDR, örn. `10.0.0.0/24`. `remote_group_id` ile birlikte kullanılamaz.
+- en: |-
+    Description of the rule. Read-only: the create route does not accept one, so this is only ever non-empty for a rule created outside Terraform.
+  tr: |-
+    Kuralın açıklaması. Salt okunur: oluşturma yolu açıklama kabul etmez, bu yüzden yalnızca Terraform dışında oluşturulmuş bir kuralda dolu olur.
+- en: |-
+    `remote_ip_prefix` with its host bits cleared, as the platform computes it — `10.0.0.5/24` is reported here as `10.0.0.0/24`.
+  tr: |-
+    Ana bilgisayar bitleri temizlenmiş `remote_ip_prefix`, platformun hesapladığı haliyle: `10.0.0.5/24` burada `10.0.0.0/24` olarak bildirilir.
+- en: |-
+    **Refused at plan time.** A port range without a protocol, `port_range_min` greater than `port_range_max` for `tcp` and `udp`, and a `remote_ip_prefix` whose address family disagrees with `ethertype`. A duplicate rule is not among them: whether one already exists is only known at apply, where the platform's refusal is passed through.
+  tr: |-
+    **Plan aşamasında reddedilenler.** Protokolü olmayan bir bağlantı noktası aralığı, `tcp` ve `udp` için `port_range_max`'tan büyük bir `port_range_min` ve adres ailesi `ethertype` ile uyuşmayan bir `remote_ip_prefix`. Yinelenen bir kural bunlardan biri değildir: aynısının zaten var olup olmadığı ancak apply sırasında bilinir ve orada platformun reddi aktarılır.
+- en: |-
+    **ICMP uses the port fields for type and code.** For `protocol = "icmp"`, `port_range_min` is the ICMP type and `port_range_max` the code. They are not a range, so the ordering check is not applied.
+  tr: |-
+    **ICMP, bağlantı noktası alanlarını tip ve kod için kullanır.** `protocol = "icmp"` için `port_range_min` ICMP tipi, `port_range_max` ise koddur. Bir aralık olmadıkları için sıralama kontrolü uygulanmaz.
+- en: |-
+    **`0` and "not set" are the same value.** A zero port is dropped from the request, and the platform reports an unset port as empty, which reads back as `0`. In practice this only rules out ICMP type 0 (echo reply).
+  tr: |-
+    **`0` ile "ayarlanmamış" aynı değerdir.** Sıfır olan bir bağlantı noktası istekten çıkarılır ve platform ayarlanmamış bir bağlantı noktasını boş bildirir; bu da `0` olarak geri okunur. Pratikte bu yalnızca ICMP tip 0'ın (echo reply) ifade edilememesi demektir.
+- en: |-
+    **`protocol` ignores case.** It is lowercased before it is sent and stored, so `TCP` and `tcp` never show as a change.
+  tr: |-
+    **`protocol` büyük/küçük harfi yok sayar.** Gönderilmeden ve saklanmadan önce küçük harfe çevrilir, bu yüzden `TCP` ile `tcp` asla değişiklik olarak görünmez.
+- en: |-
+    **Deleting the group takes its rules.** A rule whose group is gone drops out of state instead of failing, because the platform answers a deleted group's rule listing with an empty list.
+  tr: |-
+    **Grubu silmek kurallarını da götürür.** Grubu silinmiş bir kural hata vermek yerine state'ten düşer, çünkü platform silinmiş bir grubun kural listesine boş bir listeyle yanıt verir.
+- en: |-
+    `create` and `delete` each default to 5 minutes; there is no `update`, since every change replaces the rule. These calls are synchronous, so the timeouts bound a hung request. Override them with a `timeouts` block:
+  tr: |-
+    `create` ve `delete` için varsayılan süre 5 dakikadır; her değişiklik kuralı yeniden oluşturduğu için `update` yoktur. Bu çağrılar eşzamanlıdır, bu yüzden zaman aşımları takılı kalmış bir isteği sınırlar. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    A rule is found by listing its group, so the import id carries both ids: <security-group-id>:<rule-id>
+  tr: |-
+    Bir kural, grubu listelenerek bulunur; bu yüzden içe aktarma kimliği iki kimliği de taşır: <security-group-id>:<rule-id>
+- en: |-
+    The rule ids are in the group's `inbound_rule` and `outbound_rule` attributes, on the resource and on the `dtcloud_security_group` data source. Everything is read back.
+  tr: |-
+    Kural kimlikleri, hem kaynakta hem de `dtcloud_security_group` veri kaynağında, grubun `inbound_rule` ve `outbound_rule` özniteliklerindedir. Her şey geri okunur.
