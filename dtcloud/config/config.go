@@ -72,8 +72,6 @@ func (c *CombinedConfig) mutexFor(key string) *sync.Mutex {
 	return c.locks[key]
 }
 
-
-
 // StoragePolicyNames maps volume type id to policy name, read once per run.
 // Best-effort: a failure caches an empty map.
 func (c *CombinedConfig) StoragePolicyNames(ctx context.Context) map[string]string {

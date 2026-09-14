@@ -2,42 +2,42 @@
 
 Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines, networks,routers, security groups, elastic IPs, volumes, snapshots, images, plus read-only
+Current scope: SSH keys, virtual machines, networks, routers, security groups, elastic IPs, volumes, snapshots, images, plus read-only
 catalogue and account data sources (flavors, regions, projects, quotas).
 
-| Resources                      | Data sources               |
-|--------------------------------|----------------------------|
-| `dtcloud_ssh_key`              | `dtcloud_ssh_key`          |
-| `dtcloud_vm`                   | `dtcloud_ssh_keys`         |
-| `dtcloud_vm_volume_attachment` | `dtcloud_vm`               |
-| `dtcloud_vm_network_interface` | `dtcloud_vms`              |
-| `dtcloud_network`              | `dtcloud_vm_history`       |
-| `dtcloud_security_group`       | `dtcloud_vm_history_entry` |
-| `dtcloud_security_group_rule`  | `dtcloud_network`          |
-| `dtcloud_elastic_ip`           | `dtcloud_networks`         |
-| `dtcloud_volume`               | `dtcloud_security_group`   |
-| `dtcloud_snapshot`             | `dtcloud_security_groups`  |
-| `dtcloud_image`                | `dtcloud_my_ip`            |
-|                                | `dtcloud_elastic_ip`       |
-|                                | `dtcloud_elastic_ips`      |
-|                                | `dtcloud_volume`           |
-|                                | `dtcloud_volumes`          |
-|                                | `dtcloud_volume_snapshots` |
-|                                | `dtcloud_storage_policies` |
-|                                | `dtcloud_snapshot`         |
-|                                | `dtcloud_snapshots`        |
-|                                | `dtcloud_image`            |
-|                                | `dtcloud_images`           |
-|                                | `dtcloud_image_versions`   |
-|                                | `dtcloud_flavors`          |
-|                                | `dtcloud_regions`          |
-|                                | `dtcloud_projects`         |
-|                                | `dtcloud_project_quotas`   |
-|                                | `dtcloud_project_limits`   |
-|              | `dtcloud_router`           |
-| `dtcloud_router_interface`     | `dtcloud_routers`          |
-| `dtcloud_router_static_route`  | `dtcloud_router_interfaces` |
-|                                | `dtcloud_router_static_routes` |
+| Resources                      | Data sources                   |
+|--------------------------------|--------------------------------|
+| `dtcloud_ssh_key`              | `dtcloud_ssh_key`              |
+| `dtcloud_vm`                   | `dtcloud_ssh_keys`             |
+| `dtcloud_vm_volume_attachment` | `dtcloud_vm`                   |
+| `dtcloud_vm_network_interface` | `dtcloud_vms`                  |
+| `dtcloud_network`              | `dtcloud_vm_history`           |
+| `dtcloud_security_group`       | `dtcloud_vm_history_entry`     |
+| `dtcloud_security_group_rule`  | `dtcloud_network`              |
+| `dtcloud_elastic_ip`           | `dtcloud_networks`             |
+| `dtcloud_volume`               | `dtcloud_router`               |
+| `dtcloud_snapshot`             | `dtcloud_routers`              |
+| `dtcloud_image`                | `dtcloud_router_interfaces`    |
+| `dtcloud_router`               | `dtcloud_router_static_routes` |
+| `dtcloud_router_interface`     | `dtcloud_security_group`       |
+| `dtcloud_router_static_route`  | `dtcloud_security_groups`      |
+|                                | `dtcloud_my_ip`                |
+|                                | `dtcloud_elastic_ip`           |
+|                                | `dtcloud_elastic_ips`          |
+|                                | `dtcloud_volume`               |
+|                                | `dtcloud_volumes`              |
+|                                | `dtcloud_volume_snapshots`     |
+|                                | `dtcloud_storage_policies`     |
+|                                | `dtcloud_snapshot`             |
+|                                | `dtcloud_snapshots`            |
+|                                | `dtcloud_image`                |
+|                                | `dtcloud_images`               |
+|                                | `dtcloud_image_versions`       |
+|                                | `dtcloud_flavors`              |
+|                                | `dtcloud_regions`              |
+|                                | `dtcloud_projects`             |
+|                                | `dtcloud_project_quotas`       |
+|                                | `dtcloud_project_limits`       |
 
 ## Dependency chain
 
