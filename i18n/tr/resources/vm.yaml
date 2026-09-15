@@ -67,9 +67,13 @@
   tr: |-
     İstenen güç durumu: running, stopped ya da shelved. Shelve işlemi sanal makineyi ve disklerini korurken bilişim kaynaklarını serbest bırakır.
 - en: |-
-    Cloud-init user data.
+    Cloud-init user data, written as it should reach the guest. The API only accepts it base64-encoded and the provider encodes it, so passing base64encode() output here would encode it twice and the guest would receive the encoded text.
   tr: |-
-    Cloud-init kullanıcı verisi.
+    Cloud-init kullanıcı verisi; misafir sisteme ulaşması gereken hâliyle yazılır. API bunu yalnızca base64 kodlanmış olarak kabul eder ve kodlamayı sağlayıcı yapar; bu yüzden buraya `base64encode()` çıktısı vermek veriyi iki kez kodlar ve misafire cloud-config yerine kodlanmış metin ulaşır.
+- en: |-
+    Written as it should reach the guest; the provider base64-encodes it, which is the only form the API accepts. Encoding it here too would double-encode it.
+  tr: |-
+    Misafir sisteme ulaşması gereken hâliyle yazılır; API yalnızca base64 kodlanmış hâlini kabul ettiği için kodlamayı sağlayıcı yapar. Burada da kodlamak veriyi iki kez kodlar.
 - en: |-
     Metadata the platform attaches to the instance, e.g. ha_enabled.
   tr: |-

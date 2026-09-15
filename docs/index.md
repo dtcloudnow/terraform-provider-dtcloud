@@ -76,7 +76,7 @@ that supplies it:
    api:
      access_key: "..."
      secret_key: "..."
-     base_url: https://cms.dt.net.tr/api/v1
+     base_url: https://console.dt.net.tr/api/v1
    region_id: 2
    ```
 
@@ -128,7 +128,7 @@ with the right permissions. `-profile prod` writes a second account, selectable 
 ### Optional
 
 - `access_key` (String) API access key, sent as the x-api-access-key header.
-- `api_endpoint` (String) Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.
+- `api_endpoint` (String) Base URL of the DT Cloud API, ending in /api/v1. Required: it decides which environment resources are created in, and the provider will not guess. Can come from DTCLOUD_API_URL or the configuration file instead.
 - `config_file` (String) Path to the configuration file. Defaults to config.yaml in this machine's configuration directory, under terraform-provider-dtcloud.
 - `profile` (String) Which account in the configuration file to use. Defaults to the file's `default_profile`, then to `default`.
 - `region_id` (String) Region / server id, sent as the serverId query parameter on every request.

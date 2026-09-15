@@ -66,7 +66,9 @@ func ResourceDtcloudVM() *schema.Resource {
 			Optional:     true,
 			ForceNew:     true,
 			AtLeastOneOf: []string{"key_name", "user_data", "script"},
-			Description:  "Cloud-init user data.",
+			Description: "Cloud-init user data, written as it should reach the guest. The API only " +
+				"accepts it base64-encoded and the provider encodes it, so passing base64encode() " +
+				"output here would encode it twice and the guest would receive the encoded text.",
 		},
 		"is_gpu_image": {
 			Type:        schema.TypeBool,

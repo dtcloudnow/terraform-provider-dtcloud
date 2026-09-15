@@ -41,11 +41,16 @@ Terraform does not stop the machine or unmount anything first.
   it again.
 * **`dtcloud_vm.volume` is a snapshot** from that resource's last refresh. A volume attached here in
   the same apply appears there after the next refresh; read this resource's attributes instead.
+* **A running guest can refuse a detach.** The platform accepts the request and then asks the guest
+  to release the disk. A filesystem that is still mounted makes it give up and put the volume back,
+  and the destroy fails saying so. Unmount the filesystem in the guest, or stop the machine, and
+  apply again.
 
 ## Timeouts
 
 `create` and `delete` each default to 10 minutes. Attaching and detaching are asynchronous: the
-provider waits until the volume appears on, or disappears from, the machine. Override them with a
+provider waits for the attachment to appear on the machine, and for the volume's own status to leave
+`detaching`. Override them with a
 `timeouts` block:
 
 ```terraform

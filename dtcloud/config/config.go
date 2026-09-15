@@ -134,9 +134,25 @@ func (c *Config) Client() (client *CombinedConfig, warnings []string, err error)
 			path, setupCommand())
 	}
 
-	opts := []dtgo.ClientOpt{dtgo.SetApiKey(accessKey, secretKey)}
-	if endpoint != "" {
-		opts = append(opts, dtgo.SetBaseURL(endpoint))
+	// Required, and deliberately so. Left empty the SDK falls back to a built-in
+	// address, which means a configuration that simply forgot the endpoint still
+	// builds a working client — pointed at whichever environment that default
+	// names. Nothing fails, so the mistake surfaces much later as resources that
+	// cannot be found in the console. Refusing here removes the guess entirely:
+	// the environment is always something the configuration said out loud.
+	if endpoint == "" {
+		return nil, warnings, fmt.Errorf(
+			"`api_endpoint` must be set. It decides which environment every resource is\n"+
+				"created in, so the provider will not infer it. Set it in the provider block,\n"+
+				"export DTCLOUD_API_URL, add `base_url` under `api` in %s, or run:\n\n"+
+				"    %s\n\n"+
+				"which records the endpoint it verified your credentials against.",
+			path, setupCommand())
+	}
+
+	opts := []dtgo.ClientOpt{
+		dtgo.SetApiKey(accessKey, secretKey),
+		dtgo.SetBaseURL(endpoint),
 	}
 
 	dtClient, err := dtgo.New(http.DefaultClient, opts...)

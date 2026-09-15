@@ -233,7 +233,7 @@ func TestAccDtcloudVM_userDataAndScript(t *testing.T) {
 resource "dtcloud_vm" "both" {
   name      = "tf-acc-both"
   flavor_id = "flavor-small"
-  user_data = "I2Nsb3VkLWNvbmZpZwo="
+  user_data = "#cloud-config\n"
 
   script {
     os       = "linux"
@@ -262,6 +262,81 @@ resource "dtcloud_vm" "both" {
 }
 `,
 				ExpectError: regexp.MustCompile("user_data and script cannot both be set"),
+			},
+		},
+	})
+}
+
+// TestAccDtcloudVM_userDataIsEncodedOnce pins where the base64 lives.
+//
+// The API refuses a raw cloud-config document — "'#cloud-config\n' is not a
+// 'base64'" — so exactly one of the configuration and the provider has to
+// encode it, and the provider does. Encoding it in the configuration as well
+// costs nothing at apply time and is invisible afterwards: double-encoded text
+// is still valid base64, the API accepts it, and the guest boots with the
+// encoded string in place of its cloud-config. Nothing reports user_data back,
+// so there is no drift to notice either.
+//
+// The fake decodes what arrives, which is the only place the two halves can be
+// compared. Breaking either half fails this: drop encodeUserData and the fake
+// rejects the raw document, encode in the configuration too and the decoded
+// value is base64 rather than the document.
+func TestAccDtcloudVM_userDataIsEncodedOnce(t *testing.T) {
+	api := newFakeVMAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	const cloudConfig = "#cloud-config\npackage_update: true\n"
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: acctest.ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: acctest.ProviderConfig(server.URL) + fmt.Sprintf(`
+resource "dtcloud_vm" "userdata" {
+  name      = "tf-acc-userdata"
+  flavor_id = "flavor-small"
+  user_data = %q
+  // The fake reports a key on every VM, so the configuration has to carry it or
+  // the follow-up plan proposes a replacement for a reason unrelated to this test.
+  key_name = "tf-acc-key"
+
+  network {
+    uuid            = "11111111-2222-3333-4444-555555555555"
+    security_groups = ["sg-default"]
+
+    fixed_ip {
+      ip_version = 4
+    }
+  }
+
+  block_device {
+    boot_index            = 0
+    volume_size           = 20
+    source_type           = "image"
+    device_type           = "disk"
+    destination_type      = "volume"
+    delete_on_termination = true
+    volume_type           = "standard"
+    uuid                  = "img-0001"
+  }
+}
+`, cloudConfig),
+				Check: func(*terraform.State) error {
+					api.mu.Lock()
+					defer api.mu.Unlock()
+					for _, v := range api.vms {
+						if v.Name != "tf-acc-userdata" {
+							continue
+						}
+						if v.userData != cloudConfig {
+							return fmt.Errorf("the guest would receive %q, not the configured document %q",
+								v.userData, cloudConfig)
+						}
+						return nil
+					}
+					return fmt.Errorf("the VM never reached the API")
+				},
 			},
 		},
 	})

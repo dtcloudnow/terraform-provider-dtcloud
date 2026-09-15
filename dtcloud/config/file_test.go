@@ -38,7 +38,7 @@ profiles:
     api:
       access_key: dev-access
       secret_key: dev-secret
-      base_url: https://dev.cms.dt.net.tr/api/v1
+      base_url: https://api.example.com/v1
     region_id: 2
   prod:
     api:
@@ -52,7 +52,7 @@ profiles:
 const dtctlShapedConfig = `
 api:
     access_key: cli-access
-    base_url: https://dev.cms.dt.net.tr/api/v1
+    base_url: https://api.example.com/v1
     secret_key: cli-secret
 output: text
 region_id: 1
@@ -95,7 +95,7 @@ func TestDtctlShapedConfigIsAccepted(t *testing.T) {
 	if got.RegionID != "1" {
 		t.Errorf("region = %q, want \"1\" — a bare YAML integer has to be accepted", got.RegionID)
 	}
-	if got.APIEndpoint != "https://dev.cms.dt.net.tr/api/v1" {
+	if got.APIEndpoint != "https://api.example.com/v1" {
 		t.Errorf("endpoint = %q", got.APIEndpoint)
 	}
 }
@@ -170,12 +170,18 @@ func TestPermissionsAreTightenedAtTheDefaultPath(t *testing.T) {
 		t.Skip("POSIX mode bits are not meaningful on Windows; os.Chmod maps 0400 onto the read-only attribute instead")
 	}
 
-	home := isolateConfigHome(t)
-	dir := filepath.Join(home, ConfigDirName)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	isolateConfigHome(t)
+	// Ask for the path rather than assembling it: the configuration directory is
+	// $XDG_CONFIG_HOME on Linux but "Library/Application Support" under $HOME on
+	// macOS, so a hand-built path writes the file somewhere Load never reads and
+	// the test passes on one platform while proving nothing on another.
+	path, err := DefaultPath()
+	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, ConfigFileName)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte(dtctlShapedConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}

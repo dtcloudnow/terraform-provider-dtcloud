@@ -63,7 +63,7 @@
   tr: |-
     API erişim anahtarı; x-api-access-key başlığıyla gönderilir.
 - en: |-
-    Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.
+    Base URL of the DT Cloud API, ending in /api/v1. Required: it decides which environment resources are created in, and the provider will not guess. Can come from DTCLOUD_API_URL or the configuration file instead.
   tr: |-
     DT Cloud API'sinin /api/v1 ile biten temel URL'si. Ayarlanmazsa SDK'nın varsayılanı kullanılır.
 - en: |-
