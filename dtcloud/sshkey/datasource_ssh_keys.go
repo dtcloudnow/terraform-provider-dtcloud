@@ -16,6 +16,8 @@ import (
 // keys, which cost one call each.
 func DataSourceDtcloudSSHKeys() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the SSH keys on the account.",
+
 		ReadContext: dataSourceDtcloudSSHKeysRead,
 		Schema: map[string]*schema.Schema{
 			"ssh_keys": {

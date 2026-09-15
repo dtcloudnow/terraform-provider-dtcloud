@@ -23,6 +23,8 @@ import (
 // `data.dtcloud_project_limits.mine.quotas["cores"]`.
 func DataSourceDtcloudProjectLimits() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reports every quota the platform tracks for a project.",
+
 		ReadContext: dataSourceDtcloudProjectLimitsRead,
 		Schema: map[string]*schema.Schema{
 			"project_id": {

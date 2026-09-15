@@ -42,6 +42,8 @@ func DataSourceDtcloudSnapshot() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up one snapshot by id.",
+
 		ReadContext: dataSourceDtcloudSnapshotRead,
 		Schema:      s,
 	}

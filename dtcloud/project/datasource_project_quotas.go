@@ -30,6 +30,8 @@ func DataSourceDtcloudProjectQuotas() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Reports what a project is using against what it is allowed.",
+
 		ReadContext: dataSourceDtcloudProjectQuotasRead,
 		Schema: map[string]*schema.Schema{
 			"project_id": {

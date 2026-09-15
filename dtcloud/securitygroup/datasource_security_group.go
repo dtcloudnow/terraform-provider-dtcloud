@@ -13,6 +13,8 @@ import (
 // Names are not unique, so one matching more than one group is an error.
 func DataSourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one security group, by id or by name.",
+
 		ReadContext: dataSourceDtcloudSecurityGroupRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

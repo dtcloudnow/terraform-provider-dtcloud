@@ -24,6 +24,8 @@ type listNetworkOptions struct {
 // DHCP as a word; reading the full subnet would cost one call per network.
 func DataSourceDtcloudNetworks() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the networks visible to the caller.",
+
 		ReadContext: dataSourceDtcloudNetworksRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

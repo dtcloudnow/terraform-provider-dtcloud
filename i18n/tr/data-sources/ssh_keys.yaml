@@ -1,0 +1,16 @@
+- en: |-
+    Lists the SSH keys on the account.
+  tr: |-
+    Hesaptaki SSH anahtarlarını listeler.
+- en: |-
+    The list endpoint reports a name and a creation time, and nothing else. Fingerprints and public keys would mean one more call per key, so look a key up with `dtcloud_ssh_key` when you need those.
+  tr: |-
+    Liste uç noktası bir ad ve bir oluşturulma zamanı bildirir, başka bir şey değil. Parmak izleri ve genel anahtarlar anahtar başına bir çağrı daha gerektirir; bunlara ihtiyaç duyduğunuzda anahtarı `dtcloud_ssh_key` ile arayın.
+- en: |-
+    Just the names, for the common case of checking whether a key exists.
+  tr: |-
+    Yalnızca adlar; bir anahtarın var olup olmadığını kontrol etmek gibi yaygın durum için.
+- en: |-
+    The SSH keys visible to the caller.
+  tr: |-
+    Çağıranın görebildiği SSH anahtarları.

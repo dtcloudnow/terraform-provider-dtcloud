@@ -21,6 +21,8 @@ import (
 // belongs to dtcloud_volume. The whole resource is ForceNew — attach and detach.
 func ResourceDtcloudVMVolumeAttachment() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches an existing volume to a virtual machine.",
+
 		CreateContext: resourceDtcloudVMVolumeAttachmentCreate,
 		ReadContext:   resourceDtcloudVMVolumeAttachmentRead,
 		DeleteContext: resourceDtcloudVMVolumeAttachmentDelete,

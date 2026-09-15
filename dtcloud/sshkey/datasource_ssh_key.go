@@ -11,6 +11,8 @@ import (
 // DataSourceDtcloudSSHKey looks up a single SSH key by name.
 func DataSourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up a single SSH key by name.",
+
 		ReadContext: dataSourceDtcloudSSHKeyRead,
 		Schema:      sshKeySchema(),
 	}

@@ -1,0 +1,40 @@
+- en: |-
+    Lists the virtual machines in the active region and project.
+  tr: |-
+    Etkin bölge ve projedeki sanal makineleri listeler.
+- en: |-
+    The list endpoint returns a lighter record than the details endpoint: no image, no SSH key, no timestamps and no per-interface detail. Use `dtcloud_vm` for the full picture of one machine.
+  tr: |-
+    Liste uç noktası ayrıntı uç noktasından daha hafif bir kayıt döndürür: imaj, SSH anahtarı, zaman damgaları ve arayüz başına ayrıntı yoktur. Tek bir makinenin tam resmi için `dtcloud_vm` kullanın.
+- en: |-
+    Every running machine.
+  tr: |-
+    Çalışan tüm makineler.
+- en: |-
+    Everything attached to one security group -- the usual way to find what a rule change is about to affect.
+  tr: |-
+    Tek bir güvenlik grubuna bağlı her şey: bir kural değişikliğinin neyi etkileyeceğini bulmanın olağan yolu.
+- en: |-
+    Only return VMs attached to this security group.
+  tr: |-
+    Yalnızca bu güvenlik grubuna bağlı sanal makineleri döndürür.
+- en: |-
+    Only return VMs in this status, e.g. ACTIVE or SHUTOFF.
+  tr: |-
+    Yalnızca bu durumdaki sanal makineleri döndürür, örn. ACTIVE ya da SHUTOFF.
+- en: |-
+    Only return VMs with this in-flight task.
+  tr: |-
+    Yalnızca bu görevi sürmekte olan sanal makineleri döndürür.
+- en: |-
+    The matching virtual machines.
+  tr: |-
+    Eşleşen sanal makineler.
+- en: |-
+    **The filters are passed to the API** as query parameters, so a filtered list is a single call.
+  tr: |-
+    **Filtreler API'ye** sorgu parametresi olarak **iletilir**, bu yüzden filtrelenmiş bir liste tek bir çağrıdır.
+- en: |-
+    **The data source's own `id` is a hash of the machine ids it returned**, so a list that has not changed does not show up as a change.
+  tr: |-
+    **Veri kaynağının kendi `id` değeri, döndürdüğü makine kimliklerinin özetidir**; böylece değişmemiş bir liste değişiklik olarak görünmez.

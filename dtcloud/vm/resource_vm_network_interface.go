@@ -22,6 +22,8 @@ import (
 // id, so it is found by diffing the interface list around the call.
 func ResourceDtcloudVMNetworkInterface() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches an extra network interface to a virtual machine.",
+
 		CreateContext: resourceDtcloudVMNetworkInterfaceCreate,
 		ReadContext:   resourceDtcloudVMNetworkInterfaceRead,
 		UpdateContext: resourceDtcloudVMNetworkInterfaceUpdate,

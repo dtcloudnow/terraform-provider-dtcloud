@@ -19,6 +19,8 @@ import (
 // endpoint reports the policy by name, so an id would drift on every plan.
 func DataSourceDtcloudStoragePolicies() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the storage policies available in the region.",
+
 		ReadContext: dataSourceDtcloudStoragePoliciesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

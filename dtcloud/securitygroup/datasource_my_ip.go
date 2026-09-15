@@ -18,6 +18,8 @@ import (
 // so whichever machine ran the last apply decides who has access.
 func DataSourceDtcloudMyIP() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reports the address the API sees the caller coming from.",
+
 		ReadContext: dataSourceDtcloudMyIPRead,
 		Schema: map[string]*schema.Schema{
 			"ip": {

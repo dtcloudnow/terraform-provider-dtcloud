@@ -17,6 +17,8 @@ import (
 // empty, so dtcloud_image can report an empty one for the same image.
 func DataSourceDtcloudImages() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists every image visible to the caller.",
+
 		ReadContext: dataSourceDtcloudImagesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

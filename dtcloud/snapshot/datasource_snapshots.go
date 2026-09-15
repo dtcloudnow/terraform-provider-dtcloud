@@ -17,6 +17,8 @@ import (
 // both as the volume type id and as the resolved name.
 func DataSourceDtcloudSnapshots() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists every snapshot visible to the caller.",
+
 		ReadContext: dataSourceDtcloudSnapshotsRead,
 		Schema: map[string]*schema.Schema{
 			"volume_id": {

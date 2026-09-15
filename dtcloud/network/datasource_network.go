@@ -15,6 +15,8 @@ import (
 // things attached to them.
 func DataSourceDtcloudNetwork() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one network by id.",
+
 		ReadContext: dataSourceDtcloudNetworkRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

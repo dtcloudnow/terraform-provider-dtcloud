@@ -19,6 +19,8 @@ import (
 // a list sorted by family then version so the plan stays stable.
 func DataSourceDtcloudImageVersions() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reads the platform's own image catalogue.",
+
 		ReadContext: dataSourceDtcloudImageVersionsRead,
 		Schema: map[string]*schema.Schema{
 			"type": {

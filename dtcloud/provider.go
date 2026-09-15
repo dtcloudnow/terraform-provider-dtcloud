@@ -140,6 +140,9 @@ func Provider() *schema.Provider {
 		return providerConfigure(d)
 	}
 
+	// The docs are generated from this schema; see schema_docs.go.
+	annotateForceNew(p)
+
 	return p
 }
 

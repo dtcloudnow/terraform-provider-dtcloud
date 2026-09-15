@@ -1,0 +1,28 @@
+- en: |-
+    Manages an SSH key that can be injected into a virtual machine at boot.
+  tr: |-
+    Önyükleme sırasında bir sanal makineye eklenebilen bir SSH anahtarını yönetir.
+- en: |-
+    The API addresses keys by name and has no update endpoint, so the resource ID is the key name, and changing either `name` or `public_key` replaces the key.
+  tr: |-
+    API anahtarlara adlarıyla erişir ve güncelleme uç noktası yoktur; bu yüzden kaynak kimliği anahtarın adıdır ve `name` ya da `public_key` değerlerinden birini değiştirmek anahtarı yeniden oluşturur.
+- en: |-
+    The name of the SSH key. Used as the resource identifier.
+  tr: |-
+    SSH anahtarının adı. Kaynak kimliği olarak kullanılır.
+- en: |-
+    **Trailing whitespace in `public_key` is ignored**, so the newline `file()` usually adds does not show as a change.
+  tr: |-
+    **`public_key` sonundaki boşluklar yok sayılır**, bu yüzden `file()`'ın genellikle eklediği satır sonu değişiklik olarak görünmez.
+- en: |-
+    **A key the platform reports as deleted counts as gone** and drops out of state.
+  tr: |-
+    **Platformun silinmiş olarak bildirdiği bir anahtar silinmiş sayılır** ve state'ten düşer.
+- en: |-
+    Only `create` has a timeout, defaulting to 2 minutes. Creating a key is synchronous, so this bounds a hung request rather than a wait. Override it with a `timeouts` block:
+  tr: |-
+    Yalnızca `create`'in zaman aşımı vardır ve varsayılanı 2 dakikadır. Anahtar oluşturmak eşzamanlıdır, bu yüzden bu bir beklemeyi değil takılı kalmış bir isteği sınırlar. Bunu bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    SSH keys are addressed by name, not by id, so the name is the import id.
+  tr: |-
+    SSH anahtarlarına kimlikle değil adla erişilir, bu yüzden içe aktarma kimliği addır.

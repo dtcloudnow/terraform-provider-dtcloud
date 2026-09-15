@@ -1,0 +1,24 @@
+- en: |-
+    Lists the regions available to the account.
+  tr: |-
+    Hesabın kullanabildiği bölgeleri listeler.
+- en: |-
+    The region a resource is created in comes from the provider's `region_id`, not from here; this is how to discover the valid values.
+  tr: |-
+    Bir kaynağın oluşturulduğu bölge buradan değil, sağlayıcının `region_id` değerinden gelir; geçerli değerleri bulmanın yolu budur.
+- en: |-
+    Just the ids.
+  tr: |-
+    Yalnızca kimlikler.
+- en: |-
+    The regions visible to the caller.
+  tr: |-
+    Çağıranın görebildiği bölgeler.
+- en: |-
+    **`available_services` lists only what is available**, sorted, so `contains()` is the natural check. A region the platform reports no availability information for has an empty list.
+  tr: |-
+    **`available_services` yalnızca kullanılabilir olanları listeler** ve sıralıdır; bu yüzden doğal kontrol `contains()`'dir. Platformun kullanılabilirlik bilgisi bildirmediği bir bölgenin listesi boştur.
+- en: |-
+    **Changing the active region is not exposed.** The API endpoint for it switches the caller's session rather than any infrastructure; the provider takes its region through `region_id` instead.
+  tr: |-
+    **Etkin bölgeyi değiştirmek sunulmaz.** API'nin bunun için sunduğu uç nokta herhangi bir altyapıyı değil çağıranın oturumunu değiştirir; sağlayıcı bölgesini bunun yerine `region_id` üzerinden alır.

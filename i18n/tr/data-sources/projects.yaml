@@ -1,0 +1,28 @@
+- en: |-
+    Lists the projects on the account, and reports which one the provider is currently scoped to.
+  tr: |-
+    Hesaptaki projeleri listeler ve sağlayıcının şu anda hangisiyle sınırlı olduğunu bildirir.
+- en: |-
+    The project the caller's session is currently pointed at. Everything this provider creates lands in it.
+  tr: |-
+    Çağıranın oturumunun şu anda işaret ettiği proje. Bu sağlayıcının oluşturduğu her şey bu projeye gider.
+- en: |-
+    Name of that project.
+  tr: |-
+    O projenin adı.
+- en: |-
+    The region the caller's session is currently pointed at.
+  tr: |-
+    Çağıranın oturumunun şu anda işaret ettiği bölge.
+- en: |-
+    The projects visible to the caller.
+  tr: |-
+    Çağıranın görebildiği projeler.
+- en: |-
+    **`active_project_id` is where everything lands.** Every resource this provider creates goes into that project. Outputting it in a configuration that manages more than a handful of resources makes a misconfigured credential obvious rather than surprising.
+  tr: |-
+    **Her şey `active_project_id` projesine gider.** Bu sağlayıcının oluşturduğu her kaynak o projeye düşer. Birkaç kaynaktan fazlasını yöneten bir yapılandırmada bunu output olarak vermek, yanlış yapılandırılmış bir kimlik bilgisini sürpriz olmaktan çıkarıp açıkça görünür kılar.
+- en: |-
+    **Changing the active project is not exposed.** The API has an endpoint for it, but it switches the caller's session rather than any infrastructure, so driving it from Terraform would silently move where every other call lands.
+  tr: |-
+    **Etkin projeyi değiştirmek sunulmaz.** API'nin bunun için bir uç noktası vardır, ancak bu uç nokta herhangi bir altyapıyı değil çağıranın oturumunu değiştirir; bu yüzden onu Terraform'dan yönetmek diğer tüm çağrıların nereye gittiğini sessizce değiştirirdi.

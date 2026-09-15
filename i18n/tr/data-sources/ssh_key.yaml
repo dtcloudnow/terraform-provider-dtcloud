@@ -1,0 +1,32 @@
+- en: |-
+    Looks up a single SSH key by name.
+  tr: |-
+    Tek bir SSH anahtarını adına göre bulur.
+- en: |-
+    Use it to reference a key that Terraform did not create. Declaring one as a resource instead would hand Terraform ownership of it, and a later destroy would remove it.
+  tr: |-
+    Terraform'un oluşturmadığı bir anahtara başvurmak için kullanın. Onu kaynak olarak tanımlamak sahipliğini Terraform'a verir ve sonraki bir destroy anahtarı kaldırır.
+- en: |-
+    The name of the SSH key.
+  tr: |-
+    SSH anahtarının adı.
+- en: |-
+    When the SSH key was created, in RFC 3339 format.
+  tr: |-
+    SSH anahtarının oluşturulduğu zaman, RFC 3339 biçiminde.
+- en: |-
+    The fingerprint of the SSH key.
+  tr: |-
+    SSH anahtarının parmak izi.
+- en: |-
+    The public key material.
+  tr: |-
+    Genel anahtarın içeriği.
+- en: |-
+    The ID of the user that owns the SSH key.
+  tr: |-
+    SSH anahtarının sahibi olan kullanıcının kimliği.
+- en: |-
+    **A key that does not exist is an error**, and so is a key the platform reports as deleted.
+  tr: |-
+    **Var olmayan bir anahtar hatadır**, platformun silinmiş olarak bildirdiği bir anahtar da öyle.

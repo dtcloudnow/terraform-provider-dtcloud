@@ -1,0 +1,24 @@
+- en: |-
+    Lists the networks visible to the caller.
+  tr: |-
+    Çağıranın görebildiği ağları listeler.
+- en: |-
+    The list endpoint reports a flatter shape than the details one: the subnet's CIDR and gateway are folded onto the network, and IPAM and DHCP are reported as `Enabled` or `Disabled` rather than as booleans. For DNS servers, allocation pools or the IP version, read one network with `dtcloud_network`.
+  tr: |-
+    Liste uç noktası ayrıntı uç noktasından daha düz bir yapı bildirir: alt ağın CIDR'ı ve ağ geçidi ağın üzerine taşınır, IPAM ve DHCP de boolean yerine `Enabled` ya da `Disabled` olarak bildirilir. DNS sunucuları, ayırma havuzları ya da IP sürümü için tek bir ağı `dtcloud_network` ile okuyun.
+- en: |-
+    Only return networks whose name matches.
+  tr: |-
+    Yalnızca adı eşleşen ağları döndürür.
+- en: |-
+    Only return networks of this type: Virtual or Physical.
+  tr: |-
+    Yalnızca bu tipteki ağları döndürür: Virtual ya da Physical.
+- en: |-
+    The networks that matched.
+  tr: |-
+    Eşleşen ağlar.
+- en: |-
+    **Both filters are applied by the API**, so a filtered list is still a single call.
+  tr: |-
+    **İki filtre de API tarafından uygulanır**, bu yüzden filtrelenmiş bir liste yine tek bir çağrıdır.

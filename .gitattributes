@@ -1,0 +1,9 @@
+# The documentation pipeline writes LF (tfplugindocs and cmd/gendoc both do, on
+# every platform). Pinning these paths keeps `make docs_check` -- which fails the
+# build when docs/ does not match the schema -- from flapping purely on line
+# endings between a Windows working copy and a Linux CI runner.
+docs/** text eol=lf
+examples/** text eol=lf
+templates/** text eol=lf
+i18n/** text eol=lf
+scripts/** text eol=lf

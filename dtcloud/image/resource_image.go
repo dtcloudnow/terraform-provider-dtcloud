@@ -118,6 +118,8 @@ func ResourceDtcloudImage() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Manages a disk image and the file behind it.",
+
 		CreateContext: resourceDtcloudImageCreate,
 		ReadContext:   resourceDtcloudImageRead,
 		UpdateContext: resourceDtcloudImageUpdate,

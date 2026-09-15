@@ -26,6 +26,8 @@ import (
 // to satisfy the plan.
 func ResourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a block storage volume.",
+
 		CreateContext: resourceDtcloudVolumeCreate,
 		ReadContext:   resourceDtcloudVolumeRead,
 		UpdateContext: resourceDtcloudVolumeUpdate,

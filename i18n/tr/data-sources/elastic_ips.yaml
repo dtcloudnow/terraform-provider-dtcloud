@@ -1,0 +1,48 @@
+- en: |-
+    Lists the elastic IPs allocated to the caller.
+  tr: |-
+    Çağırana ayrılmış elastik IP'leri listeler.
+- en: |-
+    The most useful question it answers is what you are paying for that nothing is using: an allocated address that is not associated still occupies quota and is still billed. `status = "DOWN"` asks exactly that.
+  tr: |-
+    Yanıtladığı en yararlı soru, hiçbir şeyin kullanmadığı neye para ödediğinizdir: ayrılmış ama ilişkilendirilmemiş bir adres hâlâ kota tüketir ve hâlâ faturalandırılır. `status = "DOWN"` tam olarak bunu sorar.
+- en: |-
+    Allocated but attached to nothing: still billed, still using quota.
+  tr: |-
+    Ayrılmış ama hiçbir şeye bağlı değil: hâlâ faturalandırılıyor, hâlâ kota tüketiyor.
+- en: |-
+    Only return addresses attached to a `VM`, to an `LB`, or attached to nothing (`none`).
+  tr: |-
+    Yalnızca bir `VM`'e, bir `LB`'ye bağlı ya da hiçbir şeye bağlı olmayan (`none`) adresleri döndürür.
+- en: |-
+    Only return addresses allocated from this external network.
+  tr: |-
+    Yalnızca bu dış ağdan ayrılmış adresleri döndürür.
+- en: |-
+    Only return addresses in this status: `ACTIVE`, `DOWN` or `ERROR`.
+  tr: |-
+    Yalnızca bu durumdaki adresleri döndürür: `ACTIVE`, `DOWN` ya da `ERROR`.
+- en: |-
+    The addresses that matched.
+  tr: |-
+    Eşleşen adresler.
+- en: |-
+    Just the ids of the addresses that matched.
+  tr: |-
+    Yalnızca eşleşen adreslerin kimlikleri.
+- en: |-
+    Just the addresses, in the same order as `ids`.
+  tr: |-
+    Yalnızca adresler, `ids` ile aynı sırada.
+- en: |-
+    **The filters are applied by the provider.** The list route takes no query parameters, so every address is fetched either way, and the API builds each row from three further calls of its own. When you already know which address you want, use `dtcloud_elastic_ip`.
+  tr: |-
+    **Filtreler sağlayıcı tarafından uygulanır.** Liste yolu sorgu parametresi almaz; bu yüzden her durumda tüm adresler çekilir ve API her satırı kendi yaptığı üç ek çağrıyla oluşturur. Hangi adresi istediğinizi zaten biliyorsanız `dtcloud_elastic_ip` kullanın.
+- en: |-
+    **`assigned_type = "none"` selects addresses attached to nothing.** The API reports that as an empty string, which a filter cannot express.
+  tr: |-
+    **`assigned_type = "none"` hiçbir şeye bağlı olmayan adresleri seçer.** API bunu boş bir dize olarak bildirir ve bir filtre boş dizeyi ifade edemez.
+- en: |-
+    **`ids` and `ip_addresses` follow the API's order.** A list that grows by one shifts every index, so look a specific address up with `dtcloud_elastic_ip` rather than indexing into these.
+  tr: |-
+    **`ids` ve `ip_addresses` API'nin sırasını izler.** Bir öğe eklenen liste tüm dizinleri kaydırır; bu yüzden belirli bir adresi bu listelerde dizinle aramak yerine `dtcloud_elastic_ip` ile bulun.

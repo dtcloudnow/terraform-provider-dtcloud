@@ -1,0 +1,32 @@
+- en: |-
+    Lists the volumes visible to the caller.
+  tr: |-
+    Çağıranın görebildiği diskleri listeler.
+- en: |-
+    The list endpoint reports a flatter shape than the details one: the attached machine's name and status are folded onto the volume, and the size arrives as text such as `"20 GB"`.
+  tr: |-
+    Liste uç noktası ayrıntı uç noktasından daha düz bir yapı bildirir: bağlı makinenin adı ve durumu diskin üzerine taşınır ve boyut `"20 GB"` gibi metin olarak gelir.
+- en: |-
+    Only return volumes attached to this VM. Applied by the provider — the API has no filter.
+  tr: |-
+    Yalnızca bu sanal makineye bağlı diskleri döndürür. Sağlayıcı tarafından uygulanır; API'nin filtresi yoktur.
+- en: |-
+    Only return volumes with this exact name. Applied by the provider — the API has no filter.
+  tr: |-
+    Yalnızca tam olarak bu ada sahip diskleri döndürür. Sağlayıcı tarafından uygulanır; API'nin filtresi yoktur.
+- en: |-
+    The volumes that matched.
+  tr: |-
+    Eşleşen diskler.
+- en: |-
+    **The filters are applied by the provider, not the API.** The list route takes no query parameters, so every read fetches every volume. The filters are a convenience, not a smaller request.
+  tr: |-
+    **Filtreler API tarafından değil sağlayıcı tarafından uygulanır.** Liste yolu sorgu parametresi almaz; bu yüzden her okuma tüm diskleri çeker. Filtreler daha küçük bir istek değil, bir kolaylıktır.
+- en: |-
+    **`size` is normalised** to a whole number of GB, so it means the same thing here, on `dtcloud_volume` and on the resource.
+  tr: |-
+    **`size` normalleştirilir** ve tam sayı GB değerine çevrilir; böylece burada, `dtcloud_volume`'da ve kaynakta aynı anlama gelir.
+- en: |-
+    **There is no image metadata and there are no timestamps here.** Read one volume with `dtcloud_volume` when you need them.
+  tr: |-
+    **Burada imaj meta verisi ve zaman damgaları yoktur.** Bunlara ihtiyaç duyduğunuzda tek bir diski `dtcloud_volume` ile okuyun.
