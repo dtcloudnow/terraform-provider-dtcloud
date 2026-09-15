@@ -11,6 +11,7 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/router"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/securitygroup"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
@@ -41,7 +42,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_API_URL", nil),
-				Description: "Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.",
+				Description: "Base URL of the DT Cloud API, ending in /api/v1. Required: it decides which environment resources are created in, and the provider will not guess. Can come from DTCLOUD_API_URL or the configuration file instead.",
 			},
 			"region_id": {
 				Type:        schema.TypeString,
@@ -95,6 +96,11 @@ func Provider() *schema.Provider {
 			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
 			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
 
+			"dtcloud_router":               router.DataSourceDtcloudRouter(),
+			"dtcloud_routers":              router.DataSourceDtcloudRouters(),
+			"dtcloud_router_interfaces":    router.DataSourceDtcloudRouterInterfaces(),
+			"dtcloud_router_static_routes": router.DataSourceDtcloudRouterStaticRoutes(),
+
 			"dtcloud_image":          image.DataSourceDtcloudImage(),
 			"dtcloud_images":         image.DataSourceDtcloudImages(),
 			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
@@ -121,6 +127,10 @@ func Provider() *schema.Provider {
 			"dtcloud_volume": volume.ResourceDtcloudVolume(),
 
 			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
+
+			"dtcloud_router":              router.ResourceDtcloudRouter(),
+			"dtcloud_router_interface":    router.ResourceDtcloudRouterInterface(),
+			"dtcloud_router_static_route": router.ResourceDtcloudRouterStaticRoute(),
 
 			"dtcloud_image": image.ResourceDtcloudImage(),
 		},

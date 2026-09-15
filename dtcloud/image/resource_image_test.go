@@ -3,8 +3,6 @@ package image_test
 import (
 	"fmt"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -15,18 +13,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// uploadBytes is the size every test uploads: 3,000,000 bytes formats as "3 MB"
-// exactly, so nothing is rounded.
-const uploadBytes = 3000000
-
-// imageFile writes a file for the resource to upload and returns its path.
-func imageFile(t *testing.T) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "disk.qcow2")
-	if err := os.WriteFile(path, make([]byte, uploadBytes), 0o600); err != nil {
-		t.Fatalf("writing the image file: %s", err)
-	}
-	return filepath.ToSlash(path)
+// sourceVolume seeds an available volume for the capture to be pointed at, and
+// returns its id. 20 GB, because min_disk is inherited from the volume's size.
+func sourceVolume(api *fakeImageAPI) string {
+	return api.seedVolume(&fakeVolume{Name: "tf-acc-source", Size: 20}).ID
 }
 
 // checkTerraformOwnedGone asserts everything this provider created is gone.
@@ -50,22 +40,34 @@ func checkTerraformOwnedGone(api *fakeImageAPI) func(*terraform.State) error {
 
 // imageResource is the resource on its own, for steps that remove the image
 // underneath Terraform — the data sources would fail for the wrong reason.
-func imageResource(endpoint, file, name, diskFormat, osDistro string, minDisk int, visibility string) string {
+func imageResource(endpoint, volumeID, name, diskFormat, osDistro string, minDisk int, visibility string) string {
 	return acctest.ProviderConfig(endpoint) + fmt.Sprintf(`
 resource "dtcloud_image" "test" {
-  name        = %q
-  source_file = %q
-  disk_format = %q
-  os_distro   = %q
-  min_disk    = %d
-  visibility  = %q
+  name             = %q
+  source_volume_id = %q
+  disk_format      = %q
+  os_distro        = %q
+  min_disk         = %d
+  visibility       = %q
 }
-`, name, file, diskFormat, osDistro, minDisk, visibility)
+`, name, volumeID, diskFormat, osDistro, minDisk, visibility)
+}
+
+// imageInherited is the same resource with os_distro and min_disk left out, so
+// the capture's inherited values are what land in state.
+func imageInherited(endpoint, volumeID, name, diskFormat string) string {
+	return acctest.ProviderConfig(endpoint) + fmt.Sprintf(`
+resource "dtcloud_image" "test" {
+  name             = %q
+  source_volume_id = %q
+  disk_format      = %q
+}
+`, name, volumeID, diskFormat)
 }
 
 // imageConfig is the whole surface of the package in one configuration.
-func imageConfig(endpoint, file, name, diskFormat, osDistro string, minDisk int, visibility string) string {
-	return imageResource(endpoint, file, name, diskFormat, osDistro, minDisk, visibility) + `
+func imageConfig(endpoint, volumeID, name, diskFormat, osDistro string, minDisk int, visibility string) string {
+	return imageResource(endpoint, volumeID, name, diskFormat, osDistro, minDisk, visibility) + `
 data "dtcloud_image" "by_id" {
   id = dtcloud_image.test.id
 }
@@ -95,17 +97,17 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
-	file := imageFile(t)
+	volume := sourceVolume(api)
 
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
 		CheckDestroy:      checkTerraformOwnedGone(api),
 		Steps: []resource.TestStep{
 			{
-				Config: imageConfig(server.URL, file, "tf-acc-image", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config: imageConfig(server.URL, volume, "tf-acc-image", "qcow2", "debian12", 20, "shared"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_image.test", "name", "tf-acc-image"),
-					resource.TestCheckResourceAttr("dtcloud_image.test", "os_distro", "ubuntu20.04"),
+					resource.TestCheckResourceAttr("dtcloud_image.test", "os_distro", "debian12"),
 					resource.TestCheckResourceAttr("dtcloud_image.test", "min_disk", "20"),
 					resource.TestCheckResourceAttr("dtcloud_image.test", "visibility", "shared"),
 					resource.TestCheckResourceAttr("dtcloud_image.test", "uefi", "false"),
@@ -114,8 +116,9 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_image.test", "size", "3 MB"),
 					// A display category derived from the disk format, not the format.
 					resource.TestCheckResourceAttr("dtcloud_image.test", "type", "Template (VM)"),
-					// The details endpoint makes no guess at os_type.
-					resource.TestCheckResourceAttr("dtcloud_image.test", "os_type", ""),
+					// A captured image carries os_type; the platform works it out from
+					// the volume rather than leaving it blank as an upload did.
+					resource.TestCheckResourceAttr("dtcloud_image.test", "os_type", "linux"),
 					resource.TestCheckResourceAttrSet("dtcloud_image.test", "id"),
 
 					// The singular data source reads the same endpoint, by id and by name.
@@ -128,14 +131,14 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 					// same image described two ways, which is why both are exposed.
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.os_type", "linux"),
-					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.os_distro", "ubuntu20.04"),
+					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.os_distro", "debian12"),
 					resource.TestCheckResourceAttr("data.dtcloud_images.all", "images.0.min_disk", "20"),
 					resource.TestCheckResourceAttr("data.dtcloud_images.shared", "images.#", "1"),
 				),
 			},
 			{
 				// Nothing changed, so nothing should be planned.
-				Config:   imageConfig(server.URL, file, "tf-acc-image", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config:   imageConfig(server.URL, volume, "tf-acc-image", "qcow2", "debian12", 20, "shared"),
 				PlanOnly: true,
 			},
 			{
@@ -143,80 +146,12 @@ func TestAccDtcloudImage_lifecycle(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				// Reported by no read endpoint, so an import cannot recover them.
-				ImportStateVerifyIgnore: []string{"source_file", "source_file_hash", "disk_format", "min_ram", "tags"},
+				// All three are ForceNew, which is why a real import needs a
+				// lifecycle{ignore_changes} block - see docs/resources/image.md.
+				ImportStateVerifyIgnore: []string{"source_volume_id", "disk_format", "container_format"},
 			},
 		},
 	})
-}
-
-// TestAccDtcloudImage_createUploadsAndWaitsForActive is the rule that an image
-// is not finished when the create call returns. Nothing changes afterwards, so
-// no second wait can settle the status behind this one. It also covers where
-// the upload's arguments go: the id belongs in the query string.
-func TestAccDtcloudImage_createUploadsAndWaitsForActive(t *testing.T) {
-	api := newFakeImageAPI()
-	server := httptest.NewServer(api)
-	defer server.Close()
-	file := imageFile(t)
-
-	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: acctest.ProviderFactories(),
-		CheckDestroy:      checkTerraformOwnedGone(api),
-		Steps: []resource.TestStep{
-			{
-				Config: imageResource(server.URL, file, "tf-acc-upload", "qcow2", "ubuntu20.04", 10, "private"),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("dtcloud_image.test", "status", "active"),
-					resource.TestCheckResourceAttr("dtcloud_image.test", "size", "3 MB"),
-					func(*terraform.State) error {
-						api.mu.Lock()
-						defer api.mu.Unlock()
-						if api.uploads != 1 {
-							return fmt.Errorf("expected exactly one upload, got %d", api.uploads)
-						}
-						if !api.uploadSawFileSize {
-							return fmt.Errorf("the upload did not declare a fileSize, so the platform " +
-								"could not refuse an oversized file before receiving it")
-						}
-						return nil
-					},
-				),
-			},
-		},
-	})
-}
-
-// TestAccDtcloudImage_createDeclaresTheFileSize is the rule that the platform is
-// told the file size before it is sent, so an oversized upload is refused up
-// front. The ceiling is lowered rather than the file enlarged.
-func TestAccDtcloudImage_createDeclaresTheFileSize(t *testing.T) {
-	api := newFakeImageAPI()
-	api.maxBytes = 1000
-	server := httptest.NewServer(api)
-	defer server.Close()
-	file := imageFile(t)
-
-	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: acctest.ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config:      imageResource(server.URL, file, "tf-acc-toobig", "qcow2", "ubuntu20.04", 20, "shared"),
-				ExpectError: regexp.MustCompile("exceeds the maximum upload size"),
-			},
-		},
-	})
-
-	api.mu.Lock()
-	defer api.mu.Unlock()
-	// The refusal has to come from create: upload enforces the same ceiling, so
-	// asserting on the error alone would pass either way.
-	if api.creates != 0 {
-		t.Fatalf("the image record was created (%d creates), so the refusal came from the upload "+
-			"rather than from the declared size", api.creates)
-	}
-	if api.uploads != 0 {
-		t.Fatalf("the file was uploaded despite the refusal (%d uploads)", api.uploads)
-	}
 }
 
 // TestAccDtcloudImage_updateWaitsForEachValue covers the four fields update
@@ -227,43 +162,50 @@ func TestAccDtcloudImage_updateWaitsForEachValue(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
-	file := imageFile(t)
+	volume := sourceVolume(api)
 
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
 		CheckDestroy:      checkTerraformOwnedGone(api),
 		Steps: []resource.TestStep{
 			{
-				Config: imageResource(server.URL, file, "tf-acc-update", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config: imageResource(server.URL, volume, "tf-acc-update", "qcow2", "debian12", 20, "shared"),
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "name", "tf-acc-update"),
 			},
 			{
-				Config: imageResource(server.URL, file, "tf-acc-update-renamed", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config: imageResource(server.URL, volume, "tf-acc-update-renamed", "qcow2", "debian12", 20, "shared"),
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "name", "tf-acc-update-renamed"),
 			},
 			{
 				// min_disk comes back inside "40 GB", so this also covers the parsing.
-				Config: imageResource(server.URL, file, "tf-acc-update-renamed", "qcow2", "ubuntu20.04", 40, "shared"),
+				Config: imageResource(server.URL, volume, "tf-acc-update-renamed", "qcow2", "debian12", 40, "shared"),
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "min_disk", "40"),
 			},
 			{
-				Config: imageResource(server.URL, file, "tf-acc-update-renamed", "qcow2", "ubuntu20.04", 40, "private"),
+				Config: imageResource(server.URL, volume, "tf-acc-update-renamed", "qcow2", "debian12", 40, "private"),
 				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "visibility", "private"),
 			},
 			{
-				Config: imageResource(server.URL, file, "tf-acc-update-renamed", "qcow2", "centos8", 40, "private"),
+				Config: imageResource(server.URL, volume, "tf-acc-update-renamed", "qcow2", "centos8", 40, "private"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_image.test", "os_distro", "centos8"),
 					func(*terraform.State) error {
 						api.mu.Lock()
 						defer api.mu.Unlock()
-						want := []string{"/name", "/min_disk", "/visibility", "/os_distro"}
+						// The first two come from CREATE, not from an update: the
+						// capture cannot take os_distro or min_disk, so the provider
+						// patches whatever the configuration asked for right after it.
+						// The remaining four are one request per changed field.
+						want := []string{
+							"/os_distro", "/min_disk",
+							"/name", "/min_disk", "/visibility", "/os_distro",
+						}
 						if !reflect.DeepEqual(api.patchPaths, want) {
 							return fmt.Errorf("expected one request per changed field %v, got %v", want, api.patchPaths)
 						}
 						// The image was never rebuilt to apply any of them.
-						if api.creates != 1 {
-							return fmt.Errorf("expected the image to be updated in place, but it was created %d times", api.creates)
+						if api.captures != 1 {
+							return fmt.Errorf("expected the image to be updated in place, but it was captured %d times", api.captures)
 						}
 						return nil
 					},
@@ -280,25 +222,33 @@ func TestAccDtcloudImage_diskFormatForcesNew(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
-	file := imageFile(t)
+	volume := sourceVolume(api)
 
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
 		CheckDestroy:      checkTerraformOwnedGone(api),
 		Steps: []resource.TestStep{
 			{
-				Config: imageResource(server.URL, file, "tf-acc-format", "qcow2", "ubuntu20.04", 20, "shared"),
-				Check:  resource.TestCheckResourceAttr("dtcloud_image.test", "type", "Template (VM)"),
+				// os_distro and min_disk are left out on purpose: inheriting them
+				// means the create patches nothing, so the update count below
+				// measures only what a format change did.
+				Config: imageInherited(server.URL, volume, "tf-acc-format", "qcow2"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("dtcloud_image.test", "type", "Template (VM)"),
+					// Inherited from the volume, not from the configuration.
+					resource.TestCheckResourceAttr("dtcloud_image.test", "os_distro", "debian12"),
+					resource.TestCheckResourceAttr("dtcloud_image.test", "min_disk", "20"),
+				),
 			},
 			{
-				Config: imageResource(server.URL, file, "tf-acc-format", "iso", "ubuntu20.04", 20, "shared"),
+				Config: imageInherited(server.URL, volume, "tf-acc-format", "raw"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("dtcloud_image.test", "type", "ISO"),
+					resource.TestCheckResourceAttr("dtcloud_image.test", "disk_format", "raw"),
 					func(*terraform.State) error {
 						api.mu.Lock()
 						defer api.mu.Unlock()
-						if api.creates != 2 {
-							return fmt.Errorf("expected the image to be rebuilt, but it was created %d times", api.creates)
+						if api.captures != 2 {
+							return fmt.Errorf("expected the image to be rebuilt, but it was captured %d times", api.captures)
 						}
 						if api.updates != 0 {
 							return fmt.Errorf("the disk format was patched (%d updates); the endpoint does not accept it", api.updates)
@@ -319,17 +269,17 @@ func TestAccDtcloudImage_destroyWaitsForTheImageToBeGone(t *testing.T) {
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
-	file := imageFile(t)
+	volume := sourceVolume(api)
 
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
 		CheckDestroy:      checkTerraformOwnedGone(api),
 		Steps: []resource.TestStep{
 			{
-				Config: imageResource(server.URL, file, "tf-acc-destroy", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config: imageResource(server.URL, volume, "tf-acc-destroy", "qcow2", "debian12", 20, "shared"),
 			},
 			{
-				Config:  imageResource(server.URL, file, "tf-acc-destroy", "qcow2", "ubuntu20.04", 20, "shared"),
+				Config:  imageResource(server.URL, volume, "tf-acc-destroy", "qcow2", "debian12", 20, "shared"),
 				Destroy: true,
 				Check: func(*terraform.State) error {
 					api.mu.Lock()
@@ -356,8 +306,8 @@ func TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState(t *testing.T)
 	api := newFakeImageAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
-	file := imageFile(t)
-	config := imageResource(server.URL, file, "tf-acc-vanished", "qcow2", "ubuntu20.04", 20, "shared")
+	volume := sourceVolume(api)
+	config := imageResource(server.URL, volume, "tf-acc-vanished", "qcow2", "debian12", 20, "shared")
 
 	resource.UnitTest(t, resource.TestCase{
 		ProviderFactories: acctest.ProviderFactories(),
@@ -388,7 +338,7 @@ func TestAccDtcloudImage_deletedOutsideTerraformIsDroppedFromState(t *testing.T)
 // machines from an image nobody chose.
 func TestAccDtcloudImage_ambiguousNameLookupFails(t *testing.T) {
 	api := newFakeImageAPI()
-	api.seed(&fakeImage{Name: "shared-name", OsDistro: "ubuntu20.04", DiskFormat: "qcow2", MinDisk: 10, Visibility: "public", Status: "active", Bytes: 1000000})
+	api.seed(&fakeImage{Name: "shared-name", OsDistro: "debian12", DiskFormat: "qcow2", MinDisk: 10, Visibility: "public", Status: "active", Bytes: 1000000})
 	api.seed(&fakeImage{Name: "shared-name", OsDistro: "centos8", DiskFormat: "qcow2", MinDisk: 10, Visibility: "public", Status: "active", Bytes: 1000000})
 	server := httptest.NewServer(api)
 	defer server.Close()

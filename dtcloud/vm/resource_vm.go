@@ -2,6 +2,7 @@ package vm
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -65,7 +66,9 @@ func ResourceDtcloudVM() *schema.Resource {
 			Optional:     true,
 			ForceNew:     true,
 			AtLeastOneOf: []string{"key_name", "user_data", "script"},
-			Description:  "Cloud-init user data.",
+			Description: "Cloud-init user data, written as it should reach the guest. The API only " +
+				"accepts it base64-encoded and the provider encodes it, so passing base64encode() " +
+				"output here would encode it twice and the guest would receive the encoded text.",
 		},
 		"is_gpu_image": {
 			Type:        schema.TypeBool,
@@ -412,7 +415,7 @@ func resourceDtcloudVMCreate(ctx context.Context, d *schema.ResourceData, meta i
 		Name:               d.Get("name").(string),
 		FlavorRef:          d.Get("flavor_id").(string),
 		KeyName:            d.Get("key_name").(string),
-		UserData:           d.Get("user_data").(string),
+		UserData:           encodeUserData(d.Get("user_data").(string)),
 		Networks:           expandNetworks(d.Get("network").([]interface{}), portSecurityOverrides(d)),
 		BlockDeviceMapping: expandBlockDevices(d.Get("block_device").([]interface{})),
 		Script:             expandScript(d.Get("script").([]interface{})),
@@ -1005,6 +1008,17 @@ func expandBlockDevices(raw []interface{}) []dtgo.BlockDevice {
 		})
 	}
 	return devices
+}
+
+// encodeUserData base64-encodes the cloud-init document. The API rejects a raw
+// one — "'#cloud-config\n' is not a 'base64'" — so the configuration holds the
+// document as written and the encoding happens here. Nothing reports user_data
+// back, so there is no decode path and no drift to reconcile.
+func encodeUserData(s string) string {
+	if s == "" {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString([]byte(s))
 }
 
 func expandScript(raw []interface{}) *dtgo.Script {

@@ -35,7 +35,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		accessKey  = fs.String("access-key", "", "API access key. Prompted for when omitted.")
 		secretKey  = fs.String("secret-key", "", "API secret key. Prompted for when omitted.")
 		regionID   = fs.String("region-id", "", "Region id, sent as serverId on every call. Prompted for when omitted.")
-		endpoint   = fs.String("api-url", "", "Base URL of the API. Optional; the SDK's default is used when empty.")
+		endpoint   = fs.String("api-url", "", "Base URL of the API. Optional; the SDK's default is used when empty, and whichever is used is written to the file.")
 		profile    = fs.String("profile", "", "Write these settings as a named profile instead of the single-account form.")
 		configFile = fs.String("config-file", "", "Where to write. Defaults to the provider's own configuration path.")
 		force      = fs.Bool("force", false, "Overwrite an existing file, and save even if the credentials do not verify.")
@@ -102,7 +102,8 @@ Run it with no flags to be prompted, or pass them all to script it.
 	// Check the credentials before writing them: a key with a stray space, or the
 	// wrong region, is otherwise discovered much later and looks like a broken
 	// provider rather than a typo.
-	if verifyErr := verify(*accessKey, *secretKey, *endpoint, *regionID); verifyErr != nil {
+	used, verifyErr := verify(*accessKey, *secretKey, *endpoint, *regionID)
+	if verifyErr != nil {
 		if !*force {
 			fmt.Fprintf(stderr, "\nThose credentials were rejected: %s\n", verifyErr)
 			fmt.Fprintf(stderr, "Nothing was written. Check them, or pass -force to save anyway.\n")
@@ -113,7 +114,7 @@ Run it with no flags to be prompted, or pass them all to script it.
 		fmt.Fprintln(stdout, "\nCredentials verified.")
 	}
 
-	if err := write(path, *profile, *accessKey, *secretKey, *endpoint, *regionID); err != nil {
+	if err := write(path, *profile, *accessKey, *secretKey, used, *regionID); err != nil {
 		fmt.Fprintf(stderr, "error: %s\n", err)
 		return 1
 	}
@@ -205,19 +206,26 @@ func readMasked(fd int, out io.Writer) (string, error) {
 
 // verify makes one cheap authenticated call. The route it uses needs the key
 // pair and the region, so a failure means one of the three is wrong.
-func verify(accessKey, secretKey, endpoint, regionID string) error {
+//
+// It returns the endpoint it actually used, which is the SDK's own default when
+// none was given. That value is what gets written to the file: the provider
+// requires an endpoint, and recording the one these credentials were checked
+// against is the only way an omitted -api-url cannot end up meaning a different
+// environment later.
+func verify(accessKey, secretKey, endpoint, regionID string) (string, error) {
 	opts := []dtgo.ClientOpt{dtgo.SetApiKey(accessKey, secretKey)}
 	if endpoint != "" {
 		opts = append(opts, dtgo.SetBaseURL(endpoint))
 	}
 	client, err := dtgo.New(http.DefaultClient, opts...)
 	if err != nil {
-		return err
+		return endpoint, err
 	}
 	client.ServerId = regionID
+	used := client.BaseURL.String()
 
 	_, _, err = client.SecurityGroup.ListSecurityGroups(context.Background(), nil)
-	return err
+	return used, err
 }
 
 // write puts the file in place, owner-readable and nothing else: created 0600

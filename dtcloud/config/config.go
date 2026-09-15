@@ -32,10 +32,45 @@ type CombinedConfig struct {
 
 	policiesOnce sync.Once
 	policies     map[string]string
+
+	locksMu sync.Mutex
+	locks   map[string]*sync.Mutex
 }
 
 // DTClient returns the underlying dt-go API client.
 func (c *CombinedConfig) DTClient() *dtgo.Client { return c.client }
+
+// Lock serialises the resources that share a key, and Unlock releases it.
+//
+// Some endpoints apply a change by reading a list, editing it and writing the
+// whole list back. Two resources acting on the same parent at the same time
+// both read the old list, and the second write undoes the first — Terraform
+// applies up to ten resources in parallel by default, so this is the ordinary
+// case rather than a rare one. Resources built on such an endpoint take this
+// lock on the parent's id for the whole read-modify-write.
+//
+// The key is a caller's choice; use one that names the object being rewritten,
+// such as the router id behind a static route.
+func (c *CombinedConfig) Lock(key string) {
+	c.mutexFor(key).Lock()
+}
+
+// Unlock releases the lock taken by Lock for the same key.
+func (c *CombinedConfig) Unlock(key string) {
+	c.mutexFor(key).Unlock()
+}
+
+func (c *CombinedConfig) mutexFor(key string) *sync.Mutex {
+	c.locksMu.Lock()
+	defer c.locksMu.Unlock()
+	if c.locks == nil {
+		c.locks = map[string]*sync.Mutex{}
+	}
+	if _, ok := c.locks[key]; !ok {
+		c.locks[key] = &sync.Mutex{}
+	}
+	return c.locks[key]
+}
 
 // StoragePolicyNames maps volume type id to policy name, read once per run.
 // Best-effort: a failure caches an empty map.
@@ -99,9 +134,25 @@ func (c *Config) Client() (client *CombinedConfig, warnings []string, err error)
 			path, setupCommand())
 	}
 
-	opts := []dtgo.ClientOpt{dtgo.SetApiKey(accessKey, secretKey)}
-	if endpoint != "" {
-		opts = append(opts, dtgo.SetBaseURL(endpoint))
+	// Required, and deliberately so. Left empty the SDK falls back to a built-in
+	// address, which means a configuration that simply forgot the endpoint still
+	// builds a working client — pointed at whichever environment that default
+	// names. Nothing fails, so the mistake surfaces much later as resources that
+	// cannot be found in the console. Refusing here removes the guess entirely:
+	// the environment is always something the configuration said out loud.
+	if endpoint == "" {
+		return nil, warnings, fmt.Errorf(
+			"`api_endpoint` must be set. It decides which environment every resource is\n"+
+				"created in, so the provider will not infer it. Set it in the provider block,\n"+
+				"export DTCLOUD_API_URL, add `base_url` under `api` in %s, or run:\n\n"+
+				"    %s\n\n"+
+				"which records the endpoint it verified your credentials against.",
+			path, setupCommand())
+	}
+
+	opts := []dtgo.ClientOpt{
+		dtgo.SetApiKey(accessKey, secretKey),
+		dtgo.SetBaseURL(endpoint),
 	}
 
 	dtClient, err := dtgo.New(http.DefaultClient, opts...)

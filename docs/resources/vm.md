@@ -25,7 +25,9 @@ resource "dtcloud_vm" "web" {
   state     = "running"
 
   key_name  = dtcloud_ssh_key.deploy.name
-  user_data = base64encode(file("${path.module}/cloud-init.yaml"))
+  # Written as it should reach the guest; the provider base64-encodes it, which is
+  # the only form the API accepts. Encoding it here too would double-encode it.
+  user_data = file("${path.module}/cloud-init.yaml")
 
   # Interfaces declared here are created with the machine and live and die with
   # it. Add one afterwards with dtcloud_vm_network_interface instead.
@@ -83,7 +85,7 @@ allocates it. The addresses actually assigned are reported back into the `networ
 - `script` (Block List, Max: 1) Initial credentials applied to the guest at first boot. On a Linux image, set username, hostname and disable_root as well — they are optional only because Windows template images ignore them. Changing this forces a new resource to be created. (see [below for nested schema](#nestedblock--script))
 - `state` (String) Desired power state: running, stopped or shelved. Shelving releases compute resources while keeping the VM and its disks.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-- `user_data` (String) Cloud-init user data. Changing this forces a new resource to be created.
+- `user_data` (String) Cloud-init user data, written as it should reach the guest. The API only accepts it base64-encoded and the provider encodes it, so passing base64encode() output here would encode it twice and the guest would receive the encoded text. Changing this forces a new resource to be created.
 
 ### Read-Only
 

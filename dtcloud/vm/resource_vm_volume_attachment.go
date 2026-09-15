@@ -137,7 +137,7 @@ func resourceDtcloudVMVolumeAttachmentDelete(ctx context.Context, d *schema.Reso
 		}
 	}
 
-	if err := waitForVolumeAttachment(ctx, client, vmID, volumeID, false, d.Timeout(schema.TimeoutDelete)); err != nil {
+	if err := waitForVolumeDetached(ctx, client, volumeID, d.Timeout(schema.TimeoutDelete)); err != nil {
 		return diag.Errorf("Error waiting for volume %q to detach from VM %q: %s", volumeID, vmID, err)
 	}
 
@@ -154,6 +154,62 @@ func resourceDtcloudVMVolumeAttachmentImport(ctx context.Context, d *schema.Reso
 	d.Set("volume_id", parts[1])
 	d.SetId(volumeAttachmentID(parts[0], parts[1]))
 	return []*schema.ResourceData{d}, nil
+}
+
+// waitForVolumeDetached watches the volume's own status until it is detached.
+//
+// The VM's volume list cannot be used for this. A detach is accepted with 202
+// and then carried out by the guest: a running system that will not release the
+// filesystem makes the platform put the volume back, and the sequence is
+// `in-use` → `detaching` → `in-use` again, with the volume never leaving the
+// VM's list. Watching the list, there is nothing to see — the wait runs to its
+// timeout and reports a deadline, which says nothing about what happened or
+// what to do about it.
+//
+// Coming back to `in-use` after `detaching` is therefore read as the refusal it
+// is, and reported as soon as it is seen. Anything before the first `detaching`
+// is not: the volume is still `in-use` for the moment between the request being
+// accepted and the platform acting on it.
+//
+// This matters beyond the attachment itself. A volume cannot be deleted while
+// it is attached, so every destroy of a managed volume that is attached to a
+// running machine goes through here first.
+func waitForVolumeDetached(ctx context.Context, client *dtgo.Client, volumeID string, timeout time.Duration) error {
+	sawDetaching := false
+
+	return waitForCondition(ctx, timeout, func() (bool, error) {
+		volume, _, err := client.Volume.GetVolumeDetails(ctx, volumeID, nil)
+		if err != nil {
+			// A volume that no longer exists is not attached to anything.
+			if dterr.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+
+		switch status := strings.ToLower(volume.Status); status {
+		case "detaching":
+			sawDetaching = true
+			return false, nil
+		case "in-use":
+			if !sawDetaching {
+				return false, nil
+			}
+			return false, fmt.Errorf(
+				"the platform put the volume back: it went `detaching` and returned to `in-use`, "+
+					"which is how a detach the guest refuses ends. The usual cause is the "+
+					"filesystem still being mounted on VM %q. Unmount it in the guest, or stop "+
+					"the machine, then apply again",
+				volume.AttachedTo)
+		case "error_detaching":
+			return false, fmt.Errorf("the volume is in `error_detaching`; the platform could not complete the detach")
+		default:
+			// `available` is the finished state; the rest — `deleting`, say —
+			// are not attachments either, and none of them is this resource's
+			// to wait on.
+			return true, nil
+		}
+	})
 }
 
 // waitForVolumeAttachment polls the VM's volume list until the volume is

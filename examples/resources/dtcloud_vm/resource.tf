@@ -4,7 +4,9 @@ resource "dtcloud_vm" "web" {
   state     = "running"
 
   key_name  = dtcloud_ssh_key.deploy.name
-  user_data = base64encode(file("${path.module}/cloud-init.yaml"))
+  # Written as it should reach the guest; the provider base64-encodes it, which is
+  # the only form the API accepts. Encoding it here too would double-encode it.
+  user_data = file("${path.module}/cloud-init.yaml")
 
   # Interfaces declared here are created with the machine and live and die with
   # it. Add one afterwards with dtcloud_vm_network_interface instead.

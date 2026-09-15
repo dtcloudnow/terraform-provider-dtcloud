@@ -10,26 +10,67 @@ description: |-
 
 # dtcloud_image (Resource)
 
-Manages a disk image and the file behind it.
+Provides a dtcloud disk image, captured from a block storage volume.
 
-Creating one is two requests and a wait: the first opens an empty record, the second uploads the
-file, and the image is usable only once it reaches `active`. Both happen during apply, because an
-image with no data is a record no machine can boot from.
+**There is no file upload.** The API has an upload endpoint, but customer accounts are not
+granted the `upload_image` permission and every call to it answers:
+
+```
+403 Forbidden
+You are not authorized to complete upload_image action.
+```
+
+A volume is the only source the platform accepts. Build the contents in a
+[`dtcloud_volume`](volume.md) first — from a platform image, from a snapshot, or by detaching one
+from a machine you have configured — then capture it here. To go the other way, build a volume
+back out of the image with [`dtcloud_volume`](volume.md)'s `image_id`.
 
 ## Example Usage
 
+### Capture a volume
+
+```terraform
+resource "dtcloud_volume" "golden" {
+  name           = "golden-base"
+  size           = 20
+  storage_policy = "General SSD"
+  image_id       = data.dtcloud_image.debian.id
+}
+
+resource "dtcloud_image" "golden" {
+  name             = "golden-base"
+  source_volume_id = dtcloud_volume.golden.id
+  disk_format      = "qcow2"
+  visibility       = "shared"
+}
+```
+
+`os_distro` and `min_disk` are deliberately absent above. The capture inherits the distribution
+from the volume and sizes `min_disk` to the volume, which is almost always what you want.
+
+### Override what the capture inherited
+
 ```terraform
 resource "dtcloud_image" "golden" {
-  name        = "golden-ubuntu-22.04"
-  source_file = "${path.module}/images/ubuntu-22.04.qcow2"
-  disk_format = "qcow2"
-  os_distro   = "ubuntu"
-  min_disk    = 20
+  name             = "golden-base"
+  source_volume_id = dtcloud_volume.golden.id
+  disk_format      = "qcow2"
 
-  min_ram    = 2048
-  visibility = "private"
-  uefi       = false
-  tags       = ["golden", "ubuntu"]
+  os_distro = "debian12"
+  min_disk  = 25
+}
+```
+
+Both are applied after the capture, through the same endpoint an update uses.
+
+### The full circle
+
+```terraform
+resource "dtcloud_volume" "from_golden" {
+  name           = "app-01"
+  size           = 20
+  storage_policy = "General SSD"
+  image_id       = dtcloud_image.golden.id
 }
 ```
 
@@ -39,27 +80,25 @@ resource "dtcloud_image" "golden" {
 ### Required
 
 - `disk_format` (String) Format of the file, such as `qcow2` or `iso`. The accepted values come from the platform's own configuration rather than from a list in the provider, so an unsupported one is refused by the API during apply. Not the same thing as the `type` attribute, which is a display category derived from it. Changing this forces a new resource to be created.
-- `min_disk` (Number) Smallest volume, in GB, a machine built from this image needs. Can be changed in place. The API reports it as the text `20 GB`, which the provider parses back into a number.
 - `name` (String) Name of the image. Can be changed in place. Names are not unique on the platform, which is why `dtcloud_image` prefers a lookup by id.
-- `os_distro` (String) Distribution the image carries, such as `ubuntu`. Like `disk_format`, the accepted values are the platform's and are checked by the API. Can be changed in place.
-- `source_file` (String) Path to the local disk file to upload. The file is read during apply and must still be there. There is no endpoint that replaces the data of an existing image, so changing this builds a new one. Changing this forces a new resource to be created.
+- `source_volume_id` (String) Volume to capture. Its contents at the moment of the call become the image; later writes to the volume do not reach it. The volume survives, and the image outlives it. There is no endpoint that replaces the data of an existing image, so pointing this at another volume builds a new one. Changing this forces a new resource to be created.
 
 ### Optional
 
-- `min_ram` (Number) Smallest amount of RAM, in MB, a machine built from this image needs. Write-only: no endpoint reports it back, so it cannot drift and does not survive an import. Changing this forces a new resource to be created.
-- `source_file_hash` (String) Hash of the file, used to notice that its contents changed while its path did not — set it to `filesha256(var.path)` or similar. Nothing reads the file during plan, so without this a modified file goes unnoticed. Changing this forces a new resource to be created.
-- `tags` (Set of String) Tags to attach to the image. Write-only, like `min_ram`: accepted on create and reported by nothing. Changing this forces a new resource to be created.
+- `container_format` (String) Container wrapped around the disk data, `bare` unless you have a reason. Write-only: no endpoint reports it back. Changing this forces a new resource to be created.
+- `min_disk` (Number) Smallest volume, in GB, a machine built from this image needs. The capture derives it from the size of the source volume; set it to override, on create or later. The API reports it as the text `20 GB`, which the provider parses back into a number.
+- `os_distro` (String) Distribution the image carries, such as `debian12`. The capture takes this from the source volume, so leaving it out inherits whatever the volume was built from. Set it to override, on create or later; the accepted values are the platform's and are checked by the API.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-- `uefi` (Boolean) Boot the image with UEFI firmware instead of BIOS. Unlike the other create-only arguments this one is reported back, so a change made elsewhere shows up as drift. Changing this forces a new resource to be created.
-- `visibility` (String) Who can see the image: `public`, `private`, `shared` or `community`. Defaults to `shared`, which is what the API applies when the field is omitted. Can be changed in place.
+- `visibility` (String) Who can see the image: `private`, `shared` or `community`. Defaults to `shared`. Can be changed in place. `public` is not accepted: publishing needs the `publicize_image` permission, which customer accounts are not granted, and the platform answers 403 on both the capture and the update.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
 - `os_type` (String) `linux` or `windows`, when the platform reports it. Frequently empty here: the details endpoint passes the value straight through, while the list endpoint behind `dtcloud_images` guesses it from `os_distro` when it is missing.
-- `size` (String) Size of the uploaded data, as the platform formats it — `1.5 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
-- `status` (String) Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the upload failed.
+- `size` (String) Size of the captured data, as the platform formats it — `1.2 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
+- `status` (String) Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the capture failed.
 - `type` (String) How the platform categorises the image: `ISO` or `Template (VM)`. This is not `disk_format` — it is derived from it, and the two are not interchangeable.
+- `uefi` (Boolean) Whether the image boots with UEFI firmware. Inherited from the source volume; there is no endpoint that sets it.
 
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`
@@ -70,30 +109,107 @@ Optional:
 - `delete` (String)
 - `update` (String)
 
-## Behaviour worth knowing
+## Capturing
 
-* **What changes in place.** `name`, `os_distro`, `min_disk` and `visibility`, one request each.
-  Everything else builds a new image, the file included: no endpoint replaces the data of an
-  existing image.
-* **The file is sent during apply, in full.** A large image makes for a long apply, and the `create`
-  timeout has to cover the transfer as well as the platform's own work afterwards. The file size is
-  declared before the transfer starts, so an image too large for the platform is refused before
-  anything is sent.
-* **A failed upload leaves nothing behind.** The platform deletes an image whose upload fails. There
-  is no half-built record to clean up, and the next apply creates the image again.
-* **Write-only arguments.** `min_ram` and `tags` are accepted when the image is created and reported
-  by no endpoint, so they cannot drift and do not survive an import. `disk_format` is not read back
-  either: the platform reports the derived `type` instead.
-* **`protected` is deliberately not exposed.** The API accepts it when an image is created but cannot
-  clear it afterwards, which would make the image impossible to destroy through this provider. If a
-  destroy is refused because the image was marked protected elsewhere, the mark has to be cleared
-  outside Terraform.
+### The volume must be available, and is held
+
+The platform refuses the capture unless the volume is `available`:
+
+```
+Invalid volume: Volume <id> status must be available
+```
+
+A capture already running holds the volume, so a second image off the same volume is **refused
+outright rather than queued**. The provider waits for the volume to be available before it asks,
+which makes two `dtcloud_image` resources on one volume work — they serialise instead of racing —
+but a capture started outside Terraform will still collide.
+
+### The capture does not say what it made
+
+The action answers `200` with an empty body and no `Location` header, so there is no id to read.
+The provider finds the new image by listing images before and after the call and taking the one
+that appeared with a matching name.
+
+This is as reliable as it can be made, and it has one failure mode: if something else creates an
+image of the same name at the same moment, two new images match and the provider refuses to adopt
+either, rather than guessing. The capture has already happened at that point, so the image exists
+and has to be imported or removed by hand. The error says so.
+
+### How long it takes
+
+The copy scales with how much data the volume holds, not with its declared size. A 20 GB volume
+carrying a stock Debian install captures in well under a minute.
+
+## Notes and limitations
+
+### What changes in place
+
+`name`, `os_distro`, `min_disk` and `visibility`, one request each. Everything else builds a new
+image: no endpoint replaces the data of an existing one.
+
+### Which formats a capture accepts
+
+The capture endpoint accepts `raw`, `vmdk`, `vdi`, `qcow2`, `vhd`, `vhdx` and `ploop`. Note that
+`iso` is *not* among them: a volume cannot be captured as an ISO.
+
+### `min_disk` is checked during plan
+
+`min_disk` must be between 1 and 512; the provider rejects anything else during plan rather than
+letting the request reach the API.
+
+### `os_distro` is not validated on update
+
+~> The update endpoint does **not** validate `os_distro`. The same value the platform would
+refuse elsewhere is stored without complaint, and the next plan is clean — a typo sticks
+silently. The list of accepted values lives on the platform, so the provider has nothing to check
+against.
+
+### `public` visibility is refused during plan
+
+~> `public` is **not accepted**, and the provider rejects it during plan rather than letting the
+request fail. Publishing needs `publicize_image`, which customer accounts are not granted, and
+the capture path is gated separately by `volume_extension:volume_actions:upload_public`. Both
+answer 403.
+
+### `size` is the size of the data, not of the volume
+
+`size` comes back as `1.2 GB` or `250 MB`, and the platform reports `min_disk` as `20 GB`. The
+provider parses `min_disk` back into a number so it can be compared with your configuration;
+`size` is left as the platform formatted it, since nothing reports the underlying byte count. It
+is the size of the *data*, not of the source volume: a 20 GB volume holding a Debian install
+captures to about 1.2 GB.
+
+### Where the image id is used
+
+`id` is what [`dtcloud_vm`](vm.md)'s `block_device.image_id` and
+[`dtcloud_volume`](volume.md)'s `image_id` take.
+
+### `os_type` is reported inconsistently
+
+The single-image endpoint reports whatever the platform holds for `os_type`, which for most
+images is nothing. The list endpoint behind [`dtcloud_images`](../data-sources/images.md) fills
+it in by looking at `os_distro`.
+
+The same image can therefore have an empty `os_type` on this resource and `linux` in
+`dtcloud_images`. Both are reported as they arrive rather than reconciled, because guessing here
+would mean inventing a value the platform did not send.
+
+### Protected images
+
+The platform can mark an image protected, which prevents it from being deleted. The provider does
+**not** expose that: the update endpoint accepts only `name`, `os_distro`, `min_disk` and
+`visibility`, so nothing here could ever unmark one. An image marked protected cannot be deleted
+through this API at all, and a `protected = true` argument would quietly produce a resource
+`terraform destroy` could never remove.
+
+If a destroy is refused for that reason, the mark has to be cleared outside Terraform.
 
 ## Timeouts
 
-`create` defaults to 2 hours, `update` to 15 minutes and `delete` to 30 minutes. The `create`
-default covers the upload itself, which takes as long as sending the file over your connection;
-raise it for a large image on a slow link. Override them with a `timeouts` block:
+`create` defaults to 2 hours, `update` to 15 minutes and `delete` to 30 minutes. The create
+default covers waiting for the volume to become available, the capture, and the copy that follows
+it. Two hours is generous for anything but a very large volume. Override them with a `timeouts`
+block:
 
 ```terraform
 resource "dtcloud_image" "golden" {
@@ -108,22 +224,46 @@ resource "dtcloud_image" "golden" {
 ## Import
 
 ```shell
-# The file behind an image, its format, min_ram and tags are not reported by any
-# endpoint: read the import notes before the first apply.
 terraform import dtcloud_image.golden 1f6b8d24-3e70-49ca-8d15-4b2f7a9c6e77
 ```
 
-`name`, `os_distro`, `min_disk`, `visibility` and `uefi` are read back. `source_file`,
-`source_file_hash`, `disk_format`, `min_ram` and `tags` are not reported by any endpoint, so they
-are empty after an import. All five force a new image, so the first plan proposes to rebuild it
-even when the configuration matches what was uploaded. To keep the imported image, ignore them:
+**An import cannot produce a clean plan on its own.** Three arguments are reported by no read
+endpoint, and all three are ForceNew:
+
+| Argument | After import |
+|---|---|
+| `source_volume_id` | empty |
+| `disk_format` | empty |
+| `container_format` | empty |
+
+Writing the correct values into the configuration does not help. Terraform sees them being
+*added* to a ForceNew attribute, which is a replacement — it would destroy the image you just
+adopted:
+
+```
++ container_format = "bare"      # forces replacement
++ disk_format      = "qcow2"     # forces replacement
++ source_volume_id = "f975f8c9…" # forces replacement
+Plan: 1 to add, 0 to change, 1 to destroy.
+```
+
+Tell Terraform not to act on what it cannot see:
 
 ```terraform
-resource "dtcloud_image" "golden" {
-  # ...
+resource "dtcloud_image" "adopted" {
+  name       = "golden-base"
+  visibility = "shared"
+
+  source_volume_id = "f975f8c9-2ecc-46d1-a420-1081286cff11"
+  disk_format      = "qcow2"
 
   lifecycle {
-    ignore_changes = [source_file, source_file_hash, disk_format, min_ram, tags]
+    ignore_changes = [source_volume_id, disk_format, container_format]
   }
 }
 ```
+
+Nothing on the platform records which volume an image came from or what format it was captured
+as, and the volume may be long gone, so the provider cannot recover them for you.
+
+`name`, `os_distro`, `min_disk`, `visibility` and `uefi` all round-trip.

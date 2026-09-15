@@ -3,10 +3,8 @@ package image_test
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -16,36 +14,29 @@ import (
 // noHTML is the character rule the API applies to an image name.
 var noHTML = regexp.MustCompile(`^[^<>&"']*$`)
 
-// settleReads is how many reads an upload takes to finish. Above three, so a
+// settleReads is how many reads a capture takes to finish. Above three, so a
 // waiter watching the wrong thing cannot pass by accident.
 const settleReads = 4
 
 // valueSettleReads is the same for a field the update endpoint patches.
 const valueSettleReads = 4
 
-// defaultMaxUploadBytes stands in for the configured upload ceiling.
-const defaultMaxUploadBytes = 1000 * 1000 * 1000
-
-// uploadLimitMessage renders the refusal. Whole GB only, so a small ceiling
-// really does read as "0 GB".
-func uploadLimitMessage(maxBytes int64) string {
-	return fmt.Sprintf("Image exceeds the maximum upload size of %.0f GB", float64(maxBytes)/1000000000)
-}
+// capturedBytes is the size every capture produces: 3,000,000 bytes formats as
+// "3 MB" exactly, so nothing is rounded.
+const capturedBytes = 3000000
 
 // allowedDiskFormats and allowedOsDistros are what the fake checks against.
 // The provider does no checking of its own and lets the API refuse.
 var (
-	// `img` is accepted but unknown to storage, which is why it maps to `detect`.
+	// What the CAPTURE endpoint takes, which is strictly fewer formats than the
+	// old upload endpoint did - `iso` is not among them.
 	allowedDiskFormats = map[string]bool{
-		"iso": true, "aki": true, "ami": true, "ari": true, "img": true, "ploop": true,
-		"qcow2": true, "raw": true, "vdi": true, "vhd": true, "vhdx": true, "vmdk": true,
+		"raw": true, "vmdk": true, "vdi": true, "qcow2": true,
+		"vhd": true, "vhdx": true, "ploop": true,
 	}
-	// A distribution carries its version, so a bare `ubuntu` is refused.
-	allowedOsDistros = map[string]bool{
-		"ubuntu20.04": true, "ubuntu18.04": true, "centos8": true, "centos7": true,
-		"rockylinux8": true, "debian10": true, "win2k19": true, "windows": true,
-	}
-	allowedVisibility = map[string]bool{"public": true, "private": true, "shared": true, "community": true}
+	// Only the capture checks visibility, and `public` is refused by policy
+	// rather than by validation.
+	allowedVisibility = map[string]bool{"private": true, "shared": true, "community": true}
 	// The four paths update accepts.
 	allowedPatchPaths = map[string]bool{"/name": true, "/os_distro": true, "/min_disk": true, "/visibility": true}
 )
@@ -243,8 +234,7 @@ type fakeImageAPI struct {
 	images map[string]*fakeImage
 	seq    int
 
-	creates  int
-	uploads  int
+	captures int
 	updates  int
 	deletes  int
 	detailsN int
@@ -256,11 +246,9 @@ type fakeImageAPI struct {
 	readsAfterDelete int
 	servedGone       int
 
-	// uploadSawFileSize records whether the upload declared a size.
-	uploadSawFileSize bool
-
-	// maxBytes is the upload ceiling this instance enforces.
-	maxBytes int64
+	// volumes are the capture sources. A volume that is not `available` makes
+	// the capture fail the way the platform does.
+	volumes map[string]*fakeVolume
 
 	// versions is a separate catalogue from the images above.
 	versions map[string][]map[string]any
@@ -268,8 +256,8 @@ type fakeImageAPI struct {
 
 func newFakeImageAPI() *fakeImageAPI {
 	return &fakeImageAPI{
-		images:   map[string]*fakeImage{},
-		maxBytes: defaultMaxUploadBytes,
+		images:  map[string]*fakeImage{},
+		volumes: map[string]*fakeVolume{},
 		versions: map[string][]map[string]any{
 			// A display category, not an operating system.
 			"ubuntu": {
@@ -306,6 +294,17 @@ func (f *fakeImageAPI) seed(img *fakeImage) *fakeImage {
 	return img
 }
 
+// splitPath drops the empty segments a leading or trailing slash leaves behind.
+func splitPath(path string) []string {
+	seg := []string{}
+	for _, s := range strings.Split(strings.Trim(path, "/"), "/") {
+		if s != "" {
+			seg = append(seg, s)
+		}
+	}
+	return seg
+}
+
 func (f *fakeImageAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !acctest.RequireAuth(w, r) {
 		return
@@ -314,23 +313,28 @@ func (f *fakeImageAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	path := strings.TrimPrefix(r.URL.Path, "/openstack/images")
-	seg := []string{}
-	for _, s := range strings.Split(strings.Trim(path, "/"), "/") {
-		if s != "" {
-			seg = append(seg, s)
+	// The capture lives on the VOLUME, so this fake has to serve both trees.
+	if volPath := strings.TrimPrefix(r.URL.Path, "/openstack/volumes"); volPath != r.URL.Path {
+		vseg := splitPath(volPath)
+		switch {
+		case r.Method == http.MethodGet && len(vseg) == 2 && vseg[1] == "details":
+			f.volumeDetails(w, vseg[0])
+		case r.Method == http.MethodPost && len(vseg) == 2 && vseg[1] == "actions":
+			f.capture(w, r, vseg[0])
+		default:
+			notFound(w, strings.Trim(volPath, "/"))
 		}
+		return
 	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/openstack/images")
+	seg := splitPath(path)
 
 	switch {
 	case r.Method == http.MethodGet && len(seg) == 0:
 		f.list(w)
-	case r.Method == http.MethodPost && len(seg) == 0:
-		f.create(w, r)
 	case r.Method == http.MethodGet && len(seg) == 1 && seg[0] == "versions":
 		acctest.WriteJSON(w, http.StatusOK, f.versions)
-	case r.Method == http.MethodPost && len(seg) == 1 && seg[0] == "upload":
-		f.upload(w, r)
 	case r.Method == http.MethodGet && len(seg) == 2 && seg[1] == "details":
 		f.details(w, seg[0])
 	case r.Method == http.MethodPut && len(seg) == 1:
@@ -354,164 +358,135 @@ func (f *fakeImageAPI) get(w http.ResponseWriter, id string) *fakeImage {
 	return img
 }
 
-func (f *fakeImageAPI) create(w http.ResponseWriter, r *http.Request) {
-	var body map[string]any
+// fakeVolume is a capture source. Only the status matters here.
+type fakeVolume struct {
+	ID     string
+	Name   string
+	Size   int
+	Status string
+}
+
+// seedVolume adds a volume the capture can be pointed at.
+func (f *fakeImageAPI) seedVolume(v *fakeVolume) *fakeVolume {
+	if v.ID == "" {
+		// A real volume id is a UUID, and the resource validates the shape during
+		// plan, so a "vol-0001" here would fail for the wrong reason.
+		f.seq++
+		v.ID = fmt.Sprintf("00000000-0000-4000-8000-%012d", f.seq)
+	}
+	if v.Status == "" {
+		v.Status = "available"
+	}
+	f.volumes[v.ID] = v
+	return v
+}
+
+// volumeDetails answers the availability check the provider makes before it
+// asks for a capture.
+func (f *fakeImageAPI) volumeDetails(w http.ResponseWriter, id string) {
+	vol, ok := f.volumes[id]
+	if !ok {
+		notFound(w, id)
+		return
+	}
+	acctest.WriteJSON(w, http.StatusOK, map[string]any{
+		"id":     vol.ID,
+		"name":   vol.Name,
+		"size":   vol.Size,
+		"status": vol.Status,
+	})
+}
+
+// capture is POST /openstack/volumes/{id}/actions with an osUploadImage body.
+//
+// Two behaviours here are the whole reason the provider works the way it does:
+// the response carries NO id - 200 and an empty body - so the caller has to
+// find the new image in the list; and a volume that is not `available` is
+// refused outright rather than queued.
+func (f *fakeImageAPI) capture(w http.ResponseWriter, r *http.Request, volumeID string) {
+	vol, ok := f.volumes[volumeID]
+	if !ok {
+		notFound(w, volumeID)
+		return
+	}
+
+	var body struct {
+		OsUploadImage *struct {
+			ImageName       string `json:"image_name"`
+			DiskFormat      string `json:"disk_format"`
+			ContainerFormat string `json:"container_format"`
+			Visibility      string `json:"visibility"`
+		} `json:"osUploadImage"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		badRequest(w, "malformed body")
 		return
 	}
-
-	name, _ := body["name"].(string)
-	diskFormat, _ := body["type"].(string)
-	osDistro, _ := body["os_distro"].(string)
-	minDisk, _ := body["min_disk"].(float64)
-
-	// Validation, in the order the API applies it.
-	if name == "" {
-		validationError(w, "'name' is required")
+	if body.OsUploadImage == nil {
+		badRequest(w, "osUploadImage is required")
 		return
 	}
-	if !noHTML.MatchString(name) {
+	p := body.OsUploadImage
+
+	if vol.Status != "available" {
+		badRequest(w, fmt.Sprintf("Invalid volume: Volume %s status must be available", volumeID))
+		return
+	}
+	if p.ImageName == "" {
+		validationError(w, "'image_name' is required")
+		return
+	}
+	if !noHTML.MatchString(p.ImageName) {
 		validationError(w, "Invalid characters in 'name'. HTML tags and special characters (<, >, &, ', \") are not allowed.")
 		return
 	}
-	if !allowedDiskFormats[diskFormat] {
-		validationError(w, "'type' must be one of [iso, aki, ami, ari, img, ploop, qcow2, raw, vdi, vhd, vhdx, vmdk]")
+	if !allowedDiskFormats[p.DiskFormat] {
+		badRequest(w, fmt.Sprintf(
+			"Invalid input for field/attribute disk_format. Value: %s. '%s' is not one of "+
+				"['raw', 'vmdk', 'vdi', 'qcow2', 'vhd', 'vhdx', 'ploop']", p.DiskFormat, p.DiskFormat))
 		return
 	}
-	if !allowedOsDistros[osDistro] {
-		validationError(w, "'os_distro' must be one of [ubuntu20.04, ubuntu18.04, centos8, centos7, rockylinux8, debian10, win2k19, windows]")
-		return
-	}
-	if minDisk < 1 || minDisk > 512 {
-		validationError(w, "'min_disk' must be between 1 and 512")
-		return
-	}
-	visibility, _ := body["visibility"].(string)
+	visibility := p.Visibility
 	if visibility == "" {
-		// The service fills in `shared`; a different default here would drift.
 		visibility = "shared"
 	}
-	if !allowedVisibility[visibility] {
-		validationError(w, "'visibility' must be one of [public, private, shared, community]")
-		return
-	}
-
-	// The guard only works if the caller declares the size.
-	if declared, ok := body["fileSize"].(float64); ok && int64(declared) > f.maxBytes {
-		acctest.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
-			"error": uploadLimitMessage(f.maxBytes),
-			"code":  "PAYLOAD_TOO_LARGE",
+	if visibility == "public" {
+		// Policy, not validation - and the body is an HTML page wrapped in JSON.
+		acctest.WriteJSON(w, http.StatusForbidden, map[string]any{
+			"error": map[string]any{"forbidden": map[string]any{"code": 403,
+				"message": "Policy doesn't allow volume_extension:volume_actions:upload_public to be performed."}},
+			"code": "SERVER_ERROR",
 		})
 		return
 	}
+	if !allowedVisibility[visibility] {
+		validationError(w, "'visibility' must be one of [private, shared, community]")
+		return
+	}
 
-	uefi, _ := body["uefi"].(bool)
-
+	f.captures++
 	img := &fakeImage{
-		ID:         f.nextID(),
-		Name:       name,
-		OsDistro:   osDistro,
-		DiskFormat: diskFormat,
-		MinDisk:    int(minDisk),
+		ID:   f.nextID(),
+		Name: p.ImageName,
+		// Both are inherited from the volume, not taken from the request.
+		OsDistro:   "debian12",
+		MinDisk:    vol.Size,
+		DiskFormat: p.DiskFormat,
 		Visibility: visibility,
-		Uefi:       uefi,
-		// The record exists and holds nothing until the file arrives.
-		Status:  "queued",
-		pending: map[string]*pendingValue{},
+		Bytes:      capturedBytes,
+		// Unlike an uploaded image, a captured one carries os_type: the platform
+		// works it out from the volume rather than leaving it blank.
+		OsType: "linux",
+		Status: "queued",
+		// The copy runs after the call returns, so the image is not usable yet.
+		pendingStatus: "active",
+		statusDelay:   settleReads,
+		pending:       map[string]*pendingValue{},
 	}
 	f.images[img.ID] = img
-	f.creates++
 
-	// The raw image object, unwrapped: 23 fields with `id` sixteen in.
-	acctest.WriteJSON(w, http.StatusOK, createdImageBody{
-		OsDistro:        img.OsDistro,
-		Name:            img.Name,
-		DiskFormat:      img.DiskFormat,
-		ContainerFormat: "bare",
-		Visibility:      img.Visibility,
-		// No data yet, so both sizes and both hashes are null.
-		Status:    img.Status,
-		Protected: false,
-		MinRAM:    0,
-		MinDisk:   img.MinDisk,
-		Owner:     "25dc6c29facb4ec5b3eb605ae85d2072",
-		OsHidden:  false,
-		ID:        img.ID,
-		// The only timestamps here carrying a timezone. Nothing reads them.
-		CreatedAt: "2026-07-08T10:35:17Z",
-		UpdatedAt: "2026-07-08T10:35:17Z",
-		// An array, never null — the field the platform validates as one.
-		Tags:   []string{},
-		Self:   "/v2/images/" + img.ID,
-		File:   "/v2/images/" + img.ID + "/file",
-		Schema: "/v2/schemas/image",
-	})
-}
-
-// upload takes the file. Id and size come from the query string; anything in
-// the multipart body is ignored.
-func (f *fakeImageAPI) upload(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("imageId")
-	if id == "" {
-		badRequest(w, "imageId query parameter is required")
-		return
-	}
-	img := f.get(w, id)
-	if img == nil {
-		return
-	}
-
-	declared := int64(-1)
-	if raw := r.URL.Query().Get("fileSize"); raw != "" {
-		f.uploadSawFileSize = true
-		n, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			badRequest(w, "fileSize is not a number")
-			return
-		}
-		declared = n
-	}
-
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		badRequest(w, "File not found")
-		return
-	}
-	defer file.Close()
-
-	// Counted from the stream, so an understated size cannot get past the check.
-	uploaded, err := io.Copy(io.Discard, file)
-	if err != nil {
-		badRequest(w, "read error")
-		return
-	}
-
-	if uploaded > f.maxBytes {
-		f.rejectUpload(w, img, http.StatusRequestEntityTooLarge, uploadLimitMessage(f.maxBytes))
-		return
-	}
-	if declared >= 0 && uploaded != declared {
-		// A body that does not match takes the image down with it.
-		f.rejectUpload(w, img, http.StatusBadRequest,
-			"Uploaded file does not match the declared fileSize")
-		return
-	}
-
-	f.uploads++
-	img.Bytes = uploaded
-	// The data is in; the platform still has work before it can be booted from.
-	img.Status = "saving"
-	img.pendingStatus = "active"
-	img.statusDelay = settleReads
-
-	acctest.WriteJSON(w, http.StatusOK, map[string]any{"msg": "Upload started"})
-}
-
-// rejectUpload refuses an upload and deletes the image with it.
-func (f *fakeImageAPI) rejectUpload(w http.ResponseWriter, img *fakeImage, status int, message string) {
-	img.deleted = true
-	acctest.WriteJSON(w, status, map[string]any{"error": message, "code": "UPLOAD_REJECTED"})
+	// 200, empty body, no Location header. Nothing names the image it just made.
+	w.WriteHeader(http.StatusOK)
 }
 
 func (f *fakeImageAPI) detailsView(img *fakeImage) detailsImage {
@@ -627,15 +602,23 @@ func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string)
 			return
 		}
 	case "/os_distro":
-		distro, _ := body.Value.(string)
-		if !allowedOsDistros[distro] {
-			validationError(w, "'os_distro' must be one of [ubuntu20.04, ubuntu18.04, centos8, centos7, rockylinux8, debian10, win2k19, windows]")
-			return
-		}
+		// Deliberately unchecked. The platform validates os_distro nowhere on this
+		// endpoint - a value it would refuse elsewhere is stored without complaint,
+		// and the next plan is clean. Validating here would hide that.
+
 	case "/visibility":
 		visibility, _ := body.Value.(string)
+		if visibility == "public" {
+			// Policy, not validation, and the body is an HTML page.
+			acctest.WriteJSON(w, http.StatusForbidden, map[string]any{
+				"error": "<html>\n <head>\n  <title>403 Forbidden</title>\n </head>\n <body>\n" +
+					"  <h1>403 Forbidden</h1>\n  You are not authorized to complete publicize_image action.<br /><br />\n</body>\n</html>",
+				"code": "SERVER_ERROR",
+			})
+			return
+		}
 		if !allowedVisibility[visibility] {
-			validationError(w, "'visibility' must be one of [public, private, shared, community]")
+			validationError(w, "'visibility' must be one of [private, shared, community]")
 			return
 		}
 	}

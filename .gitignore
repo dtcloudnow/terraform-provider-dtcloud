@@ -27,3 +27,4 @@ go.work.sum
 # Editors
 .idea/
 .vscode/
+.DS_Store

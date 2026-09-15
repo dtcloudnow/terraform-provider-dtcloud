@@ -51,6 +51,10 @@
   tr: |-
     **`dtcloud_vm.volume`, o kaynağın son yenilemesinden alınmış bir anlık kopyadır.** Aynı apply'da burada bağlanan bir disk orada bir sonraki yenilemeden sonra görünür; bunun yerine bu kaynağın özniteliklerini okuyun.
 - en: |-
-    `create` and `delete` each default to 10 minutes. Attaching and detaching are asynchronous: the provider waits until the volume appears on, or disappears from, the machine. Override them with a `timeouts` block:
+    **A running guest can refuse a detach.** The platform accepts the request and then asks the guest to release the disk. A filesystem that is still mounted makes it give up and put the volume back, and the destroy fails saying so. Unmount the filesystem in the guest, or stop the machine, and apply again.
   tr: |-
-    `create` ve `delete` için varsayılan süre 10 dakikadır. Bağlama ve ayırma eşzamansızdır: sağlayıcı disk makinede görünene ya da makineden kaybolana kadar bekler. Bunları bir `timeouts` bloğuyla değiştirin:
+    **Çalışan bir misafir sistem ayırma işlemini reddedebilir.** Platform isteği kabul eder, ardından diski bırakmasını misafir sisteme söyler. Hâlâ bağlı (mounted) bir dosya sistemi varsa platform vazgeçer ve diski geri takar; destroy da bunu söyleyerek hata verir. Misafir sistemde dosya sistemini unmount edin ya da makineyi durdurun, sonra yeniden apply çalıştırın.
+- en: |-
+    `create` and `delete` each default to 10 minutes. Attaching and detaching are asynchronous: the provider waits for the attachment to appear on the machine, and for the volume's own status to leave `detaching`. Override them with a `timeouts` block:
+  tr: |-
+    `create` ve `delete` için varsayılan süre 10 dakikadır. Bağlama ve ayırma eşzamansızdır: sağlayıcı bağlantının makinede görünmesini, ayırmada ise diskin kendi statüsünün `detaching` durumundan çıkmasını bekler. Bunları bir `timeouts` bloğuyla değiştirin:
