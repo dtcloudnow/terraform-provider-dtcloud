@@ -114,7 +114,7 @@ func vmComputedSchema() map[string]*schema.Schema {
 		"task_state": {
 			Type:        schema.TypeString,
 			Computed:    true,
-			Description: "In-flight OpenStack task, empty when the VM is settled.",
+			Description: "In-flight platform task, empty when the VM is settled.",
 		},
 		"image": {
 			Type:        schema.TypeString,

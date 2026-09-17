@@ -16,17 +16,13 @@ import (
 
 // Translation of page content.
 //
-// tr.go translates the chrome tfplugindocs generates: section headings and fixed
-// sentences. Everything else on a page -- the Description strings from the
-// provider schema, the hand-written template text and the comments inside the
-// examples -- is looked up in a catalog: the YAML files under i18n/<lang>, each a
-// list of `en`/`tr` pairs, one file per page by convention.
+// tr.go translates the chrome tfplugindocs generates. Everything else is looked
+// up in a catalog: the YAML files under i18n/<lang>, each a list of `en`/`tr`
+// pairs, one file per page.
 //
 // A lookup is by the English text with its whitespace collapsed, so rewrapping a
 // paragraph keeps its translation but changing a word does not. Missing text
-// falls back to English, so a partial catalog still builds; `--check` lists what
-// is missing, as YAML ready to be filled in, and what is no longer used. CI runs
-// it, which is what keeps the Turkish site complete.
+// falls back to English; `--check` lists what is missing and what is unused.
 
 type catalogEntry struct {
 	EN string `yaml:"en"`
@@ -86,8 +82,8 @@ func normalise(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// translatable reports whether a text has words in it. Inline code, punctuation
-// and placeholders such as "..." are the same in every language.
+// translatable reports whether a text has words in it. Inline code and
+// punctuation are the same in every language.
 func translatable(s string) bool {
 	for _, r := range codeSpanR.ReplaceAllString(s, "") {
 		if unicode.IsLetter(r) {
@@ -324,8 +320,7 @@ func (g *generator) translateRow(page, line string) string {
 }
 
 // translateCode translates the comments in an example and nothing else, so the
-// example itself can never stop being valid. Consecutive comment lines are one
-// unit of text and are rewrapped after translation.
+// example itself can never stop being valid.
 func (g *generator) translateCode(page, lang string, lines []string) []string {
 	if !translatedLanguages[strings.ToLower(strings.TrimSpace(lang))] {
 		return lines

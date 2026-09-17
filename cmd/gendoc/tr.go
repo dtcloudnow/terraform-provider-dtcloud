@@ -7,15 +7,12 @@ import (
 
 // Turkish rendering of the generated reference.
 //
-// The rule is the same one the dtctl generator uses: a string is looked up
-// verbatim and, if it is missing, the English source is emitted unchanged. A
-// partial catalogue therefore still produces a valid (mixed) page and the site
-// build stays green, so entries can be filled in over time without ever
-// blocking a docs update.
+// A string is looked up verbatim and, if missing, the English source is emitted
+// unchanged — so a partial catalogue still produces a valid page and the site
+// build stays green.
 //
-// What is translated here is the *chrome*: the section headings and the fixed
-// sentences tfplugindocs generates. The text of a page -- Description strings,
-// template prose, example comments -- comes from the catalog in i18n.go.
+// What is translated here is the chrome: the headings and fixed sentences
+// tfplugindocs generates. A page's own text comes from the catalog in i18n.go.
 
 // tr translates a label used by this generator (sidebar labels, folder names).
 func tr(g *generator, en string) string {

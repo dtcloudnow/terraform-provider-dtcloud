@@ -1,0 +1,76 @@
+- en: |-
+    Looks up one load balancer by ID.
+  tr: |-
+    Tek bir yük dengeleyiciyi kimliğine göre arar.
+- en: |-
+    Lookup is by id rather than by name, because load balancer names are not unique.
+  tr: |-
+    Arama ada göre değil kimliğe göre yapılır; yük dengeleyici adları benzersiz değildir.
+- en: |-
+    Lookup is by id: load balancer names are not unique.
+  tr: |-
+    Arama kimliğe göredir: yük dengeleyici adları benzersiz değildir.
+- en: |-
+    The VIP sits on a network block rather than a top-level field.
+  tr: |-
+    VIP, üst düzey bir alanda değil bir `network` bloğunun içinde bildirilir.
+- en: |-
+    ID of the load balancer.
+  tr: |-
+    Yük dengeleyicinin kimliği.
+- en: |-
+    Number of balancing pools.
+  tr: |-
+    Dengeleme havuzlarının sayısı.
+- en: |-
+    Creation timestamp as reported by the API.
+  tr: |-
+    API'nin bildirdiği oluşturulma zamanı.
+- en: |-
+    Free-text description.
+  tr: |-
+    Serbest metin açıklama.
+- en: |-
+    Human-readable flavor name.
+  tr: |-
+    Okunabilir boyut adı.
+- en: |-
+    Floating IP, when one is associated.
+  tr: |-
+    İlişkilendirilmişse kayan IP adresi.
+- en: |-
+    High-availability mode.
+  tr: |-
+    Yüksek erişilebilirlik kipi.
+- en: |-
+    Operating state of each member.
+  tr: |-
+    Her üyenin çalışma durumu.
+- en: |-
+    Total number of members.
+  tr: |-
+    Toplam üye sayısı.
+- en: |-
+    Name of the load balancer.
+  tr: |-
+    Yük dengeleyicinin adı.
+- en: |-
+    The network the load balancer's VIP sits on.
+  tr: |-
+    Yük dengeleyicinin VIP adresinin bulunduğu ağ.
+- en: |-
+    Provisioning status.
+  tr: |-
+    Sağlama durumu.
+- en: |-
+    **Use this for a load balancer Terraform did not create.** Declaring it as a resource instead would hand Terraform ownership, and a later destroy would take down everything behind it.
+  tr: |-
+    **Terraform'un oluşturmadığı bir yük dengeleyici için bunu kullanın.** Onu kaynak olarak tanımlamak sahipliği Terraform'a verir ve sonraki bir destroy arkasındaki her şeyi indirir.
+- en: |-
+    **The VIP is reported inside `network`**, not as a top-level field.
+  tr: |-
+    **VIP, üst düzey bir alan olarak değil `network` içinde bildirilir.**
+- en: |-
+    **`status` is one title-case word.** `Disabled` means no listener yet, `Unknown` means a pool with no health monitor; neither is a failure.
+  tr: |-
+    **`status` tek bir sözcüktür ve baş harfi büyüktür.** `Disabled` henüz dinleyici olmadığı, `Unknown` ise havuz olup sağlık denetimi olmadığı anlamına gelir; ikisi de hata değildir.

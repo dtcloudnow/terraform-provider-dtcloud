@@ -82,3 +82,19 @@
     API secret key, sent as the x-api-secret-key header.
   tr: |-
     API gizli anahtarı; x-api-secret-key başlığıyla gönderilir.
+- en: |-
+    What this provider manages
+  tr: |-
+    Bu sağlayıcının yönettikleri
+- en: |-
+    Resources
+  tr: |-
+    Kaynaklar
+- en: |-
+    Data sources
+  tr: |-
+    Veri kaynakları
+- en: |-
+    Every page carries its own examples, behaviour notes and import instructions.
+  tr: |-
+    Her sayfa kendi örneklerini, davranış notlarını ve içe aktarma yönergelerini taşır.

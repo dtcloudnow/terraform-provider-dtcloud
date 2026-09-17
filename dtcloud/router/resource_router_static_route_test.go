@@ -44,10 +44,8 @@ func checkRoutesGone(api *fakeRouterAPI) func(*terraform.State) error {
 }
 
 // TestAccDtcloudRouterStaticRoute_lifecycle drives add → read → re-plan →
-// import → remove.
-//
-// The data source reads the endpoint that renames both fields on the way out,
-// so this also checks the provider gives them back under one set of names.
+// import → remove. The data source reads the endpoint that renames both fields,
+// so this also checks they come back under one set of names.
 func TestAccDtcloudRouterStaticRoute_lifecycle(t *testing.T) {
 	api := newFakeRouterAPI()
 	server := httptest.NewServer(api)
@@ -80,16 +78,10 @@ func TestAccDtcloudRouterStaticRoute_lifecycle(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudRouterStaticRoute_createWaitsUntilTheRouteIsListed is named
-// after the rule it protects: create waits until the route appears on the
-// router, rather than trusting the acknowledgement.
-//
-// The endpoint answers before the route is visible, and the endpoint next to it
-// — the one that edits a route in place — answers 200 having changed nothing at
-// all when the route it was given does not exist. On an API that can say yes
-// and mean no, the only honest confirmation is reading the value back. The fake
-// holds a new route out of the listing for several reads, so a create that
-// skipped the wait would find nothing to read and lose the resource.
+// TestAccDtcloudRouterStaticRoute_createWaitsUntilTheRouteIsListed pins that
+// create waits for the route to appear rather than trusting the
+// acknowledgement. On an API that can say yes and mean no, reading the value
+// back is the only honest confirmation.
 func TestAccDtcloudRouterStaticRoute_createWaitsUntilTheRouteIsListed(t *testing.T) {
 	api := newFakeRouterAPI()
 	server := httptest.NewServer(api)
@@ -118,14 +110,10 @@ func TestAccDtcloudRouterStaticRoute_createWaitsUntilTheRouteIsListed(t *testing
 	})
 }
 
-// TestAccDtcloudRouterStaticRoute_concurrentRoutesAllSurvive is named after the
-// rule it protects: the routes of one router are applied one at a time.
-//
-// A route is added by reading the router's whole route list, appending to it
-// and writing it back. Terraform applies up to ten resources at once, so three
-// routes on one router read the same list before any of the writes land and the
-// last write wins — two of the three would vanish. The provider serialises them
-// on the router id; without that, this test loses routes.
+// TestAccDtcloudRouterStaticRoute_concurrentRoutesAllSurvive pins that the
+// routes of one router are applied one at a time. A route is added by rewriting
+// the whole list, so three applied at once would lose two of them. The provider
+// serialises them on the router id; without that, this test loses routes.
 func TestAccDtcloudRouterStaticRoute_concurrentRoutesAllSurvive(t *testing.T) {
 	api := newFakeRouterAPI()
 	server := httptest.NewServer(api)
@@ -174,10 +162,9 @@ resource "dtcloud_router_static_route" "c" {
 	})
 }
 
-// TestAccDtcloudRouterStaticRoute_rejectsMalformedEnds checks that the two
-// opposite rules — a destination needs a prefix length, a next hop must not
-// have one — are plan errors rather than requests rejected halfway through an
-// apply.
+// TestAccDtcloudRouterStaticRoute_rejectsMalformedEnds checks the two opposite
+// rules — a destination needs a prefix length, a next hop must not have one —
+// are plan errors rather than requests rejected mid-apply.
 func TestAccDtcloudRouterStaticRoute_rejectsMalformedEnds(t *testing.T) {
 	api := newFakeRouterAPI()
 	server := httptest.NewServer(api)

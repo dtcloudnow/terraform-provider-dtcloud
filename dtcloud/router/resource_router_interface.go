@@ -16,15 +16,16 @@ import (
 
 // ResourceDtcloudRouterInterface attaches a private network to a router.
 //
-// The resource id is `<router-id>:<port-id>`. The port id is assigned by the
-// platform at attach time and the attach endpoint does not report it, so it is
-// found by comparing the router's interface list before and after the call.
+// The id is `<router-id>:<port-id>`. The attach endpoint does not report the
+// port it created, so it is found by comparing the router's interface list
+// before and after.
 //
-// Nothing here can be changed in place: the API has an attach endpoint and a
-// detach endpoint and nothing in between, so every argument is ForceNew and the
-// resource has no Update.
+// Nothing changes in place: the API has an attach endpoint and a detach endpoint
+// and nothing in between, so every argument is ForceNew.
 func ResourceDtcloudRouterInterface() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches a private network to a router, which is what gives the machines on that network a route to everywhere else.",
+
 		CreateContext: resourceDtcloudRouterInterfaceCreate,
 		ReadContext:   resourceDtcloudRouterInterfaceRead,
 		DeleteContext: resourceDtcloudRouterInterfaceDelete,
@@ -47,9 +48,8 @@ func ResourceDtcloudRouterInterface() *schema.Resource {
 				ValidateFunc: validation.NoZeroValues,
 				Description:  "ID of the network to attach.",
 			},
-			// Asking for an address and letting the platform choose one are
-			// two different code paths on the API's side, not one call with an
-			// optional field. See the comment on attachInterfaceParams.
+			// Asking for an address and letting the platform choose are two different
+			// paths on the API's side. See attachInterfaceParams.
 			"ip_address": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -110,12 +110,10 @@ func routerInterfaceID(routerID, portID string) string {
 
 // attachInterfaceParams builds the attach request.
 //
-// The endpoint branches on the first fixed IP: an entry that declares IPv4
-// makes it attach the network's first subnet and discard any address given
-// alongside, while an entry without a version makes it create a port carrying
-// exactly the address asked for. So requesting an address means sending the
-// address alone, and letting the platform choose means sending the version
-// alone. The two are not the same call with a field left out.
+// The endpoint branches on the first fixed IP: an entry declaring IPv4 attaches
+// the network's first subnet and discards any address sent with it, while an
+// entry without a version creates a port carrying exactly the address asked for.
+// So the two are not the same call with a field left out.
 func attachInterfaceParams(networkID, ipAddress string, portSecurity bool) dtgo.AttachInterfaceToRouterParams {
 	fixedIP := dtgo.FixedIP{IPVersion: 4}
 	if ipAddress != "" {
@@ -124,15 +122,13 @@ func attachInterfaceParams(networkID, ipAddress string, portSecurity bool) dtgo.
 	return dtgo.AttachInterfaceToRouterParams{
 		NetworkId:           networkID,
 		PortSecurityEnabled: portSecurity,
-		// Never nil: the endpoint validates this with an array rule that
-		// rejects null outright.
+		// Never nil: the endpoint rejects null outright.
 		FixedIPs: []dtgo.FixedIP{fixedIP},
 	}
 }
 
 // internalPortIDs lists the ports of a router's internal interfaces. The
-// external gateway is excluded because its entry reports a subnet id in the
-// same field, which is not something detaching can be asked for.
+// external gateway is excluded: its entry reports a subnet id in the same field.
 func internalPortIDs(interfaces dtgo.ListRouterInterfaces) map[string]bool {
 	ports := map[string]bool{}
 	for _, iface := range interfaces {
@@ -144,10 +140,18 @@ func internalPortIDs(interfaces dtgo.ListRouterInterfaces) map[string]bool {
 }
 
 func resourceDtcloudRouterInterfaceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*config.CombinedConfig).DTClient()
+	conf := meta.(*config.CombinedConfig)
+	client := conf.DTClient()
 
 	routerID := d.Get("router_id").(string)
 	networkID := d.Get("network_id").(string)
+
+	// Held across the attach and the wait, not just the call: the new port is
+	// identified by what appeared in the router's interface list, so a second
+	// attach landing in between would be indistinguishable from this one's and
+	// both resources could adopt the same port.
+	conf.Lock(routerID)
+	defer conf.Unlock(routerID)
 
 	// Record the ports that already exist so the new one can be identified.
 	before, _, err := client.Router.ListRouterInterfaces(ctx, routerID, nil)
@@ -206,10 +210,18 @@ func resourceDtcloudRouterInterfaceRead(ctx context.Context, d *schema.ResourceD
 }
 
 func resourceDtcloudRouterInterfaceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*config.CombinedConfig).DTClient()
+	conf := meta.(*config.CombinedConfig)
+	client := conf.DTClient()
 
 	routerID := d.Get("router_id").(string)
 	portID := d.Get("port_id").(string)
+
+	// Detaching rewrites the router's whole interface list, so it needs the same
+	// lock the attach takes: two detaches at once both read the list as it was
+	// before either landed, and the second write puts the first one's interface
+	// back. The wait that follows then never sees its port go.
+	conf.Lock(routerID)
+	defer conf.Unlock(routerID)
 
 	params := dtgo.DeleteRouterInterfaceParams{PortID: portID}
 	if _, err := client.Router.DeleteRouterInterface(ctx, routerID, params, nil); err != nil {
@@ -221,8 +233,7 @@ func resourceDtcloudRouterInterfaceDelete(ctx context.Context, d *schema.Resourc
 	err := waitForCondition(ctx, d.Timeout(schema.TimeoutDelete), func() (bool, error) {
 		interfaces, _, err := client.Router.ListRouterInterfaces(ctx, routerID, nil)
 		if err != nil {
-			// The router went with it, which is a detached interface by any
-			// other name.
+			// The router went with it, which is a detached interface by any other name.
 			if dterr.IsNotFound(err) {
 				return true, nil
 			}
@@ -245,11 +256,8 @@ func resourceDtcloudRouterInterfaceImport(ctx context.Context, d *schema.Resourc
 	}
 	d.Set("router_id", parts[0])
 	d.Set("port_id", parts[1])
-	// Nothing reports whether port security is on, so an import cannot recover
-	// it. The schema default is assumed rather than left at Go's zero value,
-	// which would be a plan proposing a replacement on every imported
-	// interface. An interface attached with port security off has to say so in
-	// the configuration; the docs say as much.
+	// Nothing reports whether port security is on, so an import assumes the schema
+	// default. An interface attached with it off has to say so in the configuration.
 	d.Set("port_security_enabled", true)
 	d.SetId(routerInterfaceID(parts[0], parts[1]))
 	return []*schema.ResourceData{d}, nil
@@ -257,8 +265,7 @@ func resourceDtcloudRouterInterfaceImport(ctx context.Context, d *schema.Resourc
 
 // waitForNewInterface returns the id of the first internal port on the router
 // that was not in known. The attach endpoint reports the router rather than the
-// port it created, so this is the only way to tie the new interface to a
-// Terraform id.
+// port it created, so this is the only way to tie the two together.
 func waitForNewInterface(ctx context.Context, client *dtgo.Client, routerID string, known map[string]bool, timeout time.Duration) (string, error) {
 	var portID string
 	err := waitForCondition(ctx, timeout, func() (bool, error) {

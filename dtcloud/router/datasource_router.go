@@ -50,6 +50,8 @@ func DataSourceDtcloudRouter() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up one router by ID.",
+
 		ReadContext: dataSourceDtcloudRouterRead,
 		Schema:      s,
 	}

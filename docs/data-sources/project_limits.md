@@ -12,7 +12,7 @@ description: |-
 
 Reports every quota the platform tracks for a project.
 
-This is the full OpenStack quota table, covering compute, network, volume and VPN limits. It reports
+This is the full quota table, covering compute, network, volume and VPN limits. It reports
 allowances only; `dtcloud_project_quotas` reports a few headline figures with current usage beside
 them.
 
@@ -21,7 +21,7 @@ them.
 ```terraform
 data "dtcloud_projects" "all" {}
 
-# The full OpenStack quota table. The platform can add keys without warning, so
+# The full quota table. The platform can add keys without warning, so
 # they arrive as a map: index it by name.
 data "dtcloud_project_limits" "current" {
   project_id = data.dtcloud_projects.all.active_project_id
@@ -43,7 +43,7 @@ output "core_limit" {
 
 - `id` (String) The ID of this resource.
 - `names` (List of String) The quota names, sorted. Useful for discovering what the platform tracks.
-- `quotas` (Map of String) Every quota the platform reports, keyed by its OpenStack name. Values are numbers as text, or the word "Unlimited" where the platform reports no limit. Terraform maps hold one type, and the API mixes numbers with that word, so everything is rendered as text — use `tonumber()` when you need arithmetic.
+- `quotas` (Map of String) Every quota the platform reports, keyed by the name the platform uses. Values are numbers as text, or the word "Unlimited" where the platform reports no limit. Terraform maps hold one type, and the API mixes numbers with that word, so everything is rendered as text — use `tonumber()` when you need arithmetic.
 
 ## Behaviour worth knowing
 
@@ -58,6 +58,6 @@ locals {
 }
 ```
 
-* **The keys are OpenStack's own**, such as `cores`, `instances` and `security_group_rules`, and the
+* **The keys are the platform's own**, such as `cores`, `instances` and `security_group_rules`, and the
   platform can add more without warning. That is why this is a map rather than a fixed set of
   attributes: a new quota appears without a provider release. `names` lists what is there.

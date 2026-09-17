@@ -45,9 +45,8 @@ type fakeVM struct {
 	ifaces  []*fakeIface
 	volumes []*fakeVol
 
-	// userData is what create sent, after the base64 the API insists on has been
-	// decoded — so a test can assert what the guest would actually receive.
-	// Nothing reports it back, so it never leaves the fake.
+	// userData is what create sent, base64-decoded, so a test can assert what the
+	// guest would receive. Nothing reports it back.
 	userData string
 }
 
@@ -66,11 +65,9 @@ type fakeVol struct {
 	Name string
 	Size int
 
-	// status is what the volume's own details endpoint reports: `in-use` while
-	// attached, `detaching` once a detach is accepted, then whatever detachEndsAs
-	// says. settleReads counts the details reads it stays in `detaching` — the
-	// real platform takes minutes over this, and a wait that settles in one read
-	// proves nothing.
+	// status is what the volume's own details endpoint reports. settleReads counts
+	// the reads it stays in `detaching` — the real platform takes minutes, and a
+	// wait that settles in one read proves nothing.
 	status        string
 	settleReads   int
 	detachEndsAs  string
@@ -86,11 +83,9 @@ type fakeVMAPI struct {
 	buildPolls int
 	// failWithError makes newly created VMs settle into ERROR instead.
 	failWithError bool
-	// detachRevertsLeft is how many detaches fail the way a busy guest makes them
-	// fail: accepted, then undone, with the volume back in `in-use`. Counting
-	// rather than latching leaves the test a way out — the operator unmounts the
-	// filesystem and the next detach works, which is also what the framework's
-	// own cleanup needs.
+	// detachRevertsLeft is how many detaches fail the way a busy guest makes them:
+	// accepted, then undone. Counting rather than latching leaves a way out, which
+	// the framework's own cleanup needs.
 	detachRevertsLeft int
 
 	createdNames []string
@@ -129,9 +124,8 @@ func (f *fakeVMAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The volume's own details endpoint. The detach wait reads this rather than
-	// the VM's volume list, because the list cannot tell a finished detach from
-	// a refused one.
+	// The volume's own details endpoint. The detach wait reads this rather than the
+	// VM's volume list, which cannot tell a finished detach from a refused one.
 	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/openstack/volumes/") &&
 		strings.HasSuffix(r.URL.Path, "/details") {
 		f.volumeDetails(w, strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/openstack/volumes/"), "/details"))
@@ -234,9 +228,7 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// user_data has to arrive base64-encoded; a raw cloud-config document is
-	// refused. Reproducing that keeps the encoding on the provider's side of the
-	// line, where the API put it.
+	// user_data has to arrive base64-encoded; a raw document is refused.
 	userData, err := base64.StdEncoding.DecodeString(body.UserData)
 	if err != nil {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{
@@ -643,9 +635,8 @@ func (f *fakeVMAPI) attachVolume(w http.ResponseWriter, r *http.Request, id stri
 }
 
 // detachVolume accepts the request and leaves the work unfinished, which is what
-// the platform does: the reply is 202 and the guest decides the rest. The volume
-// stays on the VM's list throughout — on a refusal it is still there afterwards,
-// so the list never distinguishes the two outcomes.
+// the platform does. The volume stays on the VM's list throughout, so the list
+// never distinguishes the two outcomes.
 func (f *fakeVMAPI) detachVolume(w http.ResponseWriter, id, volumeID string) {
 	if !f.withVM(w, id, func(v *fakeVM) {
 		for _, vol := range v.volumes {

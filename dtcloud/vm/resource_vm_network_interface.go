@@ -140,10 +140,18 @@ func networkInterfaceID(vmID, portID string) string {
 }
 
 func resourceDtcloudVMNetworkInterfaceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*config.CombinedConfig).DTClient()
+	conf := meta.(*config.CombinedConfig)
+	client := conf.DTClient()
 
 	vmID := d.Get("vm_id").(string)
 	networkID := d.Get("network_id").(string)
+
+	// Held across the attach and the wait, not just the call: the new port is
+	// identified by what appeared on the VM, so a second attach landing in
+	// between would be indistinguishable from this one's and both resources
+	// could adopt the same port.
+	conf.Lock(vmID)
+	defer conf.Unlock(vmID)
 
 	// Record the ports that already exist so the new one can be identified.
 	before, _, err := client.VirtualMachine.GetVmNetworkInterfaces(ctx, vmID, nil)
@@ -245,10 +253,17 @@ func resourceDtcloudVMNetworkInterfaceUpdate(ctx context.Context, d *schema.Reso
 }
 
 func resourceDtcloudVMNetworkInterfaceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*config.CombinedConfig).DTClient()
+	conf := meta.(*config.CombinedConfig)
+	client := conf.DTClient()
 
 	vmID := d.Get("vm_id").(string)
 	portID := d.Get("port_id").(string)
+
+	// The same lock the attach takes: detaching is a read-modify-write of the
+	// machine's interface list, so two at once undo each other and the wait that
+	// follows never sees its port go.
+	conf.Lock(vmID)
+	defer conf.Unlock(vmID)
 
 	if _, err := client.VirtualMachine.DetachNetworkFromVm(ctx, vmID, portID, nil); err != nil {
 		if !dterr.IsNotFound(err) {

@@ -10,27 +10,17 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
 )
 
-// TestRouterNotFoundIsClassified is the rule that a missing router is
-// recognised as missing rather than as a failed request.
+// TestRouterNotFoundIsClassified pins that a missing router is recognised as
+// missing rather than as a failed request.
 //
-// It matters more here than in most of the provider. Services whose 404 carries
-// a structured numeric code are classified by reading that code, which is the
-// reliable half of dterr.IsNotFound. The router endpoints hand the network
-// layer's own error straight back, and that error has **no numeric code
-// anywhere in the body** — so the classification rests entirely on what the
-// message text happens to contain.
+// It matters more here than elsewhere: these endpoints hand the network layer's
+// own error straight back and it carries no numeric code anywhere, so the
+// classification rests entirely on the message text. Getting it wrong is not a
+// failed apply but a silent one — a router deleted outside Terraform would block
+// every plan.
 //
-// Getting it wrong is not a failed apply, it is a silent one: an unrecognised
-// 404 fails a read instead of dropping the router from state, and a router
-// deleted outside Terraform then blocks every plan.
-//
-// The bodies below are copied from the live API rather than guessed — note
-// that the message ends without a full stop.
-//
-// The test drives the real SDK against a server answering with the real body,
-// rather than assembling an error by hand, so it covers the whole path a live
-// 404 takes: the response check, the reduction of the body to a message, and
-// the classification.
+// The bodies are copied from the live API, and the test drives the real SDK
+// against them so it covers the whole path a 404 takes.
 func TestRouterNotFoundIsClassified(t *testing.T) {
 	const id = "00000000-0000-0000-0000-000000000000"
 

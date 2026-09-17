@@ -16,23 +16,18 @@ import (
 
 // ResourceDtcloudRouterStaticRoute adds one static route to a router.
 //
-// The resource id is `<router-id>:<destination>:<next-hop>`, which is also what
-// a route is: the pair identifies it, and there is nothing else on it to
-// change. Both parts are therefore ForceNew and the resource has no Update.
+// The id is `<router-id>:<destination>:<next-hop>`, which is also what a route
+// is: the pair identifies it and there is nothing else to change, so both parts
+// are ForceNew.
 //
-// Two things about the API decide the shape of this file:
-//
-//   - A route is added by reading the router's whole route list, editing it and
-//     writing it back. Two routes applied to the same router at the same time
-//     both read the list before either write lands, and the second write drops
-//     the first. Terraform applies up to ten resources in parallel, so the
-//     routes of one router are serialised on the router id.
-//
-//   - The request is acknowledged before the route is visible, so create waits
-//     until the route appears in the router's list rather than trusting the
-//     acknowledgement.
+// A route is added by reading the router's whole route list, editing it and
+// writing it back, so the routes of one router are serialised on its id — two
+// applied at once would overwrite each other. The request is acknowledged before
+// the route is visible, so create waits until it appears in the list.
 func ResourceDtcloudRouterStaticRoute() *schema.Resource {
 	return &schema.Resource{
+		Description: "Adds one static route to a router: traffic for a destination is sent to a next hop instead of out of the gateway.",
+
 		CreateContext: resourceDtcloudRouterStaticRouteCreate,
 		ReadContext:   resourceDtcloudRouterStaticRouteRead,
 		DeleteContext: resourceDtcloudRouterStaticRouteDelete,
@@ -48,10 +43,8 @@ func ResourceDtcloudRouterStaticRoute() *schema.Resource {
 				ValidateFunc: validation.NoZeroValues,
 				Description:  "ID of the router the route is added to.",
 			},
-			// The two ends are validated by opposite rules on the API's side: a
-			// destination without a prefix length is rejected, and a next hop
-			// with one is. Both are checked here so the mistake is a plan
-			// error rather than a rejected request halfway through an apply.
+			// The two ends are validated by opposite rules: a destination without a
+			// prefix length is rejected, and a next hop with one is.
 			"destination": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -79,11 +72,9 @@ func staticRouteID(routerID, destination, nextHop string) string {
 	return fmt.Sprintf("%s:%s:%s", routerID, destination, nextHop)
 }
 
-// parseStaticRouteID splits an id back into its three parts.
-//
-// It cuts at the first and the last separator rather than splitting on every
-// one, because the middle part can contain them: a destination may be an IPv6
-// prefix. The router id is a UUID and the next hop is IPv4, so neither end can.
+// parseStaticRouteID splits an id back into its three parts. It cuts at the
+// first and the last separator, because the middle part can contain them: a
+// destination may be an IPv6 prefix.
 func parseStaticRouteID(id string) (routerID, destination, nextHop string, err error) {
 	routerID, rest, found := strings.Cut(id, ":")
 	if !found {
@@ -119,8 +110,7 @@ func resourceDtcloudRouterStaticRouteCreate(ctx context.Context, d *schema.Resou
 	nextHop := d.Get("next_hop").(string)
 
 	// Held across the wait, not just the call: the endpoint rewrites the whole
-	// list, so another route's request must not read the list until this one is
-	// in it.
+	// list, so another route must not read it until this one is in.
 	conf.Lock(routerID)
 	defer conf.Unlock(routerID)
 
@@ -155,8 +145,7 @@ func resourceDtcloudRouterStaticRouteRead(ctx context.Context, d *schema.Resourc
 	}
 
 	if !staticRoutePresent(routes, destination, nextHop) {
-		// Removed outside Terraform, or overwritten by another write to the
-		// router's route list.
+		// Removed outside Terraform, or overwritten by another write to the list.
 		d.SetId("")
 		return nil
 	}
@@ -209,18 +198,15 @@ func resourceDtcloudRouterStaticRouteImport(ctx context.Context, d *schema.Resou
 }
 
 // waitForStaticRoute blocks until the route is present on the router, or absent
-// from it when want is false.
-//
-// This is a wait on the value rather than on any status, and it is what turns a
-// write the platform accepted but did not apply into a reported failure instead
-// of silent drift.
+// when want is false. Reading the value back is what turns a write the platform
+// accepted but did not apply into a reported failure instead of silent drift.
 func waitForStaticRoute(ctx context.Context, client *dtgo.Client, routerID, destination, nextHop string, want bool, timeout time.Duration) error {
 	return waitForCondition(ctx, timeout, func() (bool, error) {
 		routes, _, err := client.Router.ListRouterStaticRoutes(ctx, routerID, nil)
 		if err != nil {
 			if dterr.IsNotFound(err) {
-				// A router that is gone carries no routes, which settles the
-				// removal and can never settle an addition.
+				// A router that is gone carries no routes, which settles a removal and can
+				// never settle an addition.
 				return !want, nil
 			}
 			return false, err

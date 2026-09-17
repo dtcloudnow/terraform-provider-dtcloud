@@ -15,21 +15,16 @@ import (
 
 // ResourceDtcloudImage manages a disk image captured from a volume.
 //
-// An image is created by asking a volume to become one — the `osUploadImage`
-// action on POST /openstack/volumes/{id}/actions — and not by uploading a local
-// file. The upload endpoint exists but customer accounts are never granted
-// `upload_image`, so every call to it answers 403 and the path is unusable; a
-// volume is the only source the platform will accept. Build the contents by
-// making a volume (from an image, a snapshot or a machine), then capture it.
+// An image is created by asking a volume to become one, not by uploading a local
+// file: the upload endpoint answers 403 for customer accounts. Build the
+// contents by making a volume, then capture it.
 //
 // In place: name, os_distro, min_disk and visibility. Everything else is
 // ForceNew — nothing replaces the data of an existing image.
 //
-// `visibility = "public"` is refused: publishing needs `publicize_image`, which
-// is not granted either, on this path or on the update one.
-//
-// `protected` is not exposed: it is accepted at create time but cannot be
-// cleared, which would leave the resource impossible to destroy.
+// `visibility = "public"` is refused, and `protected` is not exposed: it is
+// accepted at create time but cannot be cleared, which would leave the resource
+// impossible to destroy.
 func ResourceDtcloudImage() *schema.Resource {
 	s := map[string]*schema.Schema{
 		"name": {
@@ -103,9 +98,7 @@ func ResourceDtcloudImage() *schema.Resource {
 				"needs the `publicize_image` permission, which customer accounts are not " +
 				"granted, and the platform answers 403 on both the capture and the update.",
 		},
-		// uefi is reported back but nothing accepts it: the capture action takes
-		// only a name, a disk format, a container format and a visibility, and the
-		// update endpoint does not carry it either. Read-only.
+		// uefi is reported back but nothing accepts it, on either endpoint.
 		"uefi": {
 			Type:     schema.TypeBool,
 			Computed: true,
@@ -145,17 +138,16 @@ func resourceDtcloudImageCreate(ctx context.Context, d *schema.ResourceData, met
 	name := d.Get("name").(string)
 	volumeID := d.Get("source_volume_id").(string)
 
-	// The platform refuses the capture unless the volume is `available`, and a
-	// capture already running holds it, so a second image off the same volume
-	// fails with "Volume ... status must be available" rather than queueing.
+	// The capture is refused unless the volume is `available`, and one already
+	// running holds it, so a second image off the same volume fails rather than
+	// queueing.
 	if err := waitForVolumeAvailable(ctx, client, volumeID, d.Timeout(schema.TimeoutCreate)); err != nil {
 		return diag.Errorf("Error waiting for volume %q to be available for capture: %s", volumeID, err)
 	}
 
 	// The action reports nothing about what it made: 200, an empty body and no
-	// Location header. The id has to be found by looking at what appeared, so
-	// the ids that already exist are recorded first. Matching on the name alone
-	// would be wrong - image names are not unique on this platform.
+	// Location header. Names are not unique, so the ids that already exist are
+	// recorded first.
 	before, err := imageIDs(ctx, client)
 	if err != nil {
 		return diag.Errorf("Error listing images before capturing volume %q: %s", volumeID, err)
@@ -185,10 +177,8 @@ func resourceDtcloudImageCreate(ctx context.Context, d *schema.ResourceData, met
 		return diag.Errorf("Error waiting for image %q to become active: %s", id, err)
 	}
 
-	// os_distro and min_disk are not arguments of the capture: it inherits the
-	// distribution from the volume and sizes min_disk to the volume. Anything
-	// the configuration asked for is applied afterwards, through the same
-	// endpoint an update uses.
+	// The capture inherits the distribution and min_disk from the volume, so
+	// anything the configuration asked for is applied afterwards.
 	if diags := applyImageOverrides(ctx, d, client); diags != nil {
 		return diags
 	}
@@ -249,8 +239,8 @@ func resourceDtcloudImageRead(ctx context.Context, d *schema.ResourceData, meta 
 
 	// disk_format and container_format are absent from every read endpoint, so
 	// they keep whatever the configuration last set. After an import they are
-	// empty, and the first plan wants to replace the image to "fix" that -
-	// see the import scenario under tests/.
+	// empty and the first plan wants to replace the image to "fix" that, which
+	// is why the lifecycle test ignores them on import.
 
 	setImageAttributes(d, details)
 

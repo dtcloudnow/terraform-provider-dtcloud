@@ -13,14 +13,10 @@ import (
 // DataSourceDtcloudRouterInterfaces lists everything attached to a router: the
 // external gateway and the internal interfaces, in one list, as the API returns
 // them.
-//
-// The `id` field means two different things depending on `type`, and there is
-// no way to make it mean one — the endpoint reports a port id for an internal
-// interface and a subnet id for the external gateway. `type` is therefore part
-// of reading this list, not decoration. Only an internal interface's id can be
-// used to detach anything.
 func DataSourceDtcloudRouterInterfaces() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists everything attached to a router: the external gateway and the internal interfaces, in one list.",
+
 		ReadContext: dataSourceDtcloudRouterInterfacesRead,
 		Schema: map[string]*schema.Schema{
 			"router_id": {

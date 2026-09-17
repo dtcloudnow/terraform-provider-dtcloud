@@ -1,0 +1,28 @@
+- en: |-
+    Lists everything attached to a router: the external gateway and the internal interfaces, in one list.
+  tr: |-
+    Bir yönlendiriciye bağlı her şeyi listeler: dış geçit ve iç arayüzler, tek listede.
+- en: |-
+    The list is as the platform returns it, external gateway first, and includes interfaces Terraform does not manage.
+  tr: |-
+    Liste platformun döndürdüğü gibidir, önce dış geçit; ve Terraform'un yönetmediği arayüzleri de içerir.
+- en: |-
+    The port ids dtcloud_router_interface can be imported with. Check `type` first: the endpoint puts a subnet id in `id` for the external gateway.
+  tr: |-
+    dtcloud_router_interface'in içe aktarılabileceği port kimlikleri. Önce `type` alanına bakın: uç nokta, dış geçit için `id` alanına bir alt ağ kimliği koyar.
+- en: |-
+    ID of the router whose interfaces are listed.
+  tr: |-
+    Arayüzleri listelenecek yönlendiricinin kimliği.
+- en: |-
+    The router's interfaces, external gateway first.
+  tr: |-
+    Yönlendiricinin arayüzleri, önce dış geçit.
+- en: |-
+    **`id` means two different things.** The endpoint puts a **port id** there for an internal interface and a **subnet id** for the external gateway, and there is no way to make it mean one. Check `type` first: only an internal interface's id is something `dtcloud_router_interface` can be imported with or detached by.
+  tr: |-
+    **`id` iki farklı şey demek.** Uç nokta, iç arayüz için oraya bir **port kimliği**, dış geçit için bir **alt ağ kimliği** koyar ve bunu tek anlama getirmenin yolu yoktur. Önce `type` alanına bakın: yalnızca bir iç arayüzün kimliği, `dtcloud_router_interface`'in içe aktarılabileceği ya da ayrılabileceği bir şeydir.
+- en: |-
+    **`network_id` and `subnet_id` are not reported for the external gateway.**
+  tr: |-
+    **`network_id` ve `subnet_id` dış geçit için bildirilmez.**

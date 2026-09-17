@@ -1,0 +1,36 @@
+- en: |-
+    Lists the machines on a network that can be added to a pool as members.
+  tr: |-
+    Bir ağdaki, havuza üye olarak eklenebilecek makineleri listeler.
+- en: |-
+    This is the lookup the web console offers when you pick members, and it is what makes a `for_each` member set possible without pasting ids.
+  tr: |-
+    Bu, üye seçerken web konsolunun sunduğu aramadır ve kimlik yapıştırmadan `for_each` ile üye kümesi kurmayı mümkün kılan şeydir.
+- en: |-
+    The machines on a network that can be added to a pool. This is the lookup the web console offers when you pick members, and it is what makes a `for_each` member set possible.
+  tr: |-
+    Bir ağdaki, havuza eklenebilecek makineler. Bu, üye seçerken web konsolunun sunduğu aramadır ve `for_each` ile üye kümesi kurmayı mümkün kılar.
+- en: |-
+    A machine can hold several addresses on one network, so `ip_addresses` is a list.
+  tr: |-
+    Bir makine tek bir ağda birden çok adres tutabilir, bu yüzden `ip_addresses` bir listedir.
+- en: |-
+    Network to look for candidate members on.
+  tr: |-
+    Aday üyelerin aranacağı ağ.
+- en: |-
+    When set, VMs already in this pool are left out of the result.
+  tr: |-
+    Verildiğinde, bu havuzda hâlihazırda bulunan makineler sonuçtan çıkarılır.
+- en: |-
+    VMs attached to the network.
+  tr: |-
+    Ağa bağlı makineler.
+- en: |-
+    **`ip_addresses` is a list, not a single field.** The platform builds it from every port the machine holds on that network, and a machine with three addresses on one network is ordinary. `ip_address` is the first of them; name the one you want in `dtcloud_lb_member.address`.
+  tr: |-
+    **`ip_addresses` tek bir alan değil, listedir.** Platform bunu makinenin o ağda tuttuğu her porttan oluşturur ve bir makinenin tek ağda üç adresi olması olağandır. `ip_address` bunların ilkidir; istediğinizi `dtcloud_lb_member.address` içinde adlandırın.
+- en: |-
+    **`pool_id` filters out machines already in that pool**, which is what keeps a `for_each` set from proposing members that exist.
+  tr: |-
+    **`pool_id`, o havuzda zaten bulunan makineleri eler**; `for_each` kümesinin var olan üyeleri yeniden önermesini bu engeller.
