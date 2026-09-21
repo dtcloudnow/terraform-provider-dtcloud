@@ -35,7 +35,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		accessKey  = fs.String("access-key", "", "API access key. Prompted for when omitted.")
 		secretKey  = fs.String("secret-key", "", "API secret key. Prompted for when omitted.")
 		regionID   = fs.String("region-id", "", "Region id, sent as serverId on every call. Prompted for when omitted.")
-		endpoint   = fs.String("api-url", "", "Base URL of the API. Optional; the SDK's default is used when empty, and whichever is used is written to the file.")
+		endpoint   = fs.String("api-url", "", "Base URL of the API, ending in /api/v1. Left empty the SDK's default is used, which is production -- pass this for any other environment. Whichever is used is written to the file.")
 		profile    = fs.String("profile", "", "Write these settings as a named profile instead of the single-account form.")
 		configFile = fs.String("config-file", "", "Where to write. Defaults to the provider's own configuration path.")
 		force      = fs.Bool("force", false, "Overwrite an existing file, and save even if the credentials do not verify.")
@@ -106,7 +106,7 @@ Run it with no flags to be prompted, or pass them all to script it.
 	if verifyErr != nil {
 		if !*force {
 			fmt.Fprintf(stderr, "\nThose credentials were rejected: %s\n", verifyErr)
-			fmt.Fprintf(stderr, "Nothing was written. Check them, or pass -force to save anyway.\n")
+			fmt.Fprintf(stderr, "Nothing was written. Check them, or pass -force to save anyway.%s\n", endpointHint(*endpoint))
 			return 1
 		}
 		fmt.Fprintf(stdout, "\nWarning: those credentials were rejected (%s), saving anyway because -force was given.\n", verifyErr)
@@ -226,6 +226,19 @@ func verify(accessKey, secretKey, endpoint, regionID string) (string, error) {
 
 	_, _, err = client.SecurityGroup.ListSecurityGroups(context.Background(), nil)
 	return used, err
+}
+
+// endpointHint turns a rejected key into the question worth asking first. The
+// SDK's default endpoint is production, so credentials for anywhere else are
+// rejected as invalid when -api-url was left out -- which reads as a bad key
+// rather than as the wrong environment.
+func endpointHint(endpoint string) string {
+	if endpoint != "" {
+		return ""
+	}
+	return "\n\nNo -api-url was given, so they were checked against the SDK's default endpoint,\n" +
+		"which is production. Credentials for another environment are rejected there.\n" +
+		"Pass -api-url with that environment's base URL and try again."
 }
 
 // write puts the file in place, owner-readable and nothing else: created 0600

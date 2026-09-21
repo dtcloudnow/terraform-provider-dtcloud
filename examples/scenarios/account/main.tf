@@ -6,10 +6,14 @@ terraform {
   }
 }
 
-# Credentials and region come from the environment:
+# Credentials, region and endpoint come from the environment. `api_endpoint` is
+# required: the provider will not guess which environment to build in.
 #   export DTCLOUD_ACCESS_KEY=...
 #   export DTCLOUD_SECRET_KEY=...
-#   export DTCLOUD_REGION_ID=1
+#   export DTCLOUD_API_URL=<your DT Cloud API base URL, ending in /api/v1>
+#   export DTCLOUD_REGION_ID=<region/server id>
+#
+# Or run `terraform-provider-dtcloud configure` once and drop them all.
 provider "dtcloud" {}
 
 # Everything here is read-only. Running `apply` on this creates nothing —
@@ -71,7 +75,7 @@ output "storage_usage" {
   ]
 }
 
-# The full OpenStack quota table. Index it by name.
+# The full quota table. Index it by name.
 output "instance_limit" {
   value = data.dtcloud_project_limits.current.quotas["instances"]
 }

@@ -1,0 +1,28 @@
+- en: |-
+    Lists the load balancer sizes available in the region, each name offered twice -- once without high availability and once with it.
+  tr: |-
+    Bölgede kullanılabilen yük dengeleyici boyutlarını listeler; her ad iki kez sunulur — biri yüksek erişilebilirliksiz, diğeri yüksek erişilebilirlikli.
+- en: |-
+    Each size is offered twice: once with high availability and once without. That flag is how HA is chosen -- there is no separate switch on the load balancer.
+  tr: |-
+    Her boyut iki kez sunulur: biri yüksek erişilebilirlikli, diğeri değil. Yüksek erişilebilirlik bu bayrakla seçilir — yük dengeleyicide ayrı bir anahtar yoktur.
+- en: |-
+    Only return flavors with this high-availability setting. Names repeat across the two settings, so combine this with name to identify one flavor.
+  tr: |-
+    Yalnızca bu yüksek erişilebilirlik ayarına sahip boyutları döndürür. Adlar iki ayar arasında yinelendiği için tek bir boyutu belirlemek üzere bunu `name` ile birlikte kullanın.
+- en: |-
+    Only return flavors whose name matches exactly. Applied here, not by the API.
+  tr: |-
+    Yalnızca adı birebir eşleşen boyutları döndürür. Süzme API'de değil burada uygulanır.
+- en: |-
+    **Every name is offered twice**, once with `ha = false` and once with `ha = true`, and the two are different flavors with different ids. That flag is how high availability is chosen: there is no separate switch on `dtcloud_lb`. Filter on `name` and `ha` together, or the match is ambiguous.
+  tr: |-
+    **Her ad iki kez sunulur**, biri `ha = false` diğeri `ha = true` ile; ikisi farklı kimliklere sahip farklı boyutlardır. Yüksek erişilebilirlik bu bayrakla seçilir: `dtcloud_lb` üzerinde ayrı bir anahtar yoktur. `name` ve `ha` ile birlikte süzün, yoksa eşleşme belirsiz kalır.
+- en: |-
+    **`name` and `ha` filter in the provider, not the API.** The endpoint takes no parameters, so the full catalogue is fetched either way.
+  tr: |-
+    **`name` ve `ha` süzmesi API'de değil sağlayıcıda yapılır.** Uç nokta parametre almaz, bu yüzden katalog her hâlükârda tümüyle çekilir.
+- en: |-
+    **Read-only.** Flavors are defined by the operator; there is no resource here.
+  tr: |-
+    **Salt okunur.** Boyutlar işletmeci tarafından tanımlanır; burada bir kaynak yoktur.

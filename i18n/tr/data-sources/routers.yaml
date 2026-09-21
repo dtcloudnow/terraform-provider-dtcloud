@@ -1,0 +1,32 @@
+- en: |-
+    Lists every router visible to the caller.
+  tr: |-
+    Çağıranın görebildiği tüm yönlendiricileri listeler.
+- en: |-
+    enable_snat also reads false on a router with no gateway at all, so is_external is what tells the two apart.
+  tr: |-
+    enable_snat, hiç geçidi olmayan bir yönlendiricide de false okunur; ikisini ayıran şey is_external'dır.
+- en: |-
+    Only return routers with this exact name. Applied by the provider.
+  tr: |-
+    Yalnızca adı birebir eşleşen yönlendiricileri döndürür. Sağlayıcı tarafından uygulanır.
+- en: |-
+    Only return routers in this status, e.g. `ACTIVE`. Applied by the provider.
+  tr: |-
+    Yalnızca bu durumdaki yönlendiricileri döndürür; örneğin `ACTIVE`. Sağlayıcı tarafından uygulanır.
+- en: |-
+    The routers that matched, in the order the platform returned them.
+  tr: |-
+    Eşleşen yönlendiriciler, platformun döndürdüğü sırayla.
+- en: |-
+    **Both filters are applied by the provider**, after the full list has been fetched, because the endpoint takes no query parameters.
+  tr: |-
+    **İki süzgeç de sağlayıcı tarafından uygulanır**, liste tümüyle çekildikten sonra; çünkü uç nokta sorgu parametresi almaz.
+- en: |-
+    **`enable_snat` reads `false` for a router with no gateway at all**, so on its own it does not tell "SNAT off" from "no gateway". `is_external` does.
+  tr: |-
+    **`enable_snat`, hiç geçidi olmayan bir yönlendiricide `false` okunur**; bu yüzden tek başına "SNAT kapalı" ile "geçit yok" durumlarını ayırmaz. `is_external` ayırır.
+- en: |-
+    **The external network is a name here and an id on `dtcloud_router`.** This endpoint is not given the id. If you need it -- to build a matching `dtcloud_router`, for instance -- look the router up by id with `dtcloud_router`, or look the name up in `dtcloud_networks`.
+  tr: |-
+    **Dış ağ burada bir ad, `dtcloud_router`'da ise bir kimliktir.** Bu uç noktaya kimlik verilmez. Kimliğe ihtiyacınız varsa — örneğin eşleşen bir `dtcloud_router` kurmak için — yönlendiriciyi `dtcloud_router` ile kimliğine göre arayın ya da adı `dtcloud_networks` içinde arayın.

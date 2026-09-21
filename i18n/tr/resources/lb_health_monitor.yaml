@@ -1,0 +1,80 @@
+- en: |-
+    Manages the health check attached to a pool, which decides whether a member still receives traffic.
+  tr: |-
+    Bir havuza bağlı, üyenin trafik almayı sürdürüp sürdürmeyeceğine karar veren sağlık denetimini yönetir.
+- en: |-
+    A pool can carry only one monitor; a second one is refused.
+  tr: |-
+    Bir havuz yalnızca tek bir denetim taşıyabilir; ikincisi reddedilir.
+- en: |-
+    Consecutive successes before a member counts as healthy (1-10).
+  tr: |-
+    Bir üyenin sağlıklı sayılması için gereken ardışık başarı sayısı (1-10).
+- en: |-
+    Seconds between probes (5-300).
+  tr: |-
+    Yoklamalar arasındaki saniye (5-300).
+- en: |-
+    ID of the load balancer.
+  tr: |-
+    Yük dengeleyicinin kimliği.
+- en: |-
+    ID of the pool to monitor. A pool can have only one monitor.
+  tr: |-
+    İzlenecek havuzun kimliği. Bir havuzun yalnızca tek bir denetimi olabilir.
+- en: |-
+    Seconds to wait for a probe response (5-60).
+  tr: |-
+    Yoklama yanıtı için beklenecek saniye (5-60).
+- en: |-
+    Probe type. One of: HTTP, HTTPS, TCP, PING.
+  tr: |-
+    Yoklama türü. Şunlardan biri: HTTP, HTTPS, TCP, PING.
+- en: |-
+    Consecutive failures before a member counts as unhealthy (1-10).
+  tr: |-
+    Bir üyenin sağlıksız sayılması için gereken ardışık başarısızlık sayısı (1-10).
+- en: |-
+    Path requested by HTTP and HTTPS probes, e.g. /healthz.
+  tr: |-
+    HTTP ve HTTPS yoklamalarının istediği yol; örneğin /healthz.
+- en: |-
+    Response codes treated as healthy.
+  tr: |-
+    Sağlıklı sayılan yanıt kodları.
+- en: |-
+    ID of the monitor on its own, without the load balancer prefix.
+  tr: |-
+    Denetimin yük dengeleyici öneki olmadan kendi kimliği.
+- en: |-
+    HTTP method used by the probe.
+  tr: |-
+    Yoklamanın kullandığı HTTP yöntemi.
+- en: |-
+    Name assigned by the platform.
+  tr: |-
+    Platformun atadığı ad.
+- en: |-
+    Operating status.
+  tr: |-
+    Çalışma durumu.
+- en: |-
+    Provisioning status.
+  tr: |-
+    Sağlama durumu.
+- en: |-
+    **A pool can carry only one monitor.** Creating a second one for the same pool is refused by the platform.
+  tr: |-
+    **Bir havuz yalnızca tek bir denetim taşıyabilir.** Aynı havuz için ikincisini oluşturmak platform tarafından reddedilir.
+- en: |-
+    **`type` and `pool_id` are fixed at creation.** The timings, the thresholds and `url_path` change in place.
+  tr: |-
+    **`type` ve `pool_id` oluşturma anında sabitlenir.** Süreler, eşikler ve `url_path` yerinde değişir.
+- en: |-
+    **`url_path` and `expected_codes` apply to HTTP and HTTPS probes only.** A `TCP` or `PING` monitor ignores them.
+  tr: |-
+    **`url_path` ve `expected_codes` yalnızca HTTP ve HTTPS yoklamaları için geçerlidir.** `TCP` veya `PING` denetimi bunları yok sayar.
+- en: |-
+    `create`, `update` and `delete` each default to 15 minutes.
+  tr: |-
+    `create`, `update` ve `delete` varsayılan olarak 15'er dakikadır.

@@ -23,6 +23,8 @@ import (
 // the provider after the list is fetched.
 func DataSourceDtcloudRouters() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists every router visible to the caller.",
+
 		ReadContext: dataSourceDtcloudRoutersRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

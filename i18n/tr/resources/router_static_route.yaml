@@ -1,0 +1,52 @@
+- en: |-
+    Adds one static route to a router: traffic for a destination is sent to a next hop instead of out of the gateway.
+  tr: |-
+    Bir yönlendiriciye tek bir statik rota ekler: bir hedefe giden trafik, geçitten çıkmak yerine belirtilen sonraki adrese gönderilir.
+- en: |-
+    The interface the next hop sits behind cannot be detached while this route exists, and nothing in the API reports that dependency. Say it here.
+  tr: |-
+    Sonraki adresin arkasında bulunduğu arayüz, bu rota var olduğu sürece ayrılamaz ve API bu bağımlılığı bildirmez. Burada belirtin.
+- en: |-
+    Several routes, one resource per entry.
+  tr: |-
+    Birden çok rota, girdi başına bir kaynak.
+- en: |-
+    **There is nothing to change in place.** A route *is* its destination and next hop, so changing either is a different route. Both ends are checked during `terraform plan`, so a malformed one is an error before anything is sent.
+  tr: |-
+    **Yerinde değiştirilecek bir şey yok.** Bir rota, hedefi ve sonraki adresinden ibarettir; bu yüzden ikisinden birini değiştirmek başka bir rotadır. İki uç da `terraform plan` sırasında denetlenir, yani hatalı biçimli olan bir şey gönderilmeden önce hata verir.
+- en: |-
+    Destination network in CIDR notation, for example `192.168.50.0/24`.
+  tr: |-
+    Hedef ağ, CIDR gösteriminde; örneğin `192.168.50.0/24`.
+- en: |-
+    Address traffic for the destination is sent to. IPv4, without a prefix length.
+  tr: |-
+    Hedefe giden trafiğin gönderileceği adres. IPv4 ve önek uzunluğu olmadan.
+- en: |-
+    ID of the router the route is added to.
+  tr: |-
+    Rotanın ekleneceği yönlendiricinin kimliği.
+- en: |-
+    **Routes on one router are applied one at a time.** The platform applies a route by rewriting the router's *entire* route list, so two routes written at the same moment both read the list as it was before either, and the second write drops the first. The provider serialises the routes of a single router, which means a router with many routes takes proportionally longer to apply; routes on different routers still go in parallel. What it cannot protect you from is something else writing to the same router at the same time -- another run, or the web console.
+  tr: |-
+    **Bir yönlendiricinin rotaları teker teker uygulanır.** Platform bir rotayı, yönlendiricinin *tüm* rota listesini yeniden yazarak uygular; bu yüzden aynı anda yazılan iki rota, listeyi ikisinden de önceki hâliyle okur ve ikinci yazma birincisini düşürür. Sağlayıcı tek bir yönlendiricinin rotalarını sıraya sokar; bu da çok rotalı bir yönlendiricinin orantılı olarak daha uzun sürmesi demektir. Farklı yönlendiricilerdeki rotalar yine paralel gider. Koruyamadığı şey, aynı yönlendiriciye aynı anda başka bir şeyin yazmasıdır — başka bir koşu ya da web konsolu.
+- en: |-
+    **A route removed elsewhere comes back.** The next refresh drops it from state and the next apply adds it again. That is also the provider's answer to the overwrite above: converge again.
+  tr: |-
+    **Başka yerde kaldırılan bir rota geri gelir.** Bir sonraki yenileme onu state'ten düşürür, bir sonraki apply yeniden ekler. Bu aynı zamanda sağlayıcının yukarıdaki üzerine yazma sorununa cevabıdır: yeniden yakınsa.
+- en: |-
+    **A route pins the interface it points through.** If `next_hop` sits on a network attached with `dtcloud_router_interface`, that interface cannot be detached while the route exists, and Terraform cannot work that out on its own. Say it with `depends_on`.
+  tr: |-
+    **Bir rota, üzerinden geçtiği arayüzü sabitler.** `next_hop`, `dtcloud_router_interface` ile bağlanmış bir ağdaysa, rota var olduğu sürece o arayüz ayrılamaz ve Terraform bunu kendi başına çıkaramaz. `depends_on` ile belirtin.
+- en: |-
+    **Routes are not a list on the router.** Adding one does not rewrite the router resource, and a route added outside Terraform is not silently deleted by the next apply. To see all of them, managed or not, read `dtcloud_router_static_routes`.
+  tr: |-
+    **Rotalar yönlendiricide bir liste değildir.** Bir rota eklemek yönlendirici kaynağını yeniden yazmaz ve Terraform dışında eklenen bir rota bir sonraki apply ile sessizce silinmez. Yönetilsin yönetilmesin hepsini görmek için `dtcloud_router_static_routes` okuyun.
+- en: |-
+    `create` and `delete` each default to 10 minutes. Create does not return until the route is actually listed on the router, and delete not until it has gone: reading the value back is the only honest confirmation available, because the platform acknowledges these writes before applying them.
+  tr: |-
+    `create` ve `delete` varsayılan olarak 10'ar dakikadır. Oluşturma, rota gerçekten yönlendiricide listelenene kadar dönmez; silme de rota gidene kadar. Değeri geri okumak buradaki tek dürüst doğrulamadır, çünkü platform bu yazmaları uygulamadan önce onaylar.
+- en: |-
+    Everything round-trips -- the id carries the whole resource.
+  tr: |-
+    Her şey geri gelir — kimlik kaynağın tamamını taşır.

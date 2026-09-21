@@ -43,8 +43,8 @@ data "dtcloud_image" "by_id" {
 - `min_disk` (Number) Smallest volume, in GB, a machine built from this image needs. `0` when the platform reports none.
 - `os_distro` (String) Distribution the image carries.
 - `os_type` (String) `linux` or `windows`, when the platform reports it. Frequently empty here: the details endpoint passes the value straight through, while the list endpoint behind `dtcloud_images` guesses it from `os_distro` when it is missing.
-- `size` (String) Size of the uploaded data, as the platform formats it — `1.5 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
-- `status` (String) Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the upload failed.
+- `size` (String) Size of the captured data, as the platform formats it — `1.2 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
+- `status` (String) Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the capture failed.
 - `type` (String) How the platform categorises the image: `ISO` or `Template (VM)`. This is not `disk_format` — it is derived from it, and the two are not interchangeable.
 - `uefi` (Boolean) Whether the image boots with UEFI firmware rather than BIOS.
 - `visibility` (String) Who can see the image: `public`, `private`, `shared` or `community`.

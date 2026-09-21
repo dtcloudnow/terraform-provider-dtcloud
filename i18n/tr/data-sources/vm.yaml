@@ -55,9 +55,9 @@
   tr: |-
     Güncel güç/hazırlama durumu, örn. ACTIVE, SHUTOFF, ERROR.
 - en: |-
-    In-flight OpenStack task, empty when the VM is settled.
+    In-flight platform task, empty when the VM is settled.
   tr: |-
-    Süren OpenStack görevi; sanal makine kararlı durumdaysa boş.
+    Süren platform görevi; sanal makine kararlı durumdaysa boş.
 - en: |-
     Number of virtual CPUs.
   tr: |-

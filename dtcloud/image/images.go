@@ -1,16 +1,12 @@
 // Package image implements the dtcloud_image resource and its data sources.
 //
-// An image is made by capturing a volume — the `osUploadImage` action on the
-// volume — not by uploading a file. The file-upload endpoint exists but
-// customer accounts are never granted `upload_image` and it answers 403, so a
-// volume is the only source the platform accepts.
+// An image is made by capturing a volume, not by uploading a file: the upload
+// endpoint answers 403 for customer accounts, so a volume is the only source.
 //
-// Four API behaviours shape the resource: the capture answers 200 with an empty
-// body, so the new image's id has to be found by diffing the image list; the
-// volume must be `available` and is held for the duration, so captures of one
-// volume cannot overlap; only name, os_distro, min_disk and visibility change in
-// place, and os_distro and min_disk are inherited from the volume unless set;
-// and sizes are reported as strings, so min_disk has to be parsed.
+// Four API behaviours shape it: the capture answers 200 with an empty body, so
+// the new id is found by diffing the image list; the volume must be `available`
+// and is held for the duration; only name, os_distro, min_disk and visibility
+// change in place; and sizes are reported as strings.
 package image
 
 import (
@@ -61,12 +57,8 @@ func imageIDs(ctx context.Context, client *dtgo.Client) (map[string]bool, error)
 }
 
 // findCapturedImage identifies the image a volume capture just made. The action
-// answers 200 with an empty body and no Location header, so the only way to
-// name what it built is to look for an id that was not there before. Image names
-// are not unique, so the name narrows the search but never decides it on its own.
-//
-// Two matches means something else created an image of the same name at the same
-// moment; binding to either would be a guess, so it is an error instead.
+// reports nothing about it, so the only way to name it is to look for an id that
+// was not there before. Two matches is an error rather than a guess.
 func findCapturedImage(ctx context.Context, client *dtgo.Client, name string, before map[string]bool, timeout time.Duration) (string, error) {
 	var found string
 
@@ -103,9 +95,8 @@ func findCapturedImage(ctx context.Context, client *dtgo.Client, name string, be
 	return found, nil
 }
 
-// waitForVolumeAvailable blocks until the volume can be captured. A volume busy
-// with another capture reports something other than `available`, and the action
-// is refused outright rather than queued.
+// waitForVolumeAvailable blocks until the volume can be captured. One busy with
+// another capture is refused outright rather than queued.
 func waitForVolumeAvailable(ctx context.Context, client *dtgo.Client, volumeID string, timeout time.Duration) error {
 	return retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		details, _, err := client.Volume.GetVolumeDetails(ctx, volumeID, nil)

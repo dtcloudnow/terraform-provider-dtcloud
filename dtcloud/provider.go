@@ -8,6 +8,7 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/loadbalancer"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
@@ -101,6 +102,11 @@ func Provider() *schema.Provider {
 			"dtcloud_router_interfaces":    router.DataSourceDtcloudRouterInterfaces(),
 			"dtcloud_router_static_routes": router.DataSourceDtcloudRouterStaticRoutes(),
 
+			"dtcloud_lb":         loadbalancer.DataSourceDtcloudLB(),
+			"dtcloud_lbs":        loadbalancer.DataSourceDtcloudLBs(),
+			"dtcloud_lb_vms":     loadbalancer.DataSourceDtcloudLBVms(),
+			"dtcloud_lb_flavors": flavor.DataSourceDtcloudLBFlavors(),
+
 			"dtcloud_image":          image.DataSourceDtcloudImage(),
 			"dtcloud_images":         image.DataSourceDtcloudImages(),
 			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
@@ -131,6 +137,13 @@ func Provider() *schema.Provider {
 			"dtcloud_router":              router.ResourceDtcloudRouter(),
 			"dtcloud_router_interface":    router.ResourceDtcloudRouterInterface(),
 			"dtcloud_router_static_route": router.ResourceDtcloudRouterStaticRoute(),
+
+			"dtcloud_lb":                loadbalancer.ResourceDtcloudLB(),
+			"dtcloud_lb_listener":       loadbalancer.ResourceDtcloudLBListener(),
+			"dtcloud_lb_pool":           loadbalancer.ResourceDtcloudLBPool(),
+			"dtcloud_lb_member":         loadbalancer.ResourceDtcloudLBMember(),
+			"dtcloud_lb_health_monitor": loadbalancer.ResourceDtcloudLBHealthMonitor(),
+			"dtcloud_lb_balancing_pool": loadbalancer.ResourceDtcloudLBBalancingPool(),
 
 			"dtcloud_image": image.ResourceDtcloudImage(),
 		},

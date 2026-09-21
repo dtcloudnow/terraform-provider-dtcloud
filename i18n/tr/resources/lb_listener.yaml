@@ -1,0 +1,108 @@
+- en: |-
+    Manages a listener on a load balancer: the protocol and port it accepts connections on.
+  tr: |-
+    Bir yük dengeleyici üzerindeki dinleyiciyi yönetir: bağlantıları kabul ettiği protokol ve port.
+- en: |-
+    Only these addresses may reach the listener.
+  tr: |-
+    Dinleyiciye yalnızca bu adresler ulaşabilir.
+- en: |-
+    Milliseconds here. dtcloud_lb_balancing_pool takes the same three in seconds.
+  tr: |-
+    Burada milisaniye. dtcloud_lb_balancing_pool aynı üçünü saniye olarak alır.
+- en: |-
+    ID of the load balancer this listener belongs to.
+  tr: |-
+    Bu dinleyicinin ait olduğu yük dengeleyicinin kimliği.
+- en: |-
+    Front-end protocol. One of: HTTP, HTTPS, TCP, UDP.
+  tr: |-
+    Ön uç protokolü. Şunlardan biri: HTTP, HTTPS, TCP, UDP.
+- en: |-
+    Front-end port the listener accepts traffic on.
+  tr: |-
+    Dinleyicinin trafiği kabul ettiği ön uç portu.
+- en: |-
+    Whether the listener is administratively up.
+  tr: |-
+    Dinleyicinin yönetimsel olarak açık olup olmadığı.
+- en: |-
+    CIDRs permitted to reach this listener.
+  tr: |-
+    Bu dinleyiciye ulaşmasına izin verilen CIDR'ler.
+- en: |-
+    Maximum number of concurrent connections.
+  tr: |-
+    Eşzamanlı bağlantı üst sınırı.
+- en: |-
+    Pool that receives traffic when no other rule matches.
+  tr: |-
+    Başka bir kural eşleşmediğinde trafiği alan havuz.
+- en: |-
+    Free-text description.
+  tr: |-
+    Serbest metin açıklama.
+- en: |-
+    Headers the listener injects into requests forwarded to members.
+  tr: |-
+    Dinleyicinin üyelere ilettiği isteklere eklediği başlıklar.
+- en: |-
+    Name of the listener.
+  tr: |-
+    Dinleyicinin adı.
+- en: |-
+    Client inactivity timeout in milliseconds.
+  tr: |-
+    İstemci hareketsizlik zaman aşımı, milisaniye.
+- en: |-
+    Member connect timeout in milliseconds.
+  tr: |-
+    Üyeye bağlanma zaman aşımı, milisaniye.
+- en: |-
+    Member inactivity timeout in milliseconds.
+  tr: |-
+    Üye hareketsizlik zaman aşımı, milisaniye.
+- en: |-
+    Creation timestamp as reported by the API.
+  tr: |-
+    API'nin bildirdiği oluşturulma zamanı.
+- en: |-
+    ID of the listener on its own, without the load balancer prefix.
+  tr: |-
+    Dinleyicinin yük dengeleyici öneki olmadan kendi kimliği.
+- en: |-
+    Operating status.
+  tr: |-
+    Çalışma durumu.
+- en: |-
+    Provisioning status.
+  tr: |-
+    Sağlama durumu.
+- en: |-
+    Last-update timestamp as reported by the API.
+  tr: |-
+    API'nin bildirdiği son güncelleme zamanı.
+- en: |-
+    **`protocol` and `protocol_port` are fixed at creation.** Everything else changes in place. The create call accepts only the protocol, the port, a name and a description, so the provider applies the rest in a second call right after.
+  tr: |-
+    **`protocol` ve `protocol_port` oluşturma anında sabitlenir.** Geri kalan her şey yerinde değişir. Oluşturma çağrısı yalnızca protokolü, portu, bir adı ve bir açıklamayı kabul eder; sağlayıcı geri kalanını hemen ardından ikinci bir çağrıyla uygular.
+- en: |-
+    **The three timeouts are milliseconds here.** `dtcloud_lb_balancing_pool` takes the same three in seconds. The asymmetry is the API's: that endpoint converts, this one does not.
+  tr: |-
+    **Üç zaman aşımı burada milisaniyedir.** `dtcloud_lb_balancing_pool` aynı üçünü saniye olarak alır. Bu asimetri API'ye aittir: o uç nokta çevirir, bu çevirmez.
+- en: |-
+    **Left unset, the platform fills the timeouts and the connection limit in** and reports what it chose. They are Computed for that reason, so an omitted value does not read as a difference.
+  tr: |-
+    **Verilmediğinde zaman aşımlarını ve bağlantı sınırını platform doldurur** ve seçtiğini bildirir. Computed olmalarının nedeni budur; böylece verilmemiş bir değer fark olarak okunmaz.
+- en: |-
+    **`allowed_cidrs` is answered as `null` when empty.** Only a non-empty list is written to state, so omitting the argument and the platform reporting nothing agree.
+  tr: |-
+    **`allowed_cidrs` boş olduğunda `null` olarak yanıtlanır.** State'e yalnızca boş olmayan bir liste yazılır; böylece argümanı vermemekle platformun hiçbir şey bildirmemesi örtüşür.
+- en: |-
+    `create`, `update` and `delete` each default to 15 minutes. Every call waits for the parent load balancer to settle first.
+  tr: |-
+    `create`, `update` ve `delete` varsayılan olarak 15'er dakikadır. Her çağrı önce üst yük dengeleyicinin kararlı duruma gelmesini bekler.
+- en: |-
+    The id carries the load balancer, because every listener call is scoped to it and the listener id alone cannot address one.
+  tr: |-
+    Kimlik yük dengeleyiciyi de taşır; çünkü her dinleyici çağrısı ona göre kapsanır ve tek başına dinleyici kimliği bir dinleyiciyi adresleyemez.

@@ -18,7 +18,7 @@ description: |-
 
 {{ .Description | trimspace }}
 
-This is the full OpenStack quota table, covering compute, network, volume and VPN limits. It reports
+This is the full quota table, covering compute, network, volume and VPN limits. It reports
 allowances only; `dtcloud_project_quotas` reports a few headline figures with current usage beside
 them.
 
@@ -41,6 +41,6 @@ locals {
 }
 ```
 
-* **The keys are OpenStack's own**, such as `cores`, `instances` and `security_group_rules`, and the
+* **The keys are the platform's own**, such as `cores`, `instances` and `security_group_rules`, and the
   platform can add more without warning. That is why this is a map rather than a fixed set of
   attributes: a new quota appears without a provider release. `names` lists what is there.

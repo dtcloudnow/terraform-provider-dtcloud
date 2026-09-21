@@ -1,5 +1,4 @@
-// Package limit exposes a project's raw OpenStack quota table.
-//
+// Package limit exposes a project's raw quota table.
 // Read-only, and the only endpoint the service has.
 package limit
 
@@ -37,7 +36,7 @@ func DataSourceDtcloudProjectLimits() *schema.Resource {
 				Type:     schema.TypeMap,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
-				Description: "Every quota the platform reports, keyed by its OpenStack name. " +
+				Description: "Every quota the platform reports, keyed by the name the platform uses. " +
 					"Values are numbers as text, or the word \"Unlimited\" where the platform " +
 					"reports no limit. Terraform maps hold one type, and the API mixes numbers " +
 					"with that word, so everything is rendered as text — use `tonumber()` when " +

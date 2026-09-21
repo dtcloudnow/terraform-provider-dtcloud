@@ -22,6 +22,48 @@ The provider talks to the DT Cloud API through the [`dt-go`](https://github.com/
 SDK -- the same SDK behind the [`dtctl`](https://docs.dtcloudnow.com/dtctl) command-line tool, so
 both tools see the same API and behave the same way.
 
+## What this provider manages
+
+| Resources | Data sources |
+|-----------|--------------|
+| `dtcloud_ssh_key` | `dtcloud_ssh_key` |
+| `dtcloud_vm` | `dtcloud_ssh_keys` |
+| `dtcloud_vm_volume_attachment` | `dtcloud_vm` |
+| `dtcloud_vm_network_interface` | `dtcloud_vms` |
+| `dtcloud_network` | `dtcloud_vm_history` |
+| `dtcloud_security_group` | `dtcloud_vm_history_entry` |
+| `dtcloud_security_group_rule` | `dtcloud_network` |
+| `dtcloud_elastic_ip` | `dtcloud_networks` |
+| `dtcloud_volume` | `dtcloud_security_group` |
+| `dtcloud_snapshot` | `dtcloud_security_groups` |
+| `dtcloud_router` | `dtcloud_my_ip` |
+| `dtcloud_router_interface` | `dtcloud_elastic_ip` |
+| `dtcloud_router_static_route` | `dtcloud_elastic_ips` |
+| `dtcloud_lb` | `dtcloud_volume` |
+| `dtcloud_lb_listener` | `dtcloud_volumes` |
+| `dtcloud_lb_pool` | `dtcloud_volume_snapshots` |
+| `dtcloud_lb_member` | `dtcloud_storage_policies` |
+| `dtcloud_lb_health_monitor` | `dtcloud_snapshot` |
+| `dtcloud_lb_balancing_pool` | `dtcloud_snapshots` |
+| `dtcloud_image` | `dtcloud_router` |
+|  | `dtcloud_routers` |
+|  | `dtcloud_router_interfaces` |
+|  | `dtcloud_router_static_routes` |
+|  | `dtcloud_lb` |
+|  | `dtcloud_lbs` |
+|  | `dtcloud_lb_vms` |
+|  | `dtcloud_lb_flavors` |
+|  | `dtcloud_image` |
+|  | `dtcloud_images` |
+|  | `dtcloud_image_versions` |
+|  | `dtcloud_flavors` |
+|  | `dtcloud_regions` |
+|  | `dtcloud_projects` |
+|  | `dtcloud_project_quotas` |
+|  | `dtcloud_project_limits` |
+
+Every page carries its own examples, behaviour notes and import instructions.
+
 ## Example Usage
 
 {{ tffile "examples/provider/provider.tf" }}

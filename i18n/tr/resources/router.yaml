@@ -1,0 +1,96 @@
+- en: |-
+    Manages a virtual router: what gives private networks a way out to the internet, and a way to reach each other.
+  tr: |-
+    Sanal bir yönlendiriciyi yönetir: özel ağlara internete çıkış ve birbirlerine erişim veren şey.
+- en: |-
+    A router always has an external gateway. The platform has no endpoint that creates one without, so `external_network_id` is required rather than optional, and every router consumes one public address from the project's quota.
+  tr: |-
+    Bir yönlendiricinin her zaman bir dış ağ geçidi vardır. Platformda geçitsiz yönlendirici oluşturan bir uç nokta yoktur; bu yüzden `external_network_id` isteğe bağlı değil zorunludur ve her yönlendirici projenin kotasından bir public adres tüketir.
+- en: |-
+    Two things that belong to a router are **not** arguments here, because each has a lifecycle of its own: the private networks attached to it (`dtcloud_router_interface`) and its static routes (`dtcloud_router_static_route`).
+  tr: |-
+    Bir yönlendiriciye ait olan iki şey burada argüman **değildir**, çünkü her birinin kendi yaşam döngüsü vardır: ona bağlanan özel ağlar (`dtcloud_router_interface`) ve statik rotaları (`dtcloud_router_static_route`).
+- en: |-
+    The external network has to be given by id, and nothing on the platform flags which network that is -- ask whoever operates the region, or read the name off an existing router with dtcloud_routers and look it up in dtcloud_networks.
+  tr: |-
+    Dış ağ kimlikle verilmek zorundadır ve platformda hangi ağın dış ağ olduğunu belirten bir işaret yoktur — bölgeyi işleten kişiye sorun ya da var olan bir yönlendiricinin dış ağ adını dtcloud_routers ile okuyup dtcloud_networks içinde arayın.
+- en: |-
+    Give the app network a way out.
+  tr: |-
+    Uygulama ağına çıkış yolu verin.
+- en: |-
+    ID of the external network the router reaches the outside through. Every router has one. Can be changed in place.
+  tr: |-
+    Yönlendiricinin dışarıya eriştiği dış ağın kimliği. Her yönlendiricinin bir tane vardır. Yerinde değiştirilebilir.
+- en: |-
+    Name of the router. Can be changed in place.
+  tr: |-
+    Yönlendiricinin adı. Yerinde değiştirilebilir.
+- en: |-
+    Whether the gateway masquerades traffic from the private networks behind it. Can be changed in place.
+  tr: |-
+    Geçidin, arkasındaki özel ağlardan gelen trafiği maskeleyip maskelemeyeceği. Yerinde değiştirilebilir.
+- en: |-
+    Whether the router is administratively enabled.
+  tr: |-
+    Yönlendiricinin yönetimsel olarak etkin olup olmadığı.
+- en: |-
+    When the router was created, as the platform reports it.
+  tr: |-
+    Platformun bildirdiğine göre yönlendiricinin oluşturulma zamanı.
+- en: |-
+    Description held by the platform. There is no way to set one through this API, so it is reported but not managed.
+  tr: |-
+    Platformun tuttuğu açıklama. Bu API üzerinden açıklama ayarlamanın bir yolu yoktur; bu yüzden bildirilir ama yönetilmez.
+- en: |-
+    Addresses the external network allocated to the gateway. The create endpoint always asks for IPv4 and never accepts a specific address, so these are read-only.
+  tr: |-
+    Dış ağın geçide tahsis ettiği adresler. Oluşturma uç noktası her zaman IPv4 ister ve belirli bir adresi asla kabul etmez; bu yüzden bunlar salt okunurdur.
+- en: |-
+    ID of the project the router belongs to.
+  tr: |-
+    Yönlendiricinin ait olduğu projenin kimliği.
+- en: |-
+    Status reported by the platform. `ACTIVE` is the resting state.
+  tr: |-
+    Platformun bildirdiği durum. Kararlı durum `ACTIVE`'tir.
+- en: |-
+    When the router last changed.
+  tr: |-
+    Yönlendiricinin son değişiklik zamanı.
+- en: |-
+    **The gateway's address is assigned, not requested.** `external_fixed_ip` is read-only: create asks the external network for an address and takes what it is given. For a fixed, known public address in front of a service, use a floating IP rather than the router gateway.
+  tr: |-
+    **Geçidin adresi istenmez, atanır.** `external_fixed_ip` salt okunurdur: oluşturma dış ağdan bir adres ister ve verileni alır. Bir hizmetin önünde sabit ve bilinen bir public adres gerekiyorsa, yönlendirici geçidi yerine kayan IP kullanın.
+- en: |-
+    **Nothing identifies the external network.** The network list carries no flag for it, and a region can hold several `Physical` networks of which only one is routable -- so filtering `dtcloud_networks` by type and taking the first is a guess that will eventually be wrong. Ask whoever operates the region, or read the name off an existing router with `dtcloud_routers` and look that name up in `dtcloud_networks`.
+  tr: |-
+    **Dış ağı belirleyen hiçbir şey yok.** Ağ listesinde bunun için bir işaret yoktur ve bir bölge, yalnızca biri yönlendirilebilir olan birden çok `Physical` ağ barındırabilir — yani `dtcloud_networks`'ü türe göre süzüp ilkini almak, er geç yanlış çıkacak bir tahmindir. Bölgeyi işleten kişiye sorun ya da var olan bir yönlendiricinin dış ağ adını `dtcloud_routers` ile okuyup o adı `dtcloud_networks` içinde arayın.
+- en: |-
+    **A router costs a public address**, plus a router from the router quota and address space on the external network. `dtcloud_project_quotas` shows what is left.
+  tr: |-
+    **Bir yönlendirici bir public adrese mal olur**, ayrıca yönlendirici kotasından bir yönlendiriciye ve dış ağda adres alanına. Kalanı `dtcloud_project_quotas` gösterir.
+- en: |-
+    **A rename and a gateway change are two requests.** The platform takes them through different bodies, so changing both in one apply sends two calls. Nothing about it shows in the plan.
+  tr: |-
+    **Ad değişikliği ile geçit değişikliği iki ayrı istektir.** Platform bunları farklı gövdelerle alır; bu yüzden ikisini tek apply'da değiştirmek iki çağrı gönderir. Bunun planda hiçbir görünürlüğü yoktur.
+- en: |-
+    **Restarting is not exposed.** The platform's restart action answers before doing any work, does it twenty seconds later in the background, and reports neither success nor failure -- there is no handle a resource could hold. It is an event rather than a state, the same reason `dtcloud_vm` has no `reboot` argument.
+  tr: |-
+    **Yeniden başlatma sunulmuyor.** Platformun yeniden başlatma eylemi hiçbir iş yapmadan yanıt verir, işi yirmi saniye sonra arka planda yapar ve ne başarıyı ne başarısızlığı bildirir — bir kaynağın tutabileceği bir tutamak yoktur. Ayrıca bir durum değil bir olaydır; `dtcloud_vm`'in `reboot` argümanının olmamasının nedeni de aynıdır.
+- en: |-
+    **A gateway removed outside Terraform comes back.** `external_network_id` reads empty and the next plan proposes putting it back, which is exactly the difference a plan should show.
+  tr: |-
+    **Terraform dışında kaldırılan bir geçit geri gelir.** `external_network_id` boş okunur ve bir sonraki plan onu geri koymayı önerir; bu da tam olarak bir planın göstermesi gereken farktır.
+- en: |-
+    `create`, `update` and `delete` each default to 10 minutes. Create does not return until the platform reports `ACTIVE`, and destroy not until the router has stopped resolving -- so a dependent resource is never handed a router that cannot yet carry traffic, and a destroy does not leave the public address it held still charged.
+  tr: |-
+    `create`, `update` ve `delete` varsayılan olarak 10'ar dakikadır. Oluşturma, platform `ACTIVE` bildirene kadar dönmez; yok etme de yönlendirici çözümlenmeyi bırakana kadar dönmez — böylece bağımlı bir kaynağa henüz trafik taşıyamayan bir yönlendirici verilmez ve yok etme, tuttuğu public adresi ücretlendirilir hâlde bırakmaz.
+- en: |-
+    **Everything round-trips.** `name`, `external_network_id` and `enable_snat` are all reported, so an import followed by a plan is empty.
+  tr: |-
+    **Her şey geri gelir.** `name`, `external_network_id` ve `enable_snat` bildirilir; bu yüzden içe aktarmanın ardından gelen plan boştur.
+- en: |-
+    Attached interfaces and static routes are **not** imported with the router: import each as its own resource, or read them without managing them through `dtcloud_router_interfaces` and `dtcloud_router_static_routes`.
+  tr: |-
+    Bağlı arayüzler ve statik rotalar yönlendiriciyle birlikte içe **aktarılmaz**: her birini kendi kaynağı olarak içe aktarın ya da `dtcloud_router_interfaces` ve `dtcloud_router_static_routes` ile yönetmeden okuyun.

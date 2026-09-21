@@ -573,6 +573,29 @@ func disruptiveChangeWarnings(d *schema.ResourceData) diag.Diagnostics {
 		})
 	}
 
+	if d.HasChange("enable_hot_plug") {
+		if d.Get("enable_hot_plug").(bool) {
+			warnings = append(warnings, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "Hot plug is on, and the instance can no longer be made smaller while it runs",
+				Detail: "The setting is applied to the running instance and governs later resizes only " +
+					"— this apply did not restart anything. From here a bigger flavor is applied " +
+					"online, but the platform refuses to take vCPU or memory away from a running " +
+					"instance: a smaller flavor fails with \"Resize resources down for active " +
+					"instance is not allowed\". Set enable_hot_plug = false, or state = \"stopped\", " +
+					"in the same apply that shrinks it.",
+			})
+		} else {
+			warnings = append(warnings, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "Hot plug is off, so the next resize will stop and restart the instance",
+				Detail: "Nothing was restarted by this apply. From here on a flavor change stops the " +
+					"instance, applies the new size and returns it to the configured power state, " +
+					"interrupting anything running inside.",
+			})
+		}
+	}
+
 	if grown := grownDevices(d); len(grown) > 0 {
 		warnings = append(warnings, diag.Diagnostic{
 			Severity: diag.Warning,

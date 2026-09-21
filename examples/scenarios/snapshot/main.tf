@@ -6,10 +6,14 @@ terraform {
   }
 }
 
-# Credentials and region come from the environment:
+# Credentials, region and endpoint come from the environment. `api_endpoint` is
+# required: the provider will not guess which environment to build in.
 #   export DTCLOUD_ACCESS_KEY=...
 #   export DTCLOUD_SECRET_KEY=...
-#   export DTCLOUD_REGION_ID=1
+#   export DTCLOUD_API_URL=<your DT Cloud API base URL, ending in /api/v1>
+#   export DTCLOUD_REGION_ID=<region/server id>
+#
+# Or run `terraform-provider-dtcloud configure` once and drop them all.
 provider "dtcloud" {}
 
 variable "storage_policy" {

@@ -1,0 +1,76 @@
+- en: |-
+    Attaches a private network to a router, which is what gives the machines on that network a route to everywhere else.
+  tr: |-
+    Bir özel ağı yönlendiriciye bağlar; o ağdaki makinelere her yere giden bir yol veren şey budur.
+- en: |-
+    With a chosen address rather than one the platform picks. This is also the only path on which port_security_enabled reaches the platform.
+  tr: |-
+    Platformun seçtiği yerine belirlenmiş bir adresle. `port_security_enabled`'ın platforma ulaştığı tek yol da budur.
+- en: |-
+    **Nothing here changes in place.** The platform has an attach endpoint and a detach endpoint and nothing in between, so every argument replaces the attachment.
+  tr: |-
+    **Burada hiçbir şey yerinde değişmez.** Platformda bir bağlama ve bir ayırma uç noktası var, arada bir şey yok; bu yüzden her argüman bağlantıyı yeniden kurar.
+- en: |-
+    ID of the network to attach.
+  tr: |-
+    Bağlanacak ağın kimliği.
+- en: |-
+    ID of the router to attach the network to.
+  tr: |-
+    Ağın bağlanacağı yönlendiricinin kimliği.
+- en: |-
+    Address the interface takes on the network. When omitted, the platform attaches to the network's first subnet and allocates an address from it.
+  tr: |-
+    Arayüzün ağ üzerinde alacağı adres. Verilmediğinde platform ağın ilk alt ağına bağlanır ve oradan bir adres tahsis eder.
+- en: |-
+    Whether port security applies to this interface. It only reaches the platform when `ip_address` is set; attaching without one goes through a path that does not take the setting.
+  tr: |-
+    Bu arayüze port güvenliğinin uygulanıp uygulanmayacağı. Platforma yalnızca `ip_address` verildiğinde ulaşır; adres vermeden bağlamak, bu ayarı almayan bir yoldan gider.
+- en: |-
+    CIDR of the attached network's first subnet.
+  tr: |-
+    Bağlı ağın ilk alt ağının CIDR'i.
+- en: |-
+    Name of the attached network.
+  tr: |-
+    Bağlı ağın adı.
+- en: |-
+    Status of the interface's port.
+  tr: |-
+    Arayüzün portunun durumu.
+- en: |-
+    ID of the subnet the interface's address came from.
+  tr: |-
+    Arayüzün adresinin geldiği alt ağın kimliği.
+- en: |-
+    **Without `ip_address` you land on the network's first subnet.** Not one you name, and not all of them. Networks created by `dtcloud_network` have exactly one subnet, so this only matters on a network built elsewhere with several.
+  tr: |-
+    **`ip_address` vermezseniz ağın ilk alt ağına düşersiniz.** Sizin adlandırdığınıza değil, hepsine de değil. `dtcloud_network` ile oluşturulan ağların tam olarak bir alt ağı vardır; bu yüzden bu, yalnızca başka yerde birden çok alt ağla kurulmuş bir ağda önem taşır.
+- en: |-
+    **`port_security_enabled` applies only when `ip_address` is set.** The two ways of attaching are different operations, not one operation with a field left out: asking for a specific address creates a port and applies port security to it, while letting the platform choose goes down a path that never looks at the setting. It is kept as an argument rather than silently ignored, because it does apply on the other path.
+  tr: |-
+    **`port_security_enabled` yalnızca `ip_address` verildiğinde geçerlidir.** İki bağlama yolu, bir alanı eksik bırakılmış tek bir işlem değil, farklı işlemlerdir: belirli bir adres istemek bir port oluşturur ve ona port güvenliği uygular; platformun seçmesine izin vermek ise bu ayara hiç bakmayan bir yoldan gider. Sessizce yok sayılmak yerine argüman olarak tutulur, çünkü diğer yolda gerçekten geçerlidir.
+- en: |-
+    **Security groups are not offered.** A router interface is created without any and no endpoint adds them afterwards. They belong on the machines behind the router.
+  tr: |-
+    **Güvenlik grupları sunulmuyor.** Bir yönlendirici arayüzü hiç güvenlik grubu olmadan oluşturulur ve sonradan ekleyen bir uç nokta yoktur. Güvenlik grupları yönlendiricinin arkasındaki makinelere aittir.
+- en: |-
+    **A static route through an interface pins it.** The platform refuses to detach an interface while a route's next hop sits on the network behind it, so a router's routes have to be destroyed before its interfaces. Terraform only knows that if the configuration says so -- which route needs which interface is a routing decision the API does not report. Put a `depends_on` on every route that points through an interface you manage, or a destroy can stop with `… cannot be deleted, as it is required by one or more routes`. The same applies to any change that *replaces* the interface, such as setting `ip_address` on one that did not have it.
+  tr: |-
+    **Bir arayüzden geçen statik rota o arayüzü sabitler.** Bir rotanın sonraki adımı arayüzün arkasındaki ağda bulunduğu sürece platform arayüzü ayırmayı reddeder; yani bir yönlendiricinin rotaları arayüzlerinden önce yok edilmelidir. Terraform bunu ancak yapılandırma söylerse bilir — hangi rotanın hangi arayüze ihtiyaç duyduğu, API'nin bildirmediği bir yönlendirme kararıdır. Yönettiğiniz bir arayüzden geçen her rotaya `depends_on` koyun; yoksa bir yok etme `… cannot be deleted, as it is required by one or more routes` ile durabilir. Aynısı, arayüzü *yeniden kuran* her değişiklik için de geçerlidir; örneğin daha önce `ip_address` verilmemiş bir arayüze adres vermek.
+- en: |-
+    **Destroying the router takes its interfaces with it.** Terraform's graph already destroys these first, so this only shows up for something attached outside Terraform.
+  tr: |-
+    **Yönlendiriciyi yok etmek arayüzlerini de götürür.** Terraform'un grafiği bunları zaten önce yok eder; bu yüzden bu yalnızca Terraform dışında bağlanmış bir şey için ortaya çıkar.
+- en: |-
+    `create` and `delete` each default to 10 minutes. Create does not return until the new port appears on the router: the attach endpoint answers with the router rather than the port it made, so the port id -- the only handle detaching has -- is found by watching the router's interface list.
+  tr: |-
+    `create` ve `delete` varsayılan olarak 10'ar dakikadır. Oluşturma, yeni port yönlendiricide görünene kadar dönmez: bağlama uç noktası oluşturduğu portu değil yönlendiriciyi yanıtlar; bu yüzden ayırmanın tek tutamağı olan port kimliği, yönlendiricinin arayüz listesi izlenerek bulunur.
+- en: |-
+    <router-id>:<port-id>. The port id is the `id` of the entry whose `type` is "Internal interface" in dtcloud_router_interfaces.
+  tr: |-
+    <yönlendirici-kimliği>:<port-kimliği>. Port kimliği, `dtcloud_router_interfaces` içinde `type` alanı "Internal interface" olan girdinin `id` değeridir.
+- en: |-
+    `port_security_enabled` is **not** recovered: nothing reports it back, so an import assumes the default, `true`. If the interface was attached with port security off, say so in the configuration before importing -- otherwise the value in state is wrong and nothing will tell you.
+  tr: |-
+    `port_security_enabled` geri **getirilmez**: hiçbir uç nokta bildirmez, bu yüzden içe aktarma varsayılanı — `true` — kabul eder. Arayüz port güvenliği kapalı bağlandıysa, içe aktarmadan önce bunu yapılandırmada belirtin; yoksa state'teki değer yanlış olur ve bunu size kimse söylemez.

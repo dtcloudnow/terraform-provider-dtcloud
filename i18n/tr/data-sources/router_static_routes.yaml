@@ -1,0 +1,24 @@
+- en: |-
+    Lists the static routes on a router, including any added outside Terraform.
+  tr: |-
+    Bir yönlendiricideki statik rotaları listeler; Terraform dışında eklenenler dahil.
+- en: |-
+    Every route on the router, including any added outside Terraform.
+  tr: |-
+    Yönlendiricideki tüm rotalar; Terraform dışında eklenenler dahil.
+- en: |-
+    ID of the router whose static routes are listed.
+  tr: |-
+    Statik rotaları listelenecek yönlendiricinin kimliği.
+- en: |-
+    The router's static routes, in the order the platform holds them.
+  tr: |-
+    Yönlendiricinin statik rotaları, platformun tuttuğu sırayla.
+- en: |-
+    **The endpoint reports the two fields under different names** from the ones used everywhere else in the provider. They are given back here under the names `dtcloud_router_static_route` uses, so the same route is called the same thing throughout.
+  tr: |-
+    **Uç nokta bu iki alanı, sağlayıcının her yerinde kullanılandan farklı adlarla bildirir.** Burada `dtcloud_router_static_route`'un kullandığı adlarla geri verilir; böylece aynı rotaya her yerde aynı ad denir.
+- en: |-
+    **Routes added outside Terraform are listed too**, which is what this data source is for.
+  tr: |-
+    **Terraform dışında eklenen rotalar da listelenir**; bu veri kaynağının varlık nedeni budur.

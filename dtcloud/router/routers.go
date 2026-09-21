@@ -1,23 +1,12 @@
-// Package router implements the dtcloud_router resource, the two resources
-// that hang off it, and their data sources.
+// Package router implements the dtcloud_router resource, the two resources that
+// hang off it, and their data sources.
 //
-// A router connects private networks to each other and to the outside world.
-// Three things about the API shape everything in this package:
-//
-//   - A router is always created with an external gateway. The create endpoint
-//     requires an external network and a SNAT setting, and there is no way to
-//     ask for a router without one — so external_network_id is Required rather
-//     than optional.
-//
-//   - Interfaces and static routes are separate resources, not arguments on the
-//     router. Both have their own lifecycle, and the create endpoint's own way
-//     of attaching interfaces deletes the whole router if any one of them
-//     fails, which would leave Terraform holding a create error and no id.
-//
-//   - Static routes are applied by rewriting the router's entire route list.
-//     Two of them applied at once therefore overwrite each other, so the ones
-//     sharing a router are serialised on the router id. See
-//     resource_router_static_route.go.
+// Three API facts shape the package: a router is always created with an external
+// gateway, so external_network_id is Required; interfaces and static routes are
+// separate resources, because the create endpoint's own way of attaching one
+// deletes the whole router if it fails; and a static route is applied by
+// rewriting the router's entire route list, so the routes of one router are
+// serialised on its id.
 package router
 
 import (
@@ -32,23 +21,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// noHTMLPattern mirrors the character rule the API applies to a router name.
-// Enforcing it in the schema turns a request rejected halfway through an apply
-// into an error during plan.
+// noHTMLPattern mirrors the character rule on a router name, so a request
+// rejected halfway through an apply becomes an error during plan.
 const noHTMLPattern = `^[^<>&"']*$`
 
-// externalInterfaceType and internalInterfaceType are the labels the interface
-// listing puts on its two kinds of entry. The distinction matters because the
-// `id` field means something different in each: on the external gateway it is a
-// subnet id, and on an internal interface it is the port id that detaching
-// needs.
+// externalInterfaceType and internalInterfaceType label the two kinds of entry
+// in the interface listing. The `id` field means a subnet id on the first and a
+// port id on the second.
 const (
 	externalInterfaceType = "External gateway"
 	internalInterfaceType = "Internal interface"
 )
 
 // routerSettled reports whether a status means the platform has finished.
-// `ACTIVE` is the resting state the API itself polls for after every write.
 func routerSettled(status string) bool {
 	return strings.EqualFold(strings.TrimSpace(status), "ACTIVE")
 }
@@ -65,15 +50,18 @@ func formatTime(t dtgo.Time) string {
 	return t.Format(time.RFC3339)
 }
 
+// Poll pacing shared by the waiters below. Variables rather than constants so
+// the offline tests can shorten them: against a fake API every wait still pays
+// the full delay, and this package makes more of them than any other.
+var (
+	waitDelay      = 2 * time.Second
+	waitMinTimeout = 3 * time.Second
+)
+
 // waitForRouter blocks until the router is at rest and `settled` agrees the
-// requested change has landed.
-//
-// The second condition is the point of this function. A write is acknowledged
-// before it has been applied, and the router is reported as ACTIVE throughout —
-// so a wait that only watched the status would return immediately, having
-// checked nothing. Callers pass the value they asked for.
-//
-// A nil `settled` means any resting state will do, which is what create wants.
+// requested change has landed. Both are needed: a write is acknowledged before
+// it is applied and the router stays ACTIVE throughout, so a status-only wait
+// would return having checked nothing. A nil `settled` accepts any resting state.
 func waitForRouter(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration, settled func(*dtgo.GetRouterDetails) bool) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -81,8 +69,7 @@ func waitForRouter(ctx context.Context, client *dtgo.Client, id string, timeout 
 		Refresh: func() (interface{}, string, error) {
 			details, _, err := client.Router.GetRouterDetails(ctx, id, nil)
 			if err != nil {
-				// A router that has not appeared yet is not a failure: create
-				// answers before the platform has committed it.
+				// A router that has not appeared yet is not a failure.
 				if dterr.IsNotFound(err) {
 					return "waiting", "waiting", nil
 				}
@@ -94,8 +81,7 @@ func waitForRouter(ctx context.Context, client *dtgo.Client, id string, timeout 
 			if routerFailed(details.Status) {
 				return nil, "", fmt.Errorf("router %q entered %s state", id, details.Status)
 			}
-			// Every other non-target status counts as pending. Transitional
-			// states are deliberately not enumerated, so an unfamiliar one is
+			// Every other non-target status counts as pending, so an unfamiliar one is
 			// waited out rather than reported as an error.
 			if !routerSettled(details.Status) {
 				return "waiting", "waiting", nil
@@ -106,20 +92,18 @@ func waitForRouter(ctx context.Context, client *dtgo.Client, id string, timeout 
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
-		// Two readings in a row, so a poll landing in the gap between a request
-		// being accepted and the router leaving ACTIVE cannot end the wait on
-		// its own.
+		Delay:      waitDelay,
+		MinTimeout: waitMinTimeout,
+		// Two readings in a row, so a poll landing between a request being accepted
+		// and the router leaving ACTIVE cannot end the wait.
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
 }
 
-// waitForRouterGone blocks until the router stops resolving, so destroy does
-// not return while the platform is still tearing it down and the public address
-// it holds is still charged against the quota.
+// waitForRouterGone blocks until the router stops resolving, so destroy does not
+// return while the public address it holds is still charged.
 func waitForRouterGone(ctx context.Context, client *dtgo.Client, id string, timeout time.Duration) error {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{"waiting"},
@@ -141,8 +125,8 @@ func waitForRouterGone(ctx context.Context, client *dtgo.Client, id string, time
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      waitDelay,
+		MinTimeout: waitMinTimeout,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
@@ -165,19 +149,17 @@ func waitForCondition(ctx context.Context, timeout time.Duration, check func() (
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      waitDelay,
+		MinTimeout: waitMinTimeout,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
 }
 
-// externalGatewayParams builds the gateway half of an update.
-//
-// external_fixed_ips is sent as a single entry asking for IPv4, which is what
-// the create endpoint hardcodes. Repeating it keeps an update from being the
-// one call that quietly changes which address the router holds, and it keeps
-// the field off `null`, which the endpoint's array validation rejects.
+// externalGatewayParams builds the gateway half of an update. The fixed IP is
+// sent as a single IPv4 entry, matching what create hardcodes: repeating it
+// keeps an update from quietly changing the address, and keeps the field off
+// `null`, which the endpoint rejects.
 func externalGatewayParams(networkID string, enableSnat bool) dtgo.AttachExternalGatewayToRouterParams {
 	var params dtgo.AttachExternalGatewayToRouterParams
 	params.ExternalGatewayInfo.NetworkId = networkID
@@ -186,9 +168,9 @@ func externalGatewayParams(networkID string, enableSnat bool) dtgo.AttachExterna
 	return params
 }
 
-// firstExternalSubnetID is the subnet the gateway's first address sits on, as
-// state currently has it, or "" when the router has no gateway address at all.
-// Used to tell a moved gateway from one that has not moved yet.
+// firstExternalSubnetID is the subnet the gateway's first address sits on as
+// state has it, or "" when there is none. Used to tell a moved gateway apart
+// from one that has not moved yet.
 func firstExternalSubnetID(d *schema.ResourceData) string {
 	ips, ok := d.Get("external_fixed_ip").([]interface{})
 	if !ok || len(ips) == 0 {
@@ -202,8 +184,8 @@ func firstExternalSubnetID(d *schema.ResourceData) string {
 	return subnetID
 }
 
-// flattenExternalFixedIPs turns the addresses the platform gave the gateway
-// into state. There is no way to request particular ones, so they are read-only.
+// flattenExternalFixedIPs turns the gateway's addresses into state. There is no
+// way to request particular ones, so they are read-only.
 func flattenExternalFixedIPs(details *dtgo.GetRouterDetails) []interface{} {
 	out := make([]interface{}, 0, len(details.ExternalGatewayInfo.ExternalFixedIps))
 	for _, ip := range details.ExternalGatewayInfo.ExternalFixedIps {
@@ -267,13 +249,9 @@ func routerAttributesSchema() map[string]*schema.Schema {
 }
 
 // setRouterAttributes writes a router's fields into state, arguments included,
-// so that a change made outside Terraform shows up as drift.
-//
-// An empty external network id means the gateway was removed elsewhere: the
-// details endpoint sends `external_gateway_info: null`, which decodes to the
-// zero value. It is written through as an empty string rather than left alone,
-// because a router that has lost its gateway is exactly the difference a plan
-// should show.
+// so a change made outside Terraform shows up as drift. An empty external
+// network id means the gateway was removed elsewhere and is written through as
+// such, because that is exactly the difference a plan should show.
 func setRouterAttributes(d *schema.ResourceData, details *dtgo.GetRouterDetails) {
 	d.Set("name", details.Name)
 	d.Set("external_network_id", details.ExternalGatewayInfo.NetworkID)

@@ -397,12 +397,9 @@ func (f *fakeImageAPI) volumeDetails(w http.ResponseWriter, id string) {
 	})
 }
 
-// capture is POST /openstack/volumes/{id}/actions with an osUploadImage body.
-//
-// Two behaviours here are the whole reason the provider works the way it does:
-// the response carries NO id - 200 and an empty body - so the caller has to
-// find the new image in the list; and a volume that is not `available` is
-// refused outright rather than queued.
+// capture is the osUploadImage action on a volume. Two behaviours here are the
+// whole reason the provider works as it does: the response carries no id — 200
+// and an empty body — and a volume that is not `available` is refused outright.
 func (f *fakeImageAPI) capture(w http.ResponseWriter, r *http.Request, volumeID string) {
 	vol, ok := f.volumes[volumeID]
 	if !ok {
@@ -602,9 +599,8 @@ func (f *fakeImageAPI) update(w http.ResponseWriter, r *http.Request, id string)
 			return
 		}
 	case "/os_distro":
-		// Deliberately unchecked. The platform validates os_distro nowhere on this
-		// endpoint - a value it would refuse elsewhere is stored without complaint,
-		// and the next plan is clean. Validating here would hide that.
+		// Deliberately unchecked: the platform validates os_distro nowhere on this
+		// endpoint. Validating here would hide that.
 
 	case "/visibility":
 		visibility, _ := body.Value.(string)

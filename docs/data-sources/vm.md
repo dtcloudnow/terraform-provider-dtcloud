@@ -44,7 +44,7 @@ data "dtcloud_vm" "web" {
 - `ram` (String) Memory as reported by the API, e.g. "512 MB".
 - `ssh_key` (String) Name of the SSH key injected into the VM.
 - `status` (String) Current power/provisioning state, e.g. ACTIVE, SHUTOFF, ERROR.
-- `task_state` (String) In-flight OpenStack task, empty when the VM is settled.
+- `task_state` (String) In-flight platform task, empty when the VM is settled.
 - `vcpus` (Number) Number of virtual CPUs.
 - `volume` (List of Object) Volumes currently attached to the VM, including the boot disk. (see [below for nested schema](#nestedatt--volume))
 

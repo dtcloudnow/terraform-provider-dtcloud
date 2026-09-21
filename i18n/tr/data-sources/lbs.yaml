@@ -1,0 +1,16 @@
+- en: |-
+    Lists the load balancers in the active region.
+  tr: |-
+    Etkin bölgedeki yük dengeleyicileri listeler.
+- en: |-
+    The load balancers visible to the caller.
+  tr: |-
+    Çağıranın görebildiği yük dengeleyiciler.
+- en: |-
+    **The list endpoint reports a display shape**, flatter than the details one. For everything about a single load balancer, use `dtcloud_lb`.
+  tr: |-
+    **Liste uç noktası, ayrıntı uç noktasından daha yassı bir görüntüleme biçimi bildirir.** Tek bir yük dengeleyiciye dair her şey için `dtcloud_lb` kullanın.
+- en: |-
+    **The id is a hash of the results**, so an unchanged list does not show up as a diff.
+  tr: |-
+    **Kimlik, sonuçların özetidir**; değişmeyen bir liste fark olarak görünmez.

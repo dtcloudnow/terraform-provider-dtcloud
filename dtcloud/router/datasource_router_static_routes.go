@@ -12,12 +12,10 @@ import (
 
 // DataSourceDtcloudRouterStaticRoutes lists the static routes on a router,
 // including any added outside Terraform.
-//
-// The endpoint renames the two fields it reports; they are given back here
-// under the names dtcloud_router_static_route uses, so the same route is called
-// the same thing everywhere in the provider.
 func DataSourceDtcloudRouterStaticRoutes() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the static routes on a router, including any added outside Terraform.",
+
 		ReadContext: dataSourceDtcloudRouterStaticRoutesRead,
 		Schema: map[string]*schema.Schema{
 			"router_id": {

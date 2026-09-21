@@ -109,12 +109,10 @@ func resourceDtcloudSecurityGroupRead(ctx context.Context, d *schema.ResourceDat
 func resourceDtcloudSecurityGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	// `name` goes every time: the update route marks it required. Description is a
-	// pointer so an empty string reaches the route, which is how it is cleared.
-	description := d.Get("description").(string)
+	// `name` goes every time: the update route marks it required.
 	params := dtgo.UpdateSecurityGroupParams{
 		Name:        d.Get("name").(string),
-		Description: &description,
+		Description: d.Get("description").(string),
 	}
 
 	if _, _, err := client.SecurityGroup.UpdateSecurityGroup(ctx, d.Id(), params, nil); err != nil {

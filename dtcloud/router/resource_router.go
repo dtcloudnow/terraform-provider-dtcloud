@@ -17,17 +17,14 @@ import (
 
 // ResourceDtcloudRouter manages a virtual router.
 //
-// Everything a router carries can be changed in place: the name and the
-// external gateway are the only arguments, and both have an update endpoint.
-// The two are separate requests, because the API takes the name and the gateway
-// through different bodies.
-//
-// Interfaces and static routes are not arguments here. They are
-// dtcloud_router_interface and dtcloud_router_static_route, so that adding one
-// does not rewrite the router, and so that a failure attaching one does not
-// take the router with it.
+// Both arguments change in place, in two requests: the API takes the name and
+// the gateway through different bodies. Interfaces and static routes are their
+// own resources, so adding one does not rewrite the router and a failure
+// attaching one does not take the router with it.
 func ResourceDtcloudRouter() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a virtual router: what gives private networks a way out to the internet, and a way to reach each other.",
+
 		CreateContext: resourceDtcloudRouterCreate,
 		ReadContext:   resourceDtcloudRouterRead,
 		UpdateContext: resourceDtcloudRouterUpdate,
@@ -46,9 +43,7 @@ func ResourceDtcloudRouter() *schema.Resource {
 				),
 				Description: "Name of the router. Can be changed in place.",
 			},
-			// Required because the platform has no router without a gateway:
-			// the create endpoint takes the external network and the SNAT
-			// setting as mandatory fields and always attaches a gateway.
+			// Required because the platform has no router without a gateway.
 			"external_network_id": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -65,11 +60,9 @@ func ResourceDtcloudRouter() *schema.Resource {
 			},
 		}, routerAttributesSchema()),
 
-		// Moving the gateway to another network moves its address with it, and
-		// the platform picks the new one. Left alone, the plan carries the old
-		// address forward as if it were unchanged, so anything reading
-		// external_fixed_ip - an output, another resource - sees the previous
-		// network's IP for one whole apply.
+		// Moving the gateway moves its address with it and the platform picks the
+		// new one. Left alone, the plan carries the old address forward, so anything
+		// reading external_fixed_ip sees the previous network's IP for a whole apply.
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
 			if d.Id() != "" && d.HasChange("external_network_id") {
 				return d.SetNewComputed("external_fixed_ip")
@@ -86,7 +79,7 @@ func ResourceDtcloudRouter() *schema.Resource {
 }
 
 // mergeSchemas joins the argument half of a resource with the shared read-only
-// half. Later maps win, which never happens here — the two halves are disjoint.
+// half. Later maps win, which never happens here — the two are disjoint.
 func mergeSchemas(schemas ...map[string]*schema.Schema) map[string]*schema.Schema {
 	out := map[string]*schema.Schema{}
 	for _, s := range schemas {
@@ -97,10 +90,9 @@ func mergeSchemas(schemas ...map[string]*schema.Schema) map[string]*schema.Schem
 	return out
 }
 
-// createdRouterID reads the new router's id out of a create response. The typed
-// value is used when present and the raw body parsed as a fallback, because a
-// resource that starts life with an empty id is one Terraform will create a
-// second time on the next apply.
+// createdRouterID reads the new router's id out of a create response, falling
+// back to the raw body: a resource that starts life with an empty id is one
+// Terraform creates a second time on the next apply.
 func createdRouterID(typed string, body string) (string, error) {
 	if typed != "" {
 		return typed, nil
@@ -147,10 +139,8 @@ func resourceDtcloudRouterCreate(ctx context.Context, d *schema.ResourceData, me
 	}
 	d.SetId(id)
 
-	// The create call answers as soon as the request is accepted and the
-	// platform then polls for ACTIVE over a websocket the provider has no part
-	// in. Without this wait, a router would be handed to whatever depends on it
-	// before it can carry traffic.
+	// The create call answers as soon as the request is accepted, so without this
+	// wait a router would be handed to its dependants before it can carry traffic.
 	if err := waitForRouter(ctx, client, id, d.Timeout(schema.TimeoutCreate), nil); err != nil {
 		return diag.Errorf("Error waiting for router %q to become ACTIVE: %s", id, err)
 	}
@@ -182,14 +172,13 @@ func resourceDtcloudRouterUpdate(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*config.CombinedConfig).DTClient()
 	id := d.Id()
 
-	// Read before anything changes: moving the gateway to another network also
-	// moves the address, and the only way to tell the new one from the old is
-	// to know which subnet the old one sat on.
+	// Read before anything changes: the only way to tell the new gateway address
+	// from the old is to know which subnet the old one sat on.
 	networkChanged := d.HasChange("external_network_id")
 	oldSubnetID := firstExternalSubnetID(d)
 
-	// The name and the gateway travel in different request bodies, so changing
-	// both is two requests rather than one.
+	// The name and the gateway travel in different bodies, so changing both is
+	// two requests.
 	if d.HasChange("name") {
 		params := dtgo.UpdateRouterParams{Name: d.Get("name").(string)}
 		if _, _, err := client.Router.UpdateRouter(ctx, id, params, nil); err != nil {
@@ -204,9 +193,8 @@ func resourceDtcloudRouterUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 	}
 
-	// Wait on the values that were asked for, not on the status. The router
-	// stays ACTIVE across an update, so a status-only wait would return without
-	// having established anything.
+	// Wait on the values that were asked for, not on the status: the router stays
+	// ACTIVE across an update.
 	wantName := d.Get("name").(string)
 	wantNetwork := d.Get("external_network_id").(string)
 	wantSnat := d.Get("enable_snat").(bool)
@@ -219,10 +207,8 @@ func resourceDtcloudRouterUpdate(ctx context.Context, d *schema.ResourceData, me
 		if !networkChanged {
 			return true
 		}
-		// The platform reports the new network_id while the gateway is still
-		// holding the old network's address, so stopping here would let the
-		// read below write that stale address into state, where it stays until
-		// the next refresh. Wait for the address to move as well.
+		// The platform reports the new network_id while the gateway still holds the
+		// old address, so stopping here would write that stale address into state.
 		ips := details.ExternalGatewayInfo.ExternalFixedIps
 		return len(ips) > 0 && ips[0].SubnetID != oldSubnetID
 	}
@@ -237,10 +223,8 @@ func resourceDtcloudRouterDelete(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*config.CombinedConfig).DTClient()
 	id := d.Id()
 
-	// Deleting a router detaches its interfaces first, on the platform's side.
-	// Terraform's own graph already destroys dtcloud_router_interface resources
-	// before the router they belong to, so this only matters for interfaces
-	// attached outside Terraform.
+	// Deleting a router detaches its interfaces first. Terraform's graph already
+	// destroys them beforehand, so this only matters for ones attached outside it.
 	if _, err := client.Router.DeleteRouter(ctx, id, nil); err != nil {
 		if !dterr.IsNotFound(err) {
 			return diag.Errorf("Error deleting router %q: %s", id, err)

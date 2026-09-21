@@ -60,3 +60,16 @@ func hasStatusCode(body any, want float64) bool {
 	}
 	return false
 }
+
+func IsBusy(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "immutable") ||
+		strings.Contains(msg, "pending_update") ||
+		strings.Contains(msg, "pending_create") ||
+		strings.Contains(msg, "pending_delete") ||
+		strings.Contains(msg, "conflict") ||
+		strings.Contains(msg, "409")
+}
