@@ -101,6 +101,7 @@ Optional:
 
 - `x_forwarded_for` (String) Changing this forces a new resource to be created.
 - `x_forwarded_port` (String) Changing this forces a new resource to be created.
+- `x_forwarded_proto` (String) Changing this forces a new resource to be created.
 - `x_ssl_client_cn` (String) Changing this forces a new resource to be created.
 - `x_ssl_client_dn` (String) Changing this forces a new resource to be created.
 - `x_ssl_client_has_cert` (String) Changing this forces a new resource to be created.

@@ -2,8 +2,8 @@
 
 Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
 
-Current scope: SSH keys, virtual machines, networks, routers, security groups, elastic IPs, volumes, snapshots, images, plus read-only
-catalogue and account data sources (flavors, regions, projects, quotas).
+Current scope: SSH keys, virtual machines, networks, routers, security groups, elastic IPs, volumes, snapshots, images, load
+balancers, plus read-only catalogue and account data sources (flavors, regions, projects, quotas).
 
 | Resources                      | Data sources                   |
 |--------------------------------|--------------------------------|
@@ -21,12 +21,12 @@ catalogue and account data sources (flavors, regions, projects, quotas).
 | `dtcloud_router`               | `dtcloud_router_static_routes` |
 | `dtcloud_router_interface`     | `dtcloud_security_group`       |
 | `dtcloud_router_static_route`  | `dtcloud_security_groups`      |
-|                                | `dtcloud_my_ip`                |
-|                                | `dtcloud_elastic_ip`           |
-|                                | `dtcloud_elastic_ips`          |
-|                                | `dtcloud_volume`               |
-|                                | `dtcloud_volumes`              |
-|                                | `dtcloud_volume_snapshots`     |
+| `dtcloud_lb`                   | `dtcloud_my_ip`                |
+| `dtcloud_lb_listener`          | `dtcloud_elastic_ip`           |
+| `dtcloud_lb_pool`              | `dtcloud_elastic_ips`          |
+| `dtcloud_lb_member`            | `dtcloud_volume`               |
+| `dtcloud_lb_health_monitor`    | `dtcloud_volumes`              |
+| `dtcloud_lb_balancing_pool`    | `dtcloud_volume_snapshots`     |
 |                                | `dtcloud_storage_policies`     |
 |                                | `dtcloud_snapshot`             |
 |                                | `dtcloud_snapshots`            |
@@ -38,6 +38,10 @@ catalogue and account data sources (flavors, regions, projects, quotas).
 |                                | `dtcloud_projects`             |
 |                                | `dtcloud_project_quotas`       |
 |                                | `dtcloud_project_limits`       |
+|                                | `dtcloud_lb`                   |
+|                                | `dtcloud_lbs`                  |
+|                                | `dtcloud_lb_vms`               |
+|                                | `dtcloud_lb_flavors`           |
 
 ## Dependency chain
 

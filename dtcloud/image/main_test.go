@@ -1,4 +1,4 @@
-package router_test
+package image_test
 
 import (
 	"os"

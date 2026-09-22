@@ -1,4 +1,4 @@
-package router_test
+package network_test
 
 import (
 	"os"

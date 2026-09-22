@@ -19,6 +19,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -164,8 +165,8 @@ func waitForVolume(ctx context.Context, client *dtgo.Client, id string, timeout 
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 		// Two readings in a row, so a poll landing between the action being accepted
 		// and the volume leaving `available` cannot end the wait on its own.
 		ContinuousTargetOccurence: 2,
@@ -199,8 +200,8 @@ func waitForVolumeGone(ctx context.Context, client *dtgo.Client, id string, time
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err

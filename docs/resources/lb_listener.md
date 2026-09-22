@@ -68,6 +68,7 @@ Optional:
 
 - `x_forwarded_for` (String)
 - `x_forwarded_port` (String)
+- `x_forwarded_proto` (String)
 - `x_ssl_client_cn` (String)
 - `x_ssl_client_dn` (String)
 - `x_ssl_client_has_cert` (String)

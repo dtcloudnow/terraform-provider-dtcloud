@@ -1,4 +1,4 @@
-package router_test
+package vm_test
 
 import (
 	"os"

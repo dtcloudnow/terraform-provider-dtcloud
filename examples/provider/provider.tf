@@ -2,7 +2,7 @@ terraform {
   required_providers {
     dtcloud = {
       source  = "dtcloudnow/dtcloud"
-      version = "~> 0.1"
+      version = "~> 26.0.0"
     }
   }
 }

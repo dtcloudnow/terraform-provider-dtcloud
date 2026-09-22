@@ -3,9 +3,9 @@
   tr: |-
     dtcloud Sağlayıcısı
 - en: |-
-    Manage DT Cloud (CCE) resources with Terraform: describe the infrastructure you want in a configuration file, run `terraform apply`, and the provider makes the platform match it.
+    Manage DT Cloud (CMP) resources with Terraform: describe the infrastructure you want in a configuration file, run `terraform apply`, and the provider makes the platform match it.
   tr: |-
-    DT Cloud (CCE) kaynaklarını Terraform ile yönetin: istediğiniz altyapıyı bir yapılandırma dosyasında tanımlayın, `terraform apply` çalıştırın; sağlayıcı platformu buna uygun hale getirir.
+    DT Cloud (CMP) kaynaklarını Terraform ile yönetin: istediğiniz altyapıyı bir yapılandırma dosyasında tanımlayın, `terraform apply` çalıştırın; sağlayıcı platformu buna uygun hale getirir.
 - en: |-
     The provider talks to the DT Cloud API through the [`dt-go`](https://github.com/dtcloudnow/dt-go) SDK -- the same SDK behind the [`dtctl`](https://docs.dtcloudnow.com/dtctl) command-line tool, so both tools see the same API and behave the same way.
   tr: |-

@@ -18,6 +18,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
@@ -105,8 +106,8 @@ func waitForAssociation(ctx context.Context, client *dtgo.Client, id, wantPort s
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 2 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(2 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
@@ -132,8 +133,8 @@ func waitForGone(ctx context.Context, client *dtgo.Client, id string, timeout ti
 			return "present", "present", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 2 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(2 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
