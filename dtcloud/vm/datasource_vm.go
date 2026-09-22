@@ -11,12 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudVM looks up a single VM by id.
-//
-// Lookup is by id rather than by name — unlike SSH keys, VM names are not
-// unique (the API will happily hold several VMs with the same name, and the
-// multi-create path even generates `name-1`, `name-2`, …), so a name lookup
-// could not resolve to one instance deterministically.
+// DataSourceDtcloudVM looks up a single VM by id. Names are not unique — the
+// multi-create path generates `name-1`, `name-2`, … — so a name cannot resolve
+// to one instance.
 func DataSourceDtcloudVM() *schema.Resource {
 	dsSchema := map[string]*schema.Schema{
 		"id": {
@@ -39,6 +36,8 @@ func DataSourceDtcloudVM() *schema.Resource {
 	}
 
 	return &schema.Resource{
+		Description: "Looks up a single virtual machine by id.",
+
 		ReadContext: dataSourceDtcloudVMRead,
 		Schema:      dsSchema,
 	}
@@ -67,7 +66,7 @@ func dataSourceDtcloudVMRead(ctx context.Context, d *schema.ResourceData, meta i
 	// resource — without this the data source would advertise the attributes but
 	// never fill them in.
 	var diags diag.Diagnostics
-	for _, err := range readVMAttachments(ctx, client, d, details.ID) {
+	for _, err := range readVMAttachments(ctx, client, d, details.ID, details.ImageID) {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
 			Summary:  fmt.Sprintf("Could not read part of VM %q", id),

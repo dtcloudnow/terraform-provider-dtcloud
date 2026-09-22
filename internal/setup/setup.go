@@ -1,26 +1,11 @@
 // Package setup implements `terraform-provider-dtcloud configure`, the one-off
 // interactive command that writes the provider's configuration file.
 //
-// # Why this exists at all
-//
-// A Terraform provider cannot ask the practitioner anything. It is a plugin
-// Terraform starts as a child process and speaks to over gRPC; there is no
-// terminal on the other end, and on a build agent there is no person either.
-// So the credentials have to arrive from somewhere that was set up in advance.
-//
-// The industry answer to that is "a companion CLI writes a file the provider
-// reads" — `aws configure`, `gcloud auth application-default login`,
-// `az login`. The flaw in copying it here is that it makes a Terraform user
-// install a second tool before they can run `terraform plan`, and someone who
-// has no interest in our CLI should not have to.
-//
-// So the companion CLI is this binary. Terraform already downloaded it; running
-// it with an argument makes it a setup tool instead of a plugin. No extra
-// install, no dependency on dtctl, and nobody has to hand-write YAML.
-//
-// It is not the only way in, and deliberately so — see the provider
-// documentation. Terraform's own `variable` prompting needs no setup step at
-// all, and environment variables remain the right answer in CI.
+// A provider cannot prompt: it is a plugin Terraform starts over gRPC, with no
+// terminal and often nobody on the other end, so credentials have to be in place
+// beforehand. Running this binary with an argument makes it a setup tool as well,
+// so no second tool has to be installed. It is not the only way in — Terraform's
+// own `variable` prompting and environment variables both work.
 package setup
 
 import (
@@ -50,7 +35,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		accessKey  = fs.String("access-key", "", "API access key. Prompted for when omitted.")
 		secretKey  = fs.String("secret-key", "", "API secret key. Prompted for when omitted.")
 		regionID   = fs.String("region-id", "", "Region id, sent as serverId on every call. Prompted for when omitted.")
-		endpoint   = fs.String("api-url", "", "Base URL of the API. Optional; the SDK's default is used when empty.")
+		endpoint   = fs.String("api-url", "", "Base URL of the API, ending in /api/v1. Left empty the SDK's default is used, which is production -- pass this for any other environment. Whichever is used is written to the file.")
 		profile    = fs.String("profile", "", "Write these settings as a named profile instead of the single-account form.")
 		configFile = fs.String("config-file", "", "Where to write. Defaults to the provider's own configuration path.")
 		force      = fs.Bool("force", false, "Overwrite an existing file, and save even if the credentials do not verify.")
@@ -114,13 +99,14 @@ Run it with no flags to be prompted, or pass them all to script it.
 		return 1
 	}
 
-	// Check the credentials before writing them. A key with a stray space, or
-	// the wrong region, is otherwise discovered much later and looks like a
-	// broken provider rather than a typo.
-	if verifyErr := verify(*accessKey, *secretKey, *endpoint, *regionID); verifyErr != nil {
+	// Check the credentials before writing them: a key with a stray space, or the
+	// wrong region, is otherwise discovered much later and looks like a broken
+	// provider rather than a typo.
+	used, verifyErr := verify(*accessKey, *secretKey, *endpoint, *regionID)
+	if verifyErr != nil {
 		if !*force {
 			fmt.Fprintf(stderr, "\nThose credentials were rejected: %s\n", verifyErr)
-			fmt.Fprintf(stderr, "Nothing was written. Check them, or pass -force to save anyway.\n")
+			fmt.Fprintf(stderr, "Nothing was written. Check them, or pass -force to save anyway.%s\n", endpointHint(*endpoint))
 			return 1
 		}
 		fmt.Fprintf(stdout, "\nWarning: those credentials were rejected (%s), saving anyway because -force was given.\n", verifyErr)
@@ -128,7 +114,7 @@ Run it with no flags to be prompted, or pass them all to script it.
 		fmt.Fprintln(stdout, "\nCredentials verified.")
 	}
 
-	if err := write(path, *profile, *accessKey, *secretKey, *endpoint, *regionID); err != nil {
+	if err := write(path, *profile, *accessKey, *secretKey, used, *regionID); err != nil {
 		fmt.Fprintf(stderr, "error: %s\n", err)
 		return 1
 	}
@@ -141,9 +127,9 @@ Run it with no flags to be prompted, or pass them all to script it.
 	return 0
 }
 
-// prompt reads one value, echoing a star per character when the value is
-// secret and there is a terminal to do it on. Piped input — a script, a test —
-// falls through to a plain line read so the command stays usable.
+// prompt reads one value, echoing a star per character when the value is secret
+// and there is a terminal to do it on. Piped input falls through to a plain line
+// read, so the command stays usable from a script.
 func prompt(in *bufio.Reader, out io.Writer, label string, secret bool) (string, error) {
 	fmt.Fprintf(out, "%s: ", label)
 
@@ -160,17 +146,9 @@ func prompt(in *bufio.Reader, out io.Writer, label string, secret bool) (string,
 	return strings.TrimSpace(line), nil
 }
 
-// readMasked reads a secret one character at a time, echoing a star for each.
-//
-// term.ReadPassword would be the obvious call, and it echoes nothing at all.
-// That reads as a frozen program: paste a sixty-four character key and the
-// screen does not move, so there is no way to tell whether the paste landed,
-// whether the terminal is even listening, or whether you have typed into the
-// wrong window. A star per character costs nothing and answers all three.
-//
-// It leaks the length of the secret to anyone watching, which is the reason
-// some tools echo nothing. Against a key whose length is fixed and public that
-// is not a secret worth keeping, and the feedback is worth more.
+// readMasked reads a secret one character at a time, echoing a star for each:
+// echoing nothing reads as a frozen program when a long key is pasted. It does
+// leak the length of the secret, which for these keys is fixed and public.
 func readMasked(fd int, out io.Writer) (string, error) {
 	state, err := term.MakeRaw(fd)
 	if err != nil {
@@ -213,8 +191,8 @@ func readMasked(fd int, out io.Writer) (string, error) {
 			}
 
 		default:
-			// Ignore the rest of the control range; a stray escape sequence
-			// from an arrow key should not become part of the key.
+			// Ignore the rest of the control range, so a stray escape sequence from
+			// an arrow key does not become part of the key.
 			if c < 32 {
 				continue
 			}
@@ -228,31 +206,49 @@ func readMasked(fd int, out io.Writer) (string, error) {
 
 // verify makes one cheap authenticated call. The route it uses needs the key
 // pair and the region, so a failure means one of the three is wrong.
-func verify(accessKey, secretKey, endpoint, regionID string) error {
+//
+// It returns the endpoint it actually used, which is the SDK's own default when
+// none was given. That value is what gets written to the file: the provider
+// requires an endpoint, and recording the one these credentials were checked
+// against is the only way an omitted -api-url cannot end up meaning a different
+// environment later.
+func verify(accessKey, secretKey, endpoint, regionID string) (string, error) {
 	opts := []dtgo.ClientOpt{dtgo.SetApiKey(accessKey, secretKey)}
 	if endpoint != "" {
 		opts = append(opts, dtgo.SetBaseURL(endpoint))
 	}
 	client, err := dtgo.New(http.DefaultClient, opts...)
 	if err != nil {
-		return err
+		return endpoint, err
 	}
 	client.ServerId = regionID
+	used := client.BaseURL.String()
 
 	_, _, err = client.SecurityGroup.ListSecurityGroups(context.Background(), nil)
-	return err
+	return used, err
 }
 
-// write puts the file in place, owner-readable and nothing else.
-//
-// It is created 0600 and then tightened to 0400, because a file created 0400
-// cannot be written to even by the process that just made it.
+// endpointHint turns a rejected key into the question worth asking first. The
+// SDK's default endpoint is production, so credentials for anywhere else are
+// rejected as invalid when -api-url was left out -- which reads as a bad key
+// rather than as the wrong environment.
+func endpointHint(endpoint string) string {
+	if endpoint != "" {
+		return ""
+	}
+	return "\n\nNo -api-url was given, so they were checked against the SDK's default endpoint,\n" +
+		"which is production. Credentials for another environment are rejected there.\n" +
+		"Pass -api-url with that environment's base URL and try again."
+}
+
+// write puts the file in place, owner-readable and nothing else: created 0600
+// and then tightened to 0400, which cannot be written to even by its creator.
 func write(path, profile, accessKey, secretKey, endpoint, regionID string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("could not create %s: %w", filepath.Dir(path), err)
 	}
-	// An existing file may be 0400 from a previous run, which cannot be
-	// truncated; remove it rather than fight the permissions.
+	// An existing file may be 0400 from a previous run and cannot be truncated;
+	// remove it rather than fight the permissions.
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("could not replace %s: %w", path, err)
 	}

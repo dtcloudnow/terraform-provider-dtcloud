@@ -12,20 +12,15 @@ import (
 )
 
 // DataSourceDtcloudStoragePolicies lists the storage policies available in the
-// region.
+// region. The endpoint cross-references the project's storage quota, so it
+// returns what this project can actually create on, not the whole catalogue.
 //
-// `storage_policy` is required on every volume and there is no default, so
-// without this a user has to be told the valid values out of band. The endpoint
-// returns only the policies whose quota is non-zero — it cross-references the
-// project's storage quota against the volume types — so what comes back is what
-// this project can actually create on, not the whole platform catalogue.
-//
-// Both `id` and `name` are exposed, but `name` is the one to pass to
-// `dtcloud_volume.storage_policy`: the volume details endpoint reports the
-// policy by name, so a volume created with an id would read back as a name and
-// drift on every plan.
+// Pass `name`, not `id`, to `dtcloud_volume.storage_policy`: the volume details
+// endpoint reports the policy by name, so an id would drift on every plan.
 func DataSourceDtcloudStoragePolicies() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the storage policies available in the region.",
+
 		ReadContext: dataSourceDtcloudStoragePoliciesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {

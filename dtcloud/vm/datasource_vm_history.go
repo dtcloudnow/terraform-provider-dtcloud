@@ -13,18 +13,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// DataSourceDtcloudVMHistory lists what has been done to a VM.
-//
-// This is an event log, not desired state, so it exists as a data source and
-// could never be a resource: there is nothing to create, change or destroy.
-//
-// It is also the one kind of data source worth a warning. The content changes
-// every time anything happens to the VM — including changes Terraform itself
-// makes — so feeding it into a resource argument produces a value that differs
-// on every plan and a resource that never settles. Use it for outputs, for
-// `terraform console`, or for a check somewhere outside the dependency graph.
+// DataSourceDtcloudVMHistory lists what has been done to a VM: an event log
+// rather than desired state, so there is nothing to create or destroy. Its
+// content changes whenever anything happens to the VM, Terraform's own changes
+// included, so use it for outputs rather than for a resource argument.
 func DataSourceDtcloudVMHistory() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists what has been done to a virtual machine.",
+
 		ReadContext: dataSourceDtcloudVMHistoryRead,
 		Schema: map[string]*schema.Schema{
 			"vm_id": {
@@ -84,13 +80,12 @@ func dataSourceDtcloudVMHistoryRead(ctx context.Context, d *schema.ResourceData,
 	return nil
 }
 
-// DataSourceDtcloudVMHistoryEntry reads one history entry in full.
-//
-// The list endpoint leaves out `status`; this is the only way to get it, and
-// the only reason this data source exists separately rather than the list
-// fetching details for every entry — that would be one call per entry.
+// DataSourceDtcloudVMHistoryEntry reads one history entry in full. The list
+// endpoint leaves out `status`, and fetching it per entry would cost a call each.
 func DataSourceDtcloudVMHistoryEntry() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reads one virtual machine history entry in full.",
+
 		ReadContext: dataSourceDtcloudVMHistoryEntryRead,
 		Schema: map[string]*schema.Schema{
 			"vm_id": {

@@ -1,0 +1,16 @@
+# Turkish text shared by many pages. Everything else is in the file named after
+# the page it first appears on; `make docs_i18n_check` lists what is missing.
+#
+# Terms follow the dtctl reference: volume = disk, snapshot = anlık görüntü,
+# security group = güvenlik grubu, port = bağlantı noktası, subnet = alt ağ,
+# image = imaj, flavor = flavor, endpoint = uç nokta, provider = sağlayıcı.
+# Terraform's own words (plan, apply, state, destroy, output) stay as they are.
+
+- en: |-
+    The ID of this resource.
+  tr: |-
+    Bu kaynağın kimliği.
+- en: |-
+    Changing this forces a new resource to be created.
+  tr: |-
+    Bu değiştirilirse yeni bir kaynak oluşturulur.

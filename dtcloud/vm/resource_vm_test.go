@@ -36,8 +36,8 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "name", "tf-acc-vm"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "flavor_id", "flavor-small"),
-					// Proves the create waiter ran: the first read reported
-					// BUILD, so ACTIVE here means it polled until settled.
+					// Proves the create waiter ran: the first read reported BUILD, so
+					// ACTIVE here means it polled until settled.
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "status", "ACTIVE"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "image", fakeVMImage),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "image_os_type", fakeVMOsType),
@@ -47,13 +47,13 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "ram", "512 MB"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "created_at", "2026-07-08T10:35:17Z"),
 
-					// hotPlugEnabled and metadata come from the raw body, since
-					// dt-go's typed details struct carries neither.
+					// hotPlugEnabled and metadata come from the raw body; dt-go's typed
+					// details struct carries neither.
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "enable_hot_plug", "false"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "metadata.ha_enabled", "true"),
 
-					// The event log. `status` is missing from the list and only
-					// the detail endpoint has it — which is why there are two.
+					// The event log. `status` is missing from the list and only the
+					// detail endpoint has it, which is why there are two.
 					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.#", "2"),
 					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.0.activity", "Start"),
 					resource.TestCheckResourceAttr("data.dtcloud_vm_history.test", "entries.1.id", "hist-1"),
@@ -109,13 +109,21 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 			},
 			{
 				// flavor_id now resizes in place; the VM must NOT be recreated.
-				Config: testVMConfig(server.URL, "tf-acc-vm-renamed", "flavor-large"),
+				Config: testVMConfig(server.URL, "tf-acc-vm-renamed", "flavor-large") + vmOutputs,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "flavor_id", "flavor-large"),
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "flavor_name", "flavor-large"),
-					// The VM must end up running again: resizeVM stops it because
-					// the platform requires that, and the power step restores the
-					// configured state afterwards.
+					// Checked straight after the apply, before any refresh could paper
+					// over it. Terraform plans a computed attribute as unchanged unless
+					// CustomizeDiff marks it unknown, so without that these would still
+					// hold the old flavor's numbers.
+					resource.TestCheckResourceAttr("dtcloud_vm.test", "vcpus", "4"),
+					resource.TestCheckResourceAttr("dtcloud_vm.test", "ram", "8192 MB"),
+					resource.TestCheckOutput("vm_vcpus", "4"),
+					resource.TestCheckOutput("vm_ram", "8192 MB"),
+					// The VM must end up running again: resizeVM stops it because the
+					// platform requires that, and the power step restores the configured
+					// state afterwards.
 					resource.TestCheckResourceAttr("dtcloud_vm.test", "status", "ACTIVE"),
 					func(*terraform.State) error {
 						api.mu.Lock()
@@ -174,15 +182,12 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 				ResourceName:      "dtcloud_vm.test",
 				ImportState:       true,
 				ImportStateVerify: true,
-				// Only these are readable back from the details endpoint; the
-				// rest live in config alone (see the note in resource_vm.go).
-				// key_name and network are deliberately NOT ignored: both are
-				// recovered from the API (`sshKey`, and the interface list),
-				// and this step is what proves it. What is left cannot be
-				// recovered — block_device because the image id is never
-				// reported and image names are not unique, user_data and script
-				// because nothing echoes them back, and the last three because
-				// they only exist in configuration.
+				// Only these are readable back from the details endpoint. key_name and
+				// network are deliberately not ignored: both are recovered from the API,
+				// and this step is what proves it. The rest cannot be — block_device
+				// because the image id is never reported and image names are not unique,
+				// user_data and script because nothing echoes them back, and the last
+				// three because they only exist in configuration.
 				ImportStateVerifyIgnore: []string{
 					"block_device", "user_data", "script",
 					"is_gpu_image", "graceful_shutdown",
@@ -191,9 +196,6 @@ func TestAccDtcloudVM_lifecycle(t *testing.T) {
 		},
 	})
 }
-
-// TestAccDtcloudVM_createError checks that a VM landing in ERROR fails the
-// apply promptly instead of blocking until the create timeout.
 
 // TestAccDtcloudVM_createError checks that a VM landing in ERROR fails the
 // apply promptly instead of blocking until the create timeout.
@@ -209,15 +211,15 @@ func TestAccDtcloudVM_createError(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testVMConfig(server.URL, "tf-acc-vm-broken", "flavor-small"),
-				ExpectError: regexp.MustCompile("entered ERROR state"),
+				ExpectError: regexp.MustCompile("entered ERROR state: Exceeded maximum number of retries"),
 			},
 		},
 	})
 }
 
-// TestAccDtcloudVM_userDataAndScript pins a rule that lives in the API rather
-// than in any schema: cloud-web-api builds cloud-init from `script` only when
-// `user_data` is absent, so setting both discards the script without a word.
+// TestAccDtcloudVM_userDataAndScript pins a rule no schema can express:
+// cloud-init is built from `script` only when `user_data` is absent, so setting
+// both discards the script without a word.
 func TestAccDtcloudVM_userDataAndScript(t *testing.T) {
 	api := newFakeVMAPI()
 	server := httptest.NewServer(api)
@@ -231,7 +233,7 @@ func TestAccDtcloudVM_userDataAndScript(t *testing.T) {
 resource "dtcloud_vm" "both" {
   name      = "tf-acc-both"
   flavor_id = "flavor-small"
-  user_data = "I2Nsb3VkLWNvbmZpZwo="
+  user_data = "#cloud-config\n"
 
   script {
     os       = "linux"
@@ -260,6 +262,81 @@ resource "dtcloud_vm" "both" {
 }
 `,
 				ExpectError: regexp.MustCompile("user_data and script cannot both be set"),
+			},
+		},
+	})
+}
+
+// TestAccDtcloudVM_userDataIsEncodedOnce pins where the base64 lives.
+//
+// The API refuses a raw cloud-config document — "'#cloud-config\n' is not a
+// 'base64'" — so exactly one of the configuration and the provider has to
+// encode it, and the provider does. Encoding it in the configuration as well
+// costs nothing at apply time and is invisible afterwards: double-encoded text
+// is still valid base64, the API accepts it, and the guest boots with the
+// encoded string in place of its cloud-config. Nothing reports user_data back,
+// so there is no drift to notice either.
+//
+// The fake decodes what arrives, which is the only place the two halves can be
+// compared. Breaking either half fails this: drop encodeUserData and the fake
+// rejects the raw document, encode in the configuration too and the decoded
+// value is base64 rather than the document.
+func TestAccDtcloudVM_userDataIsEncodedOnce(t *testing.T) {
+	api := newFakeVMAPI()
+	server := httptest.NewServer(api)
+	defer server.Close()
+
+	const cloudConfig = "#cloud-config\npackage_update: true\n"
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: acctest.ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: acctest.ProviderConfig(server.URL) + fmt.Sprintf(`
+resource "dtcloud_vm" "userdata" {
+  name      = "tf-acc-userdata"
+  flavor_id = "flavor-small"
+  user_data = %q
+  // The fake reports a key on every VM, so the configuration has to carry it or
+  // the follow-up plan proposes a replacement for a reason unrelated to this test.
+  key_name = "tf-acc-key"
+
+  network {
+    uuid            = "11111111-2222-3333-4444-555555555555"
+    security_groups = ["sg-default"]
+
+    fixed_ip {
+      ip_version = 4
+    }
+  }
+
+  block_device {
+    boot_index            = 0
+    volume_size           = 20
+    source_type           = "image"
+    device_type           = "disk"
+    destination_type      = "volume"
+    delete_on_termination = true
+    volume_type           = "standard"
+    uuid                  = "img-0001"
+  }
+}
+`, cloudConfig),
+				Check: func(*terraform.State) error {
+					api.mu.Lock()
+					defer api.mu.Unlock()
+					for _, v := range api.vms {
+						if v.Name != "tf-acc-userdata" {
+							continue
+						}
+						if v.userData != cloudConfig {
+							return fmt.Errorf("the guest would receive %q, not the configured document %q",
+								v.userData, cloudConfig)
+						}
+						return nil
+					}
+					return fmt.Errorf("the VM never reached the API")
+				},
 			},
 		},
 	})

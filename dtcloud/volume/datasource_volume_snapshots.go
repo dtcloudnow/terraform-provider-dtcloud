@@ -15,13 +15,13 @@ import (
 
 // DataSourceDtcloudVolumeSnapshots lists the snapshots taken of one volume.
 //
-// Read-only on purpose: snapshots have their own service and their own routes,
-// and creating one here would put two resources in charge of the same object.
-// What this is for is seeing what would be lost — `DELETE /volumes/{id}` is
-// issued with `cascade: true`, so destroying a volume destroys its snapshots
-// too, and this is the way to check before running it.
+// Read-only: snapshots have their own resource. This is for seeing what a
+// destroy would take with it — `DELETE /volumes/{id}` is issued with
+// `cascade: true`, so a volume's snapshots go with it.
 func DataSourceDtcloudVolumeSnapshots() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the snapshots taken of one volume.",
+
 		ReadContext: dataSourceDtcloudVolumeSnapshotsRead,
 		Schema: map[string]*schema.Schema{
 			"volume_id": {

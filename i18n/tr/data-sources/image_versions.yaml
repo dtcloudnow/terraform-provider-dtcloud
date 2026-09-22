@@ -1,0 +1,32 @@
+- en: |-
+    Reads the platform's own image catalogue.
+  tr: |-
+    Platformun kendi imaj kataloğunu okur.
+- en: |-
+    This is not the same list as `dtcloud_images`. That one is what the image service holds; this one is the curated set the platform offers, and it is the only place that says which flavors an image may be built on.
+  tr: |-
+    Bu, `dtcloud_images` ile aynı liste değildir. O liste imaj servisinin tuttuklarıdır; bu ise platformun sunduğu seçilmiş kümedir ve bir imajın hangi flavor'larla oluşturulabileceğini söyleyen tek yerdir.
+- en: |-
+    The platform's curated catalogue -- not the same list as dtcloud_images, and the only place that says which flavors an image may be built on.
+  tr: |-
+    Platformun seçilmiş kataloğu: dtcloud_images ile aynı liste değildir ve bir imajın hangi flavor'larla oluşturulabileceğini söyleyen tek yerdir.
+- en: |-
+    Only return entries in this family, e.g. `ubuntu`. Applied by the provider; the endpoint takes no parameters.
+  tr: |-
+    Yalnızca bu ailedeki girdileri döndürür, örn. `ubuntu`. Sağlayıcı tarafından uygulanır; uç nokta parametre almaz.
+- en: |-
+    Catalogue entries, sorted by family and then by version.
+  tr: |-
+    Önce aileye, sonra sürüme göre sıralanmış katalog girdileri.
+- en: |-
+    **A sorted list, not a map.** The endpoint groups entries by family. They are flattened into one list and sorted by family and then by version, so a new catalogue entry does not reshuffle a plan. A new family can still shift the indexes after it, so filter with `type` and match on `version` rather than indexing into the full list.
+  tr: |-
+    **Harita değil, sıralı bir liste.** Uç nokta girdileri aileye göre gruplar. Girdiler tek bir listeye düzleştirilir ve önce aileye, sonra sürüme göre sıralanır; böylece kataloğa eklenen yeni bir girdi planı karıştırmaz. Yeni bir aile ise kendisinden sonraki dizinleri yine de kaydırabilir; bu yüzden tam listede dizinle erişmek yerine `type` ile filtreleyip `version` üzerinden eşleştirin.
+- en: |-
+    **`type` is applied by the provider** and ignores case; the endpoint takes no parameters.
+  tr: |-
+    **`type` sağlayıcı tarafından uygulanır** ve büyük/küçük harfi yok sayar; uç nokta parametre almaz.
+- en: |-
+    **An empty `valid_flavor_ids` means no restriction.** The catalogue field is untyped, and a list, a comma-separated string or a single value are all read back as a list.
+  tr: |-
+    **Boş bir `valid_flavor_ids` kısıtlama olmadığı anlamına gelir.** Katalogdaki alanın tipi belirsizdir; liste, virgülle ayrılmış dize ya da tek bir değer, hepsi liste olarak geri okunur.

@@ -28,12 +28,8 @@ type fakeNetwork struct {
 	subnet  *fakeSubnet
 }
 
-// fakeNetworkAPI stands in for cloud-web-api's /openstack/networks routes.
-//
-// The rules it enforces are the ones the real API enforces, not the ones this
-// provider happens to find convenient — that distinction is the whole point of
-// the fake. In particular it reproduces the create response's two shapes and
-// the subnet update's rejection of null arrays.
+// fakeNetworkAPI stands in for the network routes. It reproduces the create
+// response's two shapes and the subnet update's rejection of null arrays.
 type fakeNetworkAPI struct {
 	mu       sync.Mutex
 	networks map[string]*fakeNetwork
@@ -111,7 +107,7 @@ func (f *fakeNetworkAPI) create(w http.ResponseWriter, r *http.Request) {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
 		return
 	}
-	// Joi: IP_address_management and name are required.
+	// IP_address_management and name are required.
 	if body.IPAM == nil || body.Name == "" {
 		acctest.WriteJSON(w, http.StatusNotAcceptable, map[string]any{
 			"errorMessage": "'IP_address_management' and 'name' are required"})
@@ -123,9 +119,8 @@ func (f *fakeNetworkAPI) create(w http.ResponseWriter, r *http.Request) {
 	f.creates++
 
 	if !*body.IPAM {
-		// No subnet is created, and the response is the bare network object —
-		// no wrapper, no subnet. This asymmetry is real and the provider has to
-		// dig the id out of it.
+		// No subnet is created and the response is the bare network object, so
+		// the provider has to dig the id out of it.
 		acctest.WriteJSON(w, http.StatusOK, map[string]any{
 			"id": n.ID, "name": n.Name, "port_security_enabled": false,
 		})
@@ -149,8 +144,8 @@ func (f *fakeNetworkAPI) create(w http.ResponseWriter, r *http.Request) {
 		DHCP: body.EnableDHCP, DNS: dns, AllocationPools: pools,
 	}
 
-	// With IPAM on, the API answers with the createSubnet response — so the
-	// network's id only appears as network_id, nested one level down.
+	// With IPAM on the answer is the subnet response, so the network's id only
+	// appears as network_id, nested one level down.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{
 		"subnet": map[string]any{
 			"id": n.subnet.ID, "network_id": n.ID, "cidr": n.subnet.CIDR,
@@ -170,8 +165,8 @@ func (f *fakeNetworkAPI) details(w http.ResponseWriter, id string) {
 	conf := map[string]any{"name": n.Name, "type": n.Type, "id": n.ID}
 	out := map[string]any{"networkConfiguration": conf}
 
-	// Without IPAM the real response carries neither `ipam` nor `subnets` — it
-	// omits them entirely rather than sending empty values. Checked live.
+	// Without IPAM the real response omits `ipam` and `subnets` entirely rather
+	// than sending empty values.
 	if n.IPAM && n.subnet != nil {
 		conf["ipam"] = "Enabled"
 		out["subnets"] = map[string]any{
@@ -245,8 +240,8 @@ func (f *fakeNetworkAPI) updateSubnet(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 
-	// Decoded as raw first so that a missing field and an explicit null can be
-	// told apart — Joi.array() rejects both, and so does this.
+	// Decoded as raw first so a missing field and an explicit null can be told
+	// apart — the API rejects both, and so does this.
 	var raw map[string]json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "malformed body"})
@@ -292,9 +287,8 @@ func (f *fakeNetworkAPI) delete(w http.ResponseWriter, id string) {
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"message": "deleted"})
 }
 
-// The platform derives these when the caller leaves them out; the exact values
-// do not matter to the tests, only that something is filled in and reported
-// back, because that is what Computed has to cope with.
+// The platform derives these when the caller leaves them out. What matters is
+// only that something is reported back, which is what Computed has to cope with.
 func defaultGateway(cidr string) string   { return prefix(cidr) + ".1" }
 func defaultPoolStart(cidr string) string { return prefix(cidr) + ".2" }
 func defaultPoolEnd(cidr string) string   { return prefix(cidr) + ".254" }

@@ -17,20 +17,13 @@ import (
 
 // ResourceDtcloudSecurityGroupRule manages one rule inside a security group.
 //
-// The whole resource is ForceNew, because the API offers no way to change a
-// rule: there is a create endpoint and a delete endpoint and nothing else.
-// Terraform's replacement is therefore exactly what the platform does anyway —
-// delete the old rule, create the new one — and the plan says so.
-//
-// The id is `<security-group-id>:<rule-id>`, matching dtcloud_vm's attachment
-// resources. It has to carry the group: Read finds the rule by listing its
-// group's rules, and a bare rule id cannot say which group to list.
-//
-// Read uses `GET /securitygroups/{id}/rules`, the raw Neutron endpoint, not the
-// details endpoint — see the package comment for why the details endpoint's
-// rules cannot round-trip.
+// The whole resource is ForceNew: there is create and delete and nothing else.
+// The id is `<security-group-id>:<rule-id>` — it has to carry the group, since
+// Read finds the rule by listing that group's rules. See the package comment.
 func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages one rule inside a security group.",
+
 		CreateContext: resourceDtcloudSecurityGroupRuleCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRuleRead,
 		DeleteContext: resourceDtcloudSecurityGroupRuleDelete,
@@ -58,8 +51,7 @@ func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
-				// Exactly these two spellings: the API's Joi schema is
-				// case-sensitive and refuses "ipv4".
+				// Exactly these two spellings: the API is case-sensitive.
 				ValidateFunc: validation.StringInSlice([]string{ethertypeIPv4, ethertypeIPv6}, false),
 				Description:  "Address family: `IPv4` or `IPv6`. Defaults to whatever the platform picks, which is `IPv4`.",
 			},
@@ -67,10 +59,8 @@ func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-				// Lowercased on the way out and on the way into state, because
-				// the platform stores it lowercase: without this, `protocol =
-				// "TCP"` would be written back as "tcp" and never stop showing
-				// as a difference.
+				// Lowercased on the way out and into state, since the platform stores
+				// it lowercase — `protocol = "TCP"` would otherwise never settle.
 				StateFunc: func(v interface{}) string { return strings.ToLower(v.(string)) },
 				Description: "Protocol the rule matches, e.g. `tcp`, `udp`, `icmp`, or a protocol number. " +
 					"Omit it to match every protocol. Not restricted to a fixed list, because the platform accepts " +
@@ -159,12 +149,9 @@ func ResourceDtcloudSecurityGroupRule() *schema.Resource {
 	}
 }
 
-// createdRuleID digs the new rule's id out of the create response.
-//
-// dt-go's CreateSecurityGroupRule hands back the raw body rather than a typed
-// struct, so this parses it. Neutron wraps the rule; the wrapper is stripped
-// somewhere in some deployments, so a bare object is accepted too — the same
-// defensiveness createdNetworkID needed.
+// createdRuleID digs the new rule's id out of the raw create response. The rule
+// is usually wrapped, but the wrapper is stripped in some deployments, so a bare
+// object is accepted too.
 func createdRuleID(body string) (string, error) {
 	var parsed struct {
 		ID   string `json:"id"`
@@ -246,11 +233,9 @@ func resourceDtcloudSecurityGroupRuleRead(ctx context.Context, d *schema.Resourc
 		return nil
 	}
 
-	// Deleted outside Terraform — or the whole group was. Neutron filters the
-	// rule list by group id without checking that the group exists, so a
-	// deleted group answers with an empty list rather than a 404; both arrive
-	// here as "the rule is not in the list", which is the right answer either
-	// way.
+	// The rule, or the whole group, is gone. The list is filtered by group id
+	// without checking the group exists, so a deleted group answers with an empty
+	// list rather than a 404; both mean the rule is not there.
 	d.SetId("")
 	return nil
 }

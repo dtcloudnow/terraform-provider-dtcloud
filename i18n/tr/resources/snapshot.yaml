@@ -1,0 +1,52 @@
+- en: |-
+    Manages a point-in-time copy of a volume.
+  tr: |-
+    Bir diskin belirli bir andaki kopyasını yönetir.
+- en: |-
+    Size and storage policy come from the source volume at the moment the copy is taken, so only `name` and `description` change in place. Restoring is not done here: a restore produces a volume, so it belongs to `dtcloud_volume` through `source_snapshot_id`.
+  tr: |-
+    Boyut ve depolama politikası, kopyanın alındığı anda kaynak diskten gelir; bu yüzden yalnızca `name` ve `description` yerinde değişir. Geri yükleme burada yapılmaz: geri yükleme bir disk üretir, bu yüzden `source_snapshot_id` üzerinden `dtcloud_volume`'a aittir.
+- en: |-
+    Restoring is not done here: a restore produces a volume, so it belongs to the volume resource.
+  tr: |-
+    Geri yükleme burada yapılmaz: geri yükleme bir disk üretir, bu yüzden disk kaynağına aittir.
+- en: |-
+    Name of the snapshot. Can be changed in place.
+  tr: |-
+    Anlık görüntünün adı. Yerinde değiştirilebilir.
+- en: |-
+    ID of the volume to snapshot. The volume may be attached to a running machine. Changing it takes a new snapshot and destroys this one.
+  tr: |-
+    Anlık görüntüsü alınacak diskin kimliği. Disk çalışan bir makineye bağlı olabilir. Değiştirmek yeni bir anlık görüntü alır ve bunu yok eder.
+- en: |-
+    Free-text description. Removing it from the configuration clears it on the platform — the API expresses that as a JSON null, since it rejects an empty string outright.
+  tr: |-
+    Serbest metin açıklama. Yapılandırmadan kaldırmak onu platformda temizler; API boş bir dizeyi doğrudan reddettiği için bunu JSON null olarak ifade eder.
+- en: |-
+    **The source volume may be attached and running.** The copy is of the block device as it is at that instant, so it is not a consistent filesystem. If the data matters, quiesce the application or take the snapshot with the machine stopped.
+  tr: |-
+    **Kaynak disk bağlı ve çalışır durumda olabilir.** Kopya, blok cihazının o anki halidir; bu yüzden tutarlı bir dosya sistemi değildir. Veri önemliyse uygulamayı yazma yapmayacak şekilde durdurun ya da anlık görüntüyü makine durdurulmuşken alın.
+- en: |-
+    **`description` round-trips, unlike a volume's.** It is read back, so it drifts, survives an import, and removing it from the configuration clears it on the platform. Create accepts no description, so one is applied by a second call.
+  tr: |-
+    **Bir diskinkinin aksine `description` geri okunur.** Geri okunduğu için sapma gösterir, içe aktarmada korunur ve yapılandırmadan kaldırılması onu platformda temizler. Oluşturma açıklama kabul etmez, bu yüzden açıklama ikinci bir çağrıyla uygulanır.
+- en: |-
+    **`storage_policy` is resolved by the provider.** The snapshots endpoint reports only `volume_type_id`, so the provider looks the name up once per run and shares the answer between every snapshot. The lookup is best-effort: if it fails, `storage_policy` stays empty for the rest of the run, while `volume_type_id` is always set.
+  tr: |-
+    **`storage_policy` sağlayıcı tarafından çözülür.** Anlık görüntüler uç noktası yalnızca `volume_type_id` bildirir; bu yüzden sağlayıcı adı her çalıştırmada bir kez arar ve yanıtı tüm anlık görüntüler arasında paylaşır. Arama başarısız olabilir: başarısız olursa `storage_policy` çalıştırmanın geri kalanında boş kalır, `volume_type_id` ise her zaman doludur.
+- en: |-
+    **Deleting a volume deletes its snapshots.** Destroying the source `dtcloud_volume` removes every snapshot of it, managed by Terraform or not, and Terraform does not warn about it. With both in one configuration, the reference in `volume_id` makes Terraform destroy the snapshot first.
+  tr: |-
+    **Bir diski silmek anlık görüntülerini de siler.** Kaynak `dtcloud_volume`'u yok etmek, Terraform tarafından yönetilsin ya da yönetilmesin tüm anlık görüntülerini kaldırır ve Terraform bu konuda uyarmaz. İkisi aynı yapılandırmadaysa `volume_id` içindeki referans, Terraform'un önce anlık görüntüyü yok etmesini sağlar.
+- en: |-
+    **Deleting a snapshot can be refused** while it is still being created, or while a volume restored from it still depends on it. The platform's message is passed through; destroy the dependent volume first.
+  tr: |-
+    **Bir anlık görüntüyü silmek reddedilebilir**: hâlâ oluşturulurken ya da ondan geri yüklenmiş bir disk hâlâ ona bağlıyken. Platformun mesajı aktarılır; önce ona bağlı diski yok edin.
+- en: |-
+    `create` defaults to 30 minutes, `update` to 15 minutes and `delete` to 20 minutes. Creating copies the whole volume, so the default is generous; raise it for large volumes. Override them with a `timeouts` block:
+  tr: |-
+    `create` için varsayılan süre 30 dakika, `update` için 15 dakika, `delete` için 20 dakikadır. Oluşturma diskin tamamını kopyaladığından varsayılan cömerttir; büyük diskler için artırın. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    Everything is read back, `description` included, so a plan straight after an import is empty when the configuration matches the snapshot.
+  tr: |-
+    `description` dahil her şey geri okunur; bu yüzden yapılandırma anlık görüntüyle eşleştiğinde içe aktarmanın hemen ardından gelen plan boştur.

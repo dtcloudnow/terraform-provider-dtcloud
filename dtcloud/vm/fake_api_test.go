@@ -1,6 +1,7 @@
 package vm_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,12 +15,12 @@ import (
 const (
 	fakeVMID      = "9f1c2b3a-0000-4a1b-8c2d-1234567890ab"
 	fakeVMImage   = "ubuntu-22.04"
+	fakeVMImageID = "img-0001"
+	fakeVMFault   = "Exceeded maximum number of retries. Exhausted all hosts."
 	fakeVMOsType  = "linux"
 	fakeVMFlavor  = "tiny"
 	fakeVMKeyName = "tf-acc-key"
 )
-
-// fakeVM is one instance held by the fake API.
 
 // fakeVM is one instance held by the fake API.
 type fakeVM struct {
@@ -27,7 +28,6 @@ type fakeVM struct {
 	Name   string
 	Flavor string
 	// pollsLeft counts how many more reads report BUILD before the VM settles.
-	// It exercises the create waiter the same way a real build does.
 	pollsLeft     int
 	deleted       bool
 	stopped       bool
@@ -35,17 +35,19 @@ type fakeVM struct {
 	hotPlug       bool
 	before        string
 	pendingFlavor string
-	// settlePolls delays a power transition by a couple of reads, the way the
-	// real platform does — a VM asked to stop stays ACTIVE for a while. Without
-	// this the fake settles instantly and the tests miss waiter bugs.
+	// settlePolls delays a power transition by a couple of reads: a VM asked to
+	// stop stays ACTIVE for a while.
 	settlePolls int
-	// verifyPolls counts how many reads report VERIFY_RESIZE after a resize.
-	// The platform parks the VM there briefly and then settles it on its own,
-	// with no confirm step — the provider has to wait that out.
+	// verifyPolls counts how many reads report VERIFY_RESIZE after a resize. The
+	// platform parks the VM there and settles it on its own, with no confirm step.
 	verifyPolls int
 
 	ifaces  []*fakeIface
 	volumes []*fakeVol
+
+	// userData is what create sent, base64-decoded, so a test can assert what the
+	// guest would receive. Nothing reports it back.
+	userData string
 }
 
 type fakeIface struct {
@@ -62,20 +64,29 @@ type fakeVol struct {
 	ID   string
 	Name string
 	Size int
+
+	// status is what the volume's own details endpoint reports. settleReads counts
+	// the reads it stays in `detaching` — the real platform takes minutes, and a
+	// wait that settles in one read proves nothing.
+	status        string
+	settleReads   int
+	detachEndsAs  string
+	detachedFromA string
 }
 
-// fakeVMAPI stands in for cloud-web-api's /openstack/vms routes.
-
-// fakeVMAPI stands in for cloud-web-api's /openstack/vms routes.
+// fakeVMAPI stands in for the VM routes.
 type fakeVMAPI struct {
 	mu  sync.Mutex
 	vms map[string]*fakeVM
 
-	// buildPolls is how many BUILD responses a freshly created VM returns
-	// before flipping to ACTIVE.
+	// buildPolls is how many BUILD responses a new VM returns before ACTIVE.
 	buildPolls int
 	// failWithError makes newly created VMs settle into ERROR instead.
 	failWithError bool
+	// detachRevertsLeft is how many detaches fail the way a busy guest makes them:
+	// accepted, then undone. Counting rather than latching leaves a way out, which
+	// the framework's own cleanup needs.
+	detachRevertsLeft int
 
 	createdNames []string
 	renames      int
@@ -99,13 +110,25 @@ func (f *fakeVMAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The provider resolves flavor names to ids, so the fake answers the
-	// flavors endpoint too.
+	// The provider resolves flavor names to ids, so the flavors endpoint is
+	// answered here too.
 	if r.Method == http.MethodGet && r.URL.Path == "/openstack/flavors" {
-		acctest.WriteJSON(w, http.StatusOK, []map[string]any{
-			{"id": "flavor-small", "name": "flavor-small", "vcpus": 1, "ram": "512 MB"},
-			{"id": "flavor-large", "name": "flavor-large", "vcpus": 4, "ram": "8192 MB"},
-		})
+		catalogue := make([]map[string]any, 0, len(fakeFlavors))
+		for _, name := range []string{"flavor-small", "flavor-large"} {
+			f := fakeFlavors[name]
+			catalogue = append(catalogue, map[string]any{
+				"id": name, "name": name, "vcpus": f.vcpus, "ram": f.ram,
+			})
+		}
+		acctest.WriteJSON(w, http.StatusOK, catalogue)
+		return
+	}
+
+	// The volume's own details endpoint. The detach wait reads this rather than the
+	// VM's volume list, which cannot tell a finished detach from a refused one.
+	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/openstack/volumes/") &&
+		strings.HasSuffix(r.URL.Path, "/details") {
+		f.volumeDetails(w, strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/openstack/volumes/"), "/details"))
 		return
 	}
 
@@ -161,9 +184,8 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		FlavorRef string `json:"flavorRef"`
 		Networks  []struct {
 			UUID string `json:"uuid"`
-			// Pointers so that a missing field and an explicit null are
-			// distinguishable — the real API rejects null here, and the fake
-			// has to reject it too or the offline tests miss the bug.
+			// Pointers so a missing field and an explicit null are distinguishable:
+			// null is rejected, and the fake has to reject it too.
 			SecurityGroups      *[]string      `json:"security_groups"`
 			FixedIps            *[]interface{} `json:"fixed_ips"`
 			PortSecurityEnabled bool           `json:"port_security_enabled"`
@@ -171,20 +193,21 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		BlockDeviceMapping []struct {
 			BootIndex int `json:"boot_index"`
 		} `json:"block_device_mapping_v2"`
-		EnableHotPlug *bool `json:"enableHotPlug"`
+		EnableHotPlug *bool  `json:"enableHotPlug"`
+		UserData      string `json:"user_data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "bad body"})
 		return
 	}
-	// Mirror the API's own required fields so a malformed request fails here
-	// rather than silently passing the test.
+	// Mirror the required fields so a malformed request fails here rather than
+	// silently passing the test.
 	if body.Name == "" || body.FlavorRef == "" || len(body.Networks) == 0 || len(body.BlockDeviceMapping) == 0 {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "name, flavorRef, networks and block_device_mapping_v2 are required"})
 		return
 	}
-	// The real API validates these with Joi.array(); null fails validation.
-	// Reproducing that here is what stops a nil slice reaching production.
+	// These must be arrays; null is rejected. Reproducing that stops a nil slice
+	// reaching production.
 	for i, n := range body.Networks {
 		if n.SecurityGroups == nil {
 			acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{
@@ -196,14 +219,21 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 				"errorMessage": fmt.Sprintf("'networks[%d].fixed_ips' must be an array", i)})
 			return
 		}
-		// An empty fixed_ips means the platform builds a port with no address,
-		// leaving the VM unreachable. Verified against the live API. The fake
-		// rejects it so the provider can never regress to sending one.
+		// An empty fixed_ips builds a port with no address, leaving the VM
+		// unreachable. Rejected so the provider cannot regress to sending one.
 		if len(*n.FixedIps) == 0 {
 			acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{
 				"errorMessage": fmt.Sprintf("'networks[%d].fixed_ips' is empty; the VM would get no IP address", i)})
 			return
 		}
+	}
+
+	// user_data has to arrive base64-encoded; a raw document is refused.
+	userData, err := base64.StdEncoding.DecodeString(body.UserData)
+	if err != nil {
+		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{
+			"errorMessage": fmt.Sprintf("Invalid input for field/attribute user_data. %q is not a 'base64'", body.UserData)})
+		return
 	}
 
 	f.mu.Lock()
@@ -214,10 +244,8 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 		Name:      body.Name,
 		Flavor:    body.FlavorRef,
 		pollsLeft: f.buildPolls,
-		// The boot interface keeps what create asked for. The real API reports
-		// the security groups and port security back on the interface list —
-		// checked live — and an import relies on exactly that to rebuild the
-		// `network` block.
+		// The boot interface keeps what create asked for. The interface list
+		// reports the groups and port security back, and an import relies on it.
 		ifaces: []*fakeIface{{
 			PortID:    fmt.Sprintf("port-boot-%d", f.nextPort),
 			NetworkID: body.Networks[0].UUID,
@@ -226,13 +254,14 @@ func (f *fakeVMAPI) create(w http.ResponseWriter, r *http.Request) {
 			PortSec:   body.Networks[0].PortSecurityEnabled,
 			SecGroups: derefStrings(body.Networks[0].SecurityGroups),
 		}},
-		volumes: []*fakeVol{{ID: "vol-boot", Name: body.Name + "-boot", Size: 20}},
-		hotPlug: body.EnableHotPlug != nil && *body.EnableHotPlug,
+		volumes:  []*fakeVol{{ID: "vol-boot", Name: body.Name + "-boot", Size: 20}},
+		hotPlug:  body.EnableHotPlug != nil && *body.EnableHotPlug,
+		userData: string(userData),
 	}
 	f.createdNames = append(f.createdNames, body.Name)
 	f.mu.Unlock()
 
-	// The API sends the OpenStack server object unwrapped: the id is top level.
+	// The server object comes back unwrapped: the id is top level.
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"id": id})
 }
 
@@ -255,6 +284,32 @@ func (v *fakeVM) prevStatus() string {
 	return "ACTIVE"
 }
 
+// fakeFlavors is the size catalogue the fake serves and reports against. An
+// unknown flavor reads as the zero value.
+var fakeFlavors = map[string]struct {
+	vcpus int
+	ram   string
+}{
+	"flavor-small": {vcpus: 1, ram: "512 MB"},
+	"flavor-large": {vcpus: 4, ram: "8192 MB"},
+}
+
+// fakeFixedIP mirrors the fixed_ips entries the API accepts.
+type fakeFixedIP struct {
+	IPVersion int    `json:"ip_version"`
+	IPAddress string `json:"ip_address"`
+}
+
+// pinnedOr returns the first pinned address, or fallback when none is pinned.
+func pinnedOr(ips []fakeFixedIP, fallback string) string {
+	for _, ip := range ips {
+		if ip.IPAddress != "" {
+			return ip.IPAddress
+		}
+	}
+	return fallback
+}
+
 func (f *fakeVMAPI) detailsBody(id, status, taskState string) map[string]any {
 	f.vmsMu(id)
 	v := f.vms[id]
@@ -265,24 +320,28 @@ func (f *fakeVMAPI) detailsBody(id, status, taskState string) map[string]any {
 		"creationTime": acctest.FakeCreatedAt,
 		"lastModified": acctest.FakeCreatedAt,
 		"image":        fakeVMImage,
-		"imageOsType":  fakeVMOsType,
-		"sshKey":       fakeVMKeyName,
-		"taskState":    taskState,
+		// The id alongside the name: image names are not unique, so the id is
+		// what lets a read reconcile a boot disk against its source.
+		"imageId":     fakeVMImageID,
+		"imageOsType": fakeVMOsType,
+		"sshKey":      fakeVMKeyName,
+		"taskState":   taskState,
+		// From the same catalogue the flavors endpoint serves, so a resized
+		// instance reports the size it was resized to. A fixed answer here hid
+		// that vcpus and ram move with the flavor.
 		"flavor": map[string]any{
 			"name":  v.Flavor,
-			"vcpus": 1,
-			"ram":   "512 MB",
+			"vcpus": fakeFlavors[v.Flavor].vcpus,
+			"ram":   fakeFlavors[v.Flavor].ram,
 		},
-		// The real response carries these two and dt-go's typed struct does
-		// not, so the provider reads them out of the raw body. Reporting them
-		// here is what makes that path testable.
+		// dt-go's typed struct does not carry these two, so the provider reads
+		// them out of the raw body. Reporting them makes that path testable.
 		"hotPlugEnabled": v.hotPlug,
 		"metadata":       map[string]string{"ha_enabled": "true"},
 	}
 }
 
-// vmsMu is a no-op marker: detailsBody is always called with f.mu held or from
-// a context where the map is not being mutated.
+// vmsMu is a no-op marker: detailsBody is always called with f.mu held.
 func (f *fakeVMAPI) vmsMu(string) {}
 
 func (f *fakeVMAPI) details(w http.ResponseWriter, id string) {
@@ -301,6 +360,9 @@ func (f *fakeVMAPI) details(w http.ResponseWriter, id string) {
 		body = f.detailsBody(id, "BUILD", "spawning")
 	case f.failWithError:
 		body = f.detailsBody(id, "ERROR", "")
+		// `fault` is the only thing that says why a build failed, so reporting it
+		// pins the provider surfacing it instead of a bare "entered ERROR state".
+		body["fault"] = fakeVMFault
 	case v.settlePolls > 0:
 		v.settlePolls--
 		body = f.detailsBody(id, v.prevStatus(), "powering")
@@ -390,7 +452,7 @@ func (f *fakeVMAPI) withVM(w http.ResponseWriter, id string, fn func(*fakeVM)) b
 }
 
 // history is an event log. The list leaves `status` out — only the detail
-// endpoint reports it, which is the whole reason there are two data sources.
+// endpoint reports it, which is why there are two data sources.
 func (f *fakeVMAPI) history(w http.ResponseWriter, id string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -449,6 +511,9 @@ func (f *fakeVMAPI) listVolumes(w http.ResponseWriter, id string) {
 	var out []map[string]any
 	if !f.withVM(w, id, func(v *fakeVM) {
 		for _, vol := range v.volumes {
+			if vol.status == "available" {
+				continue
+			}
 			out = append(out, map[string]any{
 				"id": vol.ID, "name": vol.Name, "storagePolicy": "standard",
 				"size": vol.Size, "deleteOnTermination": vol.ID == "vol-boot",
@@ -458,6 +523,36 @@ func (f *fakeVMAPI) listVolumes(w http.ResponseWriter, id string) {
 		return
 	}
 	acctest.WriteJSON(w, http.StatusOK, out)
+}
+
+// volumeDetails reports one volume's status, advancing a pending detach by one
+// read. The countdown is what makes a broken wait visible: a wait that stops
+// before the volume settles reads `detaching` and is wrong about it.
+func (f *fakeVMAPI) volumeDetails(w http.ResponseWriter, volumeID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, v := range f.vms {
+		for _, vol := range v.volumes {
+			if vol.ID != volumeID {
+				continue
+			}
+			if vol.status == "detaching" {
+				if vol.settleReads > 0 {
+					vol.settleReads--
+				} else {
+					vol.status = vol.detachEndsAs
+				}
+			}
+			acctest.WriteJSON(w, http.StatusOK, map[string]any{
+				"id": vol.ID, "name": vol.Name, "status": vol.status, "size": vol.Size,
+				"attachedTo": vol.detachedFromA, "attachedToId": v.ID, "type": "standard",
+				"isDetachable": true,
+			})
+			return
+		}
+	}
+	acctest.NotFound(w, fmt.Sprintf("volume %s not found", volumeID))
 }
 
 func (f *fakeVMAPI) action(w http.ResponseWriter, r *http.Request, id string) {
@@ -488,9 +583,9 @@ func (f *fakeVMAPI) action(w http.ResponseWriter, r *http.Request, id string) {
 				resizeErr = true
 				return
 			}
-			// The new flavor is not visible immediately: the VM stays SHUTOFF on
-			// the old flavor for a moment, then goes through VERIFY_RESIZE. This
-			// is what catches a completion check that only looks at status.
+			// The new flavor is not visible immediately: the VM stays SHUTOFF on the
+			// old flavor, then goes through VERIFY_RESIZE. This catches a completion
+			// check that only looks at the status.
 			v.pendingFlavor = body.FlavorRef
 			v.verifyPolls = 3
 			f.resizes++
@@ -530,22 +625,34 @@ func (f *fakeVMAPI) attachVolume(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 	if !f.withVM(w, id, func(v *fakeVM) {
-		v.volumes = append(v.volumes, &fakeVol{ID: body.VolumeID, Name: body.VolumeID + "-name", Size: 50})
+		v.volumes = append(v.volumes, &fakeVol{
+			ID: body.VolumeID, Name: body.VolumeID + "-name", Size: 50, status: "in-use", detachedFromA: v.Name,
+		})
 	}) {
 		return
 	}
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"message": "attached"})
 }
 
+// detachVolume accepts the request and leaves the work unfinished, which is what
+// the platform does. The volume stays on the VM's list throughout, so the list
+// never distinguishes the two outcomes.
 func (f *fakeVMAPI) detachVolume(w http.ResponseWriter, id, volumeID string) {
 	if !f.withVM(w, id, func(v *fakeVM) {
-		kept := v.volumes[:0]
 		for _, vol := range v.volumes {
 			if vol.ID != volumeID {
-				kept = append(kept, vol)
+				continue
+			}
+			vol.status = "detaching"
+			vol.settleReads = 4
+			vol.detachEndsAs = "available"
+			if f.detachRevertsLeft > 0 {
+				// A guest that will not release the filesystem: the platform
+				// gives up and puts the volume back.
+				f.detachRevertsLeft--
+				vol.detachEndsAs = "in-use"
 			}
 		}
-		v.volumes = kept
 	}) {
 		return
 	}
@@ -554,14 +661,25 @@ func (f *fakeVMAPI) detachVolume(w http.ResponseWriter, id, volumeID string) {
 
 func (f *fakeVMAPI) attachIface(w http.ResponseWriter, r *http.Request, id string) {
 	var body struct {
-		NetworkID      string   `json:"network_id"`
-		MacAddress     string   `json:"mac_address"`
-		SecurityGroups []string `json:"security_groups"`
-		PortSec        bool     `json:"port_security_enabled"`
+		NetworkID      string         `json:"network_id"`
+		MacAddress     string         `json:"mac_address"`
+		SecurityGroups []string       `json:"security_groups"`
+		PortSec        bool           `json:"port_security_enabled"`
+		FixedIps       *[]fakeFixedIP `json:"fixed_ips"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.NetworkID == "" {
 		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "network_id is required"})
+		return
+	}
+	// The attach endpoint requires fixed_ips, and an empty list builds a port
+	// with no address, as on the create path.
+	if body.FixedIps == nil {
+		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "'fixed_ips' must be an array"})
+		return
+	}
+	if len(*body.FixedIps) == 0 {
+		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "'fixed_ips' is empty; the interface would get no IP address"})
 		return
 	}
 	if !f.withVM(w, id, func(v *fakeVM) {
@@ -571,9 +689,10 @@ func (f *fakeVMAPI) attachIface(w http.ResponseWriter, r *http.Request, id strin
 			NetworkID: body.NetworkID,
 			// The platform assigns these, so the fake does too.
 			MacAddress: "fa:16:3e:00:00:0" + fmt.Sprint(f.nextPort),
-			PrimaryIP:  fmt.Sprintf("10.0.1.%d", f.nextPort),
-			PortSec:    body.PortSec,
-			SecGroups:  body.SecurityGroups,
+			// A pinned address is honoured; otherwise the platform allocates.
+			PrimaryIP: pinnedOr(*body.FixedIps, fmt.Sprintf("10.0.1.%d", f.nextPort)),
+			PortSec:   body.PortSec,
+			SecGroups: body.SecurityGroups,
 		})
 	}) {
 		return
@@ -583,13 +702,26 @@ func (f *fakeVMAPI) attachIface(w http.ResponseWriter, r *http.Request, id strin
 
 func (f *fakeVMAPI) updateIface(w http.ResponseWriter, r *http.Request, id, portID string) {
 	var body struct {
-		SecurityGroups []string `json:"security_groups"`
+		SecurityGroups []string       `json:"security_groups"`
+		FixedIps       *[]fakeFixedIP `json:"fixed_ips"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
+	// The update endpoint requires fixed_ips and rejects an empty entry.
+	if body.FixedIps == nil || len(*body.FixedIps) == 0 {
+		acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "'fixed_ips' must be a non-empty array"})
+		return
+	}
+	for _, ip := range *body.FixedIps {
+		if ip.IPVersion == 0 && ip.IPAddress == "" {
+			acctest.WriteJSON(w, http.StatusBadRequest, map[string]any{"errorMessage": "'fixed_ips[0]' must contain at least one of [ip_version, ip_address]"})
+			return
+		}
+	}
 	if !f.withVM(w, id, func(v *fakeVM) {
 		for _, i := range v.ifaces {
 			if i.PortID == portID {
 				i.SecGroups = body.SecurityGroups
+				i.PrimaryIP = pinnedOr(*body.FixedIps, i.PrimaryIP)
 			}
 		}
 	}) {
@@ -617,6 +749,19 @@ func testVMConfig(endpoint, name, flavor string) string {
 	return testVMConfigState(endpoint, name, flavor, "running")
 }
 
+// vmOutputs exposes the flavor-derived attributes through outputs. State comes
+// back from Read and is always fresh; an output is evaluated from the plan, so
+// an attribute the plan believed unchanged reads stale there for a whole cycle.
+const vmOutputs = `
+output "vm_vcpus" {
+  value = dtcloud_vm.test.vcpus
+}
+
+output "vm_ram" {
+  value = dtcloud_vm.test.ram
+}
+`
+
 func testVMConfigState(endpoint, name, flavor, state string) string {
 	return fmt.Sprintf(`
 provider "dtcloud" {
@@ -635,10 +780,6 @@ resource "dtcloud_vm" "test" {
   network {
     uuid            = "11111111-2222-3333-4444-555555555555"
     security_groups = ["sg-default"]
-
-    fixed_ip {
-      ip_version = 4
-    }
   }
 
   block_device {
@@ -688,10 +829,6 @@ resource "dtcloud_vm" "host" {
   network {
     uuid            = "11111111-2222-3333-4444-555555555555"
     security_groups = ["sg-default"]
-
-    fixed_ip {
-      ip_version = 4
-    }
   }
 
   block_device {
@@ -712,9 +849,8 @@ resource "dtcloud_vm" "host" {
 // TestAccDtcloudVMVolumeAttachment covers attach → read → import → detach, and
 // checks the attachment shows up on the VM's own volume list.
 
-// derefStrings unwraps the pointer-to-slice the create body uses to tell "field
-// absent" from "empty array" — the distinction the API's Joi.array() cares
-// about.
+// derefStrings unwraps the pointer-to-slice the create body uses to tell
+// "field absent" from "empty array".
 func derefStrings(v *[]string) []string {
 	if v == nil {
 		return nil

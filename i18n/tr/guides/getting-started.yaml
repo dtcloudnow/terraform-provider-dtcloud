@@ -1,0 +1,208 @@
+- en: |-
+    Getting started with the dtcloud provider
+  tr: |-
+    dtcloud sağlayıcısıyla başlarken
+- en: |-
+    Getting started
+  tr: |-
+    Başlarken
+- en: |-
+    This walks through building your first machine on DT Cloud with Terraform: what you need before you start, what a minimal configuration looks like, and what to expect from each command. It assumes no prior Terraform.
+  tr: |-
+    Bu rehber, DT Cloud'daki ilk makinenizi Terraform ile oluşturmayı adım adım anlatır: başlamadan önce neye ihtiyacınız olduğunu, en küçük yapılandırmanın neye benzediğini ve her komuttan ne beklemeniz gerektiğini. Daha önce Terraform kullanmadığınızı varsayar.
+- en: |-
+    What Terraform does here
+  tr: |-
+    Terraform burada ne yapar
+- en: |-
+    You write a file describing what you want. Terraform works out the difference between that and what exists, then makes the calls to close the gap.
+  tr: |-
+    İstediğiniz şeyi anlatan bir dosya yazarsınız. Terraform bununla var olan arasındaki farkı çıkarır, sonra aradaki farkı kapatacak çağrıları yapar.
+- en: |-
+    That is the whole idea, and it is what makes it different from a script that calls the API. A script says *do these steps*. Terraform says *this is the result I want* — so running it twice changes nothing the second time, and running it after someone edited things by hand puts them back.
+  tr: |-
+    Bütün fikir budur ve onu API'yi çağıran bir betikten ayıran da budur. Bir betik *şu adımları uygula* der. Terraform ise *istediğim sonuç bu* der; bu yüzden iki kez çalıştırmak ikincisinde hiçbir şeyi değiştirmez, biri bir şeyleri elle düzenledikten sonra çalıştırmak da onları eski haline getirir.
+- en: |-
+    1. Install Terraform
+  tr: |-
+    1. Terraform'u kurun
+- en: |-
+    Download it from [releases.hashicorp.com](https://releases.hashicorp.com/terraform/) and put the binary on your `PATH`.
+  tr: |-
+    [releases.hashicorp.com](https://releases.hashicorp.com/terraform/) adresinden indirin ve çalıştırılabilir dosyayı `PATH` üzerine koyun.
+- en: |-
+    2. Get your credentials
+  tr: |-
+    2. Kimlik bilgilerinizi alın
+- en: |-
+    You need three things from the DT Cloud console: an **API access key**, an **API secret key**, and the **region (server) id** your project lives in.
+  tr: |-
+    DT Cloud konsolundan üç şeye ihtiyacınız var: bir **API erişim anahtarı**, bir **API gizli anahtarı** ve projenizin bulunduğu **bölge (sunucu) kimliği**.
+- en: |-
+    Pick whichever way suits you — the provider takes them from the first place that has them.
+  tr: |-
+    Size uyan yolu seçin; sağlayıcı bunları, onları içeren ilk yerden alır.
+- en: |-
+    Configure the machine once (recommended)
+  tr: |-
+    Makineyi bir kez yapılandırın (önerilen)
+- en: |-
+    It asks for the three values, checks them against the API before saving anything, and writes them to your user configuration directory with owner-only permissions. Every project on the machine then works with an empty provider block and no credentials in sight.
+  tr: |-
+    Üç değeri sorar, bir şey kaydetmeden önce onları API'ye karşı doğrular ve yalnızca sahibinin okuyabileceği izinlerle kullanıcı yapılandırma dizininize yazar. Bundan sonra makinedeki her proje boş bir provider bloğuyla ve ortada hiçbir kimlik bilgisi olmadan çalışır.
+- en: |-
+    The command is the provider binary itself, so there is nothing extra to install. If it is not on your `PATH`, the error you get from `terraform plan` prints the full path to it.
+  tr: |-
+    Komut sağlayıcının çalıştırılabilir dosyasının kendisidir, bu yüzden ek bir şey kurmanız gerekmez. `PATH` üzerinde değilse, `terraform plan`'dan aldığınız hata onun tam yolunu yazdırır.
+- en: |-
+    Or let Terraform ask, per project
+  tr: |-
+    Ya da proje başına Terraform sorsun
+- en: |-
+    Declare the values as variables with no default and Terraform prompts for them on the first `plan`:
+  tr: |-
+    Değerleri varsayılanı olmayan değişkenler olarak tanımlayın; Terraform ilk `plan`'da onları sorar:
+- en: |-
+    The endpoint has a default, so only the other three are asked for; set `dtcloud_api_url` for any environment other than production.
+  tr: |-
+    Adresin varsayılan değeri olduğu için yalnızca diğer üçü sorulur; üretim dışındaki her ortam için `dtcloud_api_url` değerini verin.
+- en: |-
+    Put the values in `terraform.tfvars` once you tire of typing them, and add that file to your `.gitignore`.
+  tr: |-
+    Yazmaktan yorulduğunuzda değerleri `terraform.tfvars` dosyasına koyun ve o dosyayı `.gitignore`'a ekleyin.
+- en: |-
+    Or environment variables, which is what CI should use
+  tr: |-
+    Ya da ortam değişkenleri; CI'ın kullanması gereken budur
+- en: |-
+    These override the configuration file, so a build agent never picks up a developer's account.
+  tr: |-
+    Bunlar yapılandırma dosyasını geçersiz kılar; böylece bir derleme ajanı asla bir geliştiricinin hesabını kullanmaz.
+- en: |-
+    **Keep credentials out of your `.tf` files.** Anything written there goes into version control, and `terraform.tfstate` is not encrypted either. Any of the three ways above keeps both clean.
+  tr: |-
+    **Kimlik bilgilerini `.tf` dosyalarınızın dışında tutun.** Oraya yazılan her şey sürüm denetimine girer ve `terraform.tfstate` de şifrelenmez. Yukarıdaki üç yoldan herhangi biri ikisini de temiz tutar.
+- en: |-
+    Keep an empty `provider "dtcloud" {}` block in your configuration even when it needs no arguments. Without one, a credentials problem is reported by Terraform first as *"requires explicit configuration"*, which points you the wrong way.
+  tr: |-
+    Hiçbir argümana ihtiyaç duymasa bile yapılandırmanızda boş bir `provider "dtcloud" {}` bloğu tutun. Bu blok olmadan bir kimlik bilgisi sorunu Terraform tarafından önce *"requires explicit configuration"* olarak bildirilir ve bu sizi yanlış yöne götürür.
+- en: |-
+    3. Find the ids you will need
+  tr: |-
+    3. İhtiyacınız olan kimlikleri bulun
+- en: |-
+    A VM needs a flavor, an image, a network, a security group and a storage policy. Look them up once and note the ids:
+  tr: |-
+    Bir sanal makinenin bir flavor'a, bir imaja, bir ağa, bir güvenlik grubuna ve bir depolama politikasına ihtiyacı vardır. Bunları bir kez arayıp kimliklerini not edin:
+- en: |-
+    data sources only — nothing is created
+  tr: |-
+    yalnızca veri kaynakları; hiçbir şey oluşturulmaz
+- en: |-
+    4. Write the configuration
+  tr: |-
+    4. Yapılandırmayı yazın
+- en: |-
+    Create `main.tf`:
+  tr: |-
+    `main.tf` dosyasını oluşturun:
+- en: |-
+    Two things that trip people up on the first try:
+  tr: |-
+    İlk denemede en sık takılınan iki şey:
+- en: |-
+    **At least one of `key_name`, `user_data` or `script` is required.** They are the only ways in; a VM with none of the three boots with no way to log into it.
+  tr: |-
+    **`key_name`, `user_data` ya da `script` değerlerinden en az biri zorunludur.** İçeri girmenin tek yolları bunlardır; üçü de olmayan bir sanal makine, oturum açmanın hiçbir yolu olmadan önyüklenir.
+- en: |-
+    **Leave `fixed_ip` out unless you want a specific address.** The provider then asks for one address and the platform allocates it; `primary_ip` reports it after apply. Without `security_groups` the interface gets the project's default group.
+  tr: |-
+    **Belirli bir adres istemiyorsanız `fixed_ip`'yi yazmayın.** Sağlayıcı o zaman tek bir adres ister ve platform onu ayırır; apply'dan sonra `primary_ip` onu bildirir. `security_groups` verilmezse arayüz projenin varsayılan grubunu alır.
+- en: |-
+    5. Run it
+  tr: |-
+    5. Çalıştırın
+- en: |-
+    download the provider — once per directory
+  tr: |-
+    sağlayıcıyı indirir; dizin başına bir kez
+- en: |-
+    show what would change; creates nothing
+  tr: |-
+    neyin değişeceğini gösterir; hiçbir şey oluşturmaz
+- en: |-
+    do it, after you confirm
+  tr: |-
+    onayladıktan sonra uygular
+- en: |-
+    Read the plan before confirming. The symbols are the whole story:
+  tr: |-
+    Onaylamadan önce planı okuyun. Her şeyi simgeler anlatır:
+- en: |-
+    Symbol
+  tr: |-
+    Simge
+- en: |-
+    Meaning
+  tr: |-
+    Anlamı
+- en: |-
+    will be created
+  tr: |-
+    oluşturulacak
+- en: |-
+    will be changed in place
+  tr: |-
+    yerinde değiştirilecek
+- en: |-
+    **will be destroyed**
+  tr: |-
+    **yok edilecek**
+- en: |-
+    will be **destroyed and recreated**
+  tr: |-
+    **yok edilip yeniden oluşturulacak**
+- en: |-
+    `-/+` is the one to slow down for. It means an argument changed that the platform cannot change on a live instance, so the only way to reach the state you asked for is to rebuild. Every resource page lists which arguments do that.
+  tr: |-
+    Dikkat etmeniz gereken simge `-/+`'dır. Platformun çalışan bir makinede değiştiremediği bir argümanın değiştiği anlamına gelir; bu yüzden istediğiniz duruma ulaşmanın tek yolu yeniden oluşturmaktır. Hangi argümanların buna yol açtığını her kaynak sayfası listeler.
+- en: |-
+    6. Change something
+  tr: |-
+    6. Bir şeyi değiştirin
+- en: |-
+    Edit `name` in the file and run `terraform plan` again. You will see `~` — a rename happens in place. Now try changing the network id: that shows `-/+`, because it cannot.
+  tr: |-
+    Dosyadaki `name` değerini düzenleyip `terraform plan`'ı yeniden çalıştırın. `~` göreceksiniz: yeniden adlandırma yerinde yapılır. Şimdi ağ kimliğini değiştirmeyi deneyin: bu `-/+` gösterir, çünkü yerinde yapılamaz.
+- en: |-
+    7. Tear it down
+  tr: |-
+    7. Kaldırın
+- en: |-
+    This deletes everything in the configuration. There is no undo.
+  tr: |-
+    Bu, yapılandırmadaki her şeyi siler. Geri alınamaz.
+- en: |-
+    Adopting machines that already exist
+  tr: |-
+    Zaten var olan makineleri Terraform'a almak
+- en: |-
+    If a VM was built in the console and you want Terraform to manage it, `terraform import` writes it into state without touching the machine:
+  tr: |-
+    Konsolda oluşturulmuş bir sanal makineyi Terraform'un yönetmesini istiyorsanız, `terraform import` makineye dokunmadan onu state'e yazar:
+- en: |-
+    The plan afterwards is the important part. Terraform fills in what the API reports. Anything it cannot read stays empty in state, and when such an argument forces a new resource, the first plan proposes to rebuild the machine. Each resource page lists those arguments and how to keep the imported resource.
+  tr: |-
+    Önemli olan sonrasındaki plandır. Terraform API'nin bildirdiklerini doldurur. Okuyamadığı her şey state'te boş kalır ve böyle bir argüman değiştirildiğinde yeni kaynak gerektiriyorsa ilk plan makineyi yeniden oluşturmayı önerir. Her kaynak sayfası bu argümanları ve içe aktarılan kaynağın nasıl korunacağını listeler.
+- en: |-
+    Where to go next
+  tr: |-
+    Sırada ne var
+- en: |-
+    Every resource and data source has its own page with arguments, attributes, timeouts and import format.
+  tr: |-
+    Her kaynağın ve veri kaynağının argümanları, öznitelikleri, zaman aşımları ve içe aktarma biçimiyle kendi sayfası vardır.
+- en: |-
+    `examples/` in the provider repository holds working configurations for each service — these are the same files used to test the provider against the live platform.
+  tr: |-
+    Sağlayıcı deposundaki `examples/` her servis için çalışan yapılandırmalar içerir; bunlar sağlayıcıyı canlı platforma karşı test etmek için kullanılan dosyaların aynısıdır.

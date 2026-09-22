@@ -1,0 +1,48 @@
+- en: |-
+    Reports what a project is using against what it is allowed.
+  tr: |-
+    Bir projenin ne kullandığını, izin verilenle karşılaştırarak bildirir.
+- en: |-
+    This is the console's summary view: a handful of headline figures with usage and quota side by side. For every limit the platform tracks, use `dtcloud_project_limits`.
+  tr: |-
+    Bu, konsoldaki özet görünümdür: kullanım ve kotanın yan yana verildiği birkaç temel değer. Platformun izlediği tüm sınırlar için `dtcloud_project_limits` kullanın.
+- en: |-
+    Usage against allowance, as the console shows it.
+  tr: |-
+    Konsolun gösterdiği gibi, izin verilene karşı kullanım.
+- en: |-
+    Region to report on. Defaults to the provider's configured region.
+  tr: |-
+    Raporlanacak bölge. Varsayılan olarak sağlayıcıda yapılandırılmış bölgedir.
+- en: |-
+    vCPU cores.
+  tr: |-
+    vCPU çekirdekleri.
+- en: |-
+    Floating IP addresses.
+  tr: |-
+    Floating IP adresleri.
+- en: |-
+    Memory in GiB.
+  tr: |-
+    GiB cinsinden bellek.
+- en: |-
+    Storage usage per volume type.
+  tr: |-
+    Disk tipi başına depolama kullanımı.
+- en: |-
+    The project's VMs counted by state.
+  tr: |-
+    Projenin sanal makineleri, duruma göre sayılmış.
+- en: |-
+    **A `quota` of `-1` means unlimited.** It is passed through rather than translated, so that arithmetic on it stays honest; check for it before dividing.
+  tr: |-
+    **`quota` değerinin `-1` olması sınırsız demektir.** Üzerinde yapılan aritmetik yanıltıcı olmasın diye başka bir değere çevrilmeden aktarılır; bölme yapmadan önce bunu kontrol edin.
+- en: |-
+    **`in_progress` counts machines with a pending task**, whatever their nominal status. A machine in the middle of a resize is counted there rather than under `running` or `stopped`.
+  tr: |-
+    **`in_progress`, bekleyen bir görevi olan makineleri sayar**; görünen durumları ne olursa olsun. Yeniden boyutlandırmanın ortasındaki bir makine `running` ya da `stopped` altında değil burada sayılır.
+- en: |-
+    **The region is part of the request path** for this endpoint, unlike every other call in the provider. That is why `region_id` is an argument here; it falls back to the provider's region.
+  tr: |-
+    **Bu uç noktada bölge istek yolunun bir parçasıdır**; sağlayıcıdaki diğer tüm çağrılardan farklı olarak. `region_id` değerinin burada bir argüman olmasının nedeni budur; verilmezse sağlayıcının bölgesi kullanılır.

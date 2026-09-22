@@ -95,17 +95,35 @@ func TestMissingSettingsExplainThemselves(t *testing.T) {
 			}
 		}
 	})
+
+	// The one that used to succeed. An omitted endpoint let the SDK pick one,
+	// so a configuration with a typo'd or forgotten endpoint built resources in
+	// whichever environment that default named, reporting nothing.
+	t.Run("no endpoint", func(t *testing.T) {
+		_, _, err := (&Config{AccessKey: "a", SecretKey: "b", RegionID: "1"}).Client()
+		if err == nil {
+			t.Fatal("an empty endpoint must be refused, not filled in by the SDK")
+		}
+		for _, want := range []string{"api_endpoint", "DTCLOUD_API_URL", "base_url"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error should mention %q: %s", want, err)
+			}
+		}
+	})
 }
 
 // Whitespace around a pasted key is invisible and would otherwise produce a
 // 401 that looks like a wrong key rather than a stray space.
 func TestValuesAreTrimmed(t *testing.T) {
-	path := writeConfig(t, "api:\n  access_key: \"  padded-access  \"\n  secret_key: \"  padded-secret  \"\nregion_id: \"  4  \"\n")
+	path := writeConfig(t, "api:\n  access_key: \"  padded-access  \"\n  secret_key: \"  padded-secret  \"\n  base_url: \"  https://padded.example/api/v1  \"\nregion_id: \"  4  \"\n")
 	client, _, err := (&Config{ConfigFile: path}).Client()
 	if err != nil {
 		t.Fatalf("Client: %s", err)
 	}
 	if got := client.DTClient().ServerId; got != "4" {
 		t.Errorf("region = %q, want it trimmed to 4", got)
+	}
+	if got := client.DTClient().BaseURL.String(); got != "https://padded.example/api/v1" {
+		t.Errorf("endpoint = %q, want it trimmed", got)
 	}
 }

@@ -1,10 +1,6 @@
-// Package region exposes the regions available to the account.
-//
-// Read-only. The API also has `POST /openstack/regions`, which switches the
-// *caller's* active region — that is session state, not infrastructure, and the
-// provider already takes a region through its own `region_id` argument.
-// Driving it from a resource would silently change which region every other
-// call lands in, so it is deliberately not exposed.
+// Package region exposes the regions available to the account. Read-only: the
+// endpoint that switches the active region changes session state rather than
+// infrastructure, and the provider takes a region through `region_id`.
 package region
 
 import (
@@ -20,13 +16,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// regionMetadata is the part of the response dt-go's typed struct leaves out.
-//
-// `ListRegionsResponse` carries only id and name, but the API also reports
-// which services a region actually offers — worth having, since a configuration
-// that builds a load balancer in a region without them fails at apply time
-// rather than at plan time. Every dt-go method also returns the raw body, so it
-// is decoded here rather than changing the SDK.
+// regionMetadata is the part of the response the typed struct leaves out.
+// ListRegionsResponse carries id and name; the API also reports which services
+// a region offers, decoded here from the raw body.
 type regionMetadata struct {
 	Regions []struct {
 		ID       int    `json:"id"`
@@ -40,6 +32,8 @@ type regionMetadata struct {
 // DataSourceDtcloudRegions lists the regions available to the account.
 func DataSourceDtcloudRegions() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the regions available to the account.",
+
 		ReadContext: dataSourceDtcloudRegionsRead,
 		Schema: map[string]*schema.Schema{
 			"regions": {

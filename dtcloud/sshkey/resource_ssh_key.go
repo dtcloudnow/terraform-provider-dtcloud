@@ -12,13 +12,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// ResourceDtcloudSSHKey manages an SSH key.
-//
-// The API (via dt-go) supports create / read / delete only — there is no
-// update — and it addresses keys by name, so the Terraform ID is the key name
-// and both `name` and `public_key` are ForceNew.
+// ResourceDtcloudSSHKey manages an SSH key. There is no update, and keys are
+// addressed by name, so the Terraform ID is the key name and both `name` and
+// `public_key` are ForceNew.
 func ResourceDtcloudSSHKey() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages an SSH key that can be injected into a virtual machine at boot.",
+
 		CreateContext: resourceDtcloudSSHKeyCreate,
 		ReadContext:   resourceDtcloudSSHKeyRead,
 		DeleteContext: resourceDtcloudSSHKeyDelete,

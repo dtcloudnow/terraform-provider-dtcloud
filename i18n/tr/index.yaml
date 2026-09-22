@@ -1,0 +1,100 @@
+- en: |-
+    dtcloud Provider
+  tr: |-
+    dtcloud Sağlayıcısı
+- en: |-
+    Manage DT Cloud (CMP) resources with Terraform: describe the infrastructure you want in a configuration file, run `terraform apply`, and the provider makes the platform match it.
+  tr: |-
+    DT Cloud (CMP) kaynaklarını Terraform ile yönetin: istediğiniz altyapıyı bir yapılandırma dosyasında tanımlayın, `terraform apply` çalıştırın; sağlayıcı platformu buna uygun hale getirir.
+- en: |-
+    The provider talks to the DT Cloud API through the [`dt-go`](https://github.com/dtcloudnow/dt-go) SDK -- the same SDK behind the [`dtctl`](https://docs.dtcloudnow.com/dtctl) command-line tool, so both tools see the same API and behave the same way.
+  tr: |-
+    Sağlayıcı DT Cloud API'siyle [`dt-go`](https://github.com/dtcloudnow/dt-go) SDK'sı üzerinden konuşur. Bu, [`dtctl`](https://docs.dtcloudnow.com/dtctl) komut satırı aracının kullandığı SDK'nın aynısıdır; bu yüzden iki araç da aynı API'yi görür ve aynı şekilde davranır.
+- en: |-
+    Terraform asks for every variable that has no default and no value yet. Put the values in a terraform.tfvars you do not commit, or use the DTCLOUD_* environment variables instead. The endpoint defaults to production; set it for any other environment.
+  tr: |-
+    Terraform, varsayılanı ve henüz değeri olmayan her değişkeni sorar. Değerleri commit etmediğiniz bir terraform.tfvars dosyasına koyun ya da bunun yerine DTCLOUD_* ortam değişkenlerini kullanın. Adresin varsayılanı üretim ortamıdır; başka her ortam için değerini verin.
+- en: |-
+    Every request carries an access key and a secret key, and is scoped to one region. The provider takes each of `access_key`, `secret_key`, `api_endpoint` and `region_id` from the first source that supplies it:
+  tr: |-
+    Her istek bir erişim anahtarı ve bir gizli anahtar taşır ve tek bir bölgeyle sınırlıdır. Sağlayıcı `access_key`, `secret_key`, `api_endpoint` ve `region_id` değerlerinin her birini, onu sağlayan ilk kaynaktan alır:
+- en: |-
+    **The `provider` block.** Explicit and version-controlled. Never write the secret key as a literal here -- reference a `variable` with no default and Terraform will prompt for it, or put it in a gitignored `terraform.tfvars`.
+  tr: |-
+    **`provider` bloğu.** Açıktır ve sürüm denetimindedir. Gizli anahtarı burada asla düz metin olarak yazmayın: varsayılanı olmayan bir `variable`'a başvurun, Terraform onu sorar; ya da git'e girmeyen bir `terraform.tfvars` dosyasına koyun.
+- en: |-
+    **Environment variables** -- `DTCLOUD_ACCESS_KEY`, `DTCLOUD_SECRET_KEY`, `DTCLOUD_API_URL`, `DTCLOUD_REGION_ID`. The right answer in CI: they override the configuration file, so a build agent never silently inherits a developer's account.
+  tr: |-
+    **Ortam değişkenleri**: `DTCLOUD_ACCESS_KEY`, `DTCLOUD_SECRET_KEY`, `DTCLOUD_API_URL`, `DTCLOUD_REGION_ID`. CI için doğru seçim budur: yapılandırma dosyasını geçersiz kılarlar, böylece bir derleme ajanı bir geliştiricinin hesabını asla sessizce devralmaz.
+- en: |-
+    **The configuration file.** Anything still unset is read from `config.yaml` in this machine's configuration directory:
+  tr: |-
+    **Yapılandırma dosyası.** Hâlâ ayarlanmamış olan her şey bu makinenin yapılandırma dizinindeki `config.yaml` dosyasından okunur:
+- en: |-
+    OS
+  tr: |-
+    İşletim sistemi
+- en: |-
+    Path
+  tr: |-
+    Yol
+- en: |-
+    Linux
+  tr: |-
+    Linux
+- en: |-
+    macOS
+  tr: |-
+    macOS
+- en: |-
+    Windows
+  tr: |-
+    Windows
+- en: |-
+    The file holds a secret key, so it must be owner-readable only. The provider tightens a too-permissive file at its own default path and warns about one elsewhere.
+  tr: |-
+    Dosya bir gizli anahtar tutar, bu yüzden yalnızca sahibi tarafından okunabilir olmalıdır. Sağlayıcı kendi varsayılan yolundaki fazla izinli bir dosyanın izinlerini daraltır, başka bir yerdeki için uyarı verir.
+- en: |-
+    The provider binary doubles as its own setup command: `terraform-provider-dtcloud configure` prompts for the access key, secret key and region, verifies them against the API before saving, and writes the file with the right permissions. `-profile prod` writes a second account, selectable with the `profile` argument or `DTCLOUD_PROFILE`.
+  tr: |-
+    Sağlayıcının çalıştırılabilir dosyası aynı zamanda kendi kurulum komutudur: `terraform-provider-dtcloud configure` access key, secret key ve bölgeyi sorar, kaydetmeden önce onları API'ye karşı doğrular ve dosyayı doğru izinlerle yazar. `-profile prod` ikinci bir hesap yazar; bu hesap `profile` argümanıyla ya da `DTCLOUD_PROFILE` ile seçilir.
+- en: |-
+    API access key, sent as the x-api-access-key header.
+  tr: |-
+    API erişim anahtarı; x-api-access-key başlığıyla gönderilir.
+- en: |-
+    Base URL of the DT Cloud API, ending in /api/v1. Required: it decides which environment resources are created in, and the provider will not guess. Can come from DTCLOUD_API_URL or the configuration file instead.
+  tr: |-
+    DT Cloud API'sinin /api/v1 ile biten temel URL'si. Ayarlanmazsa SDK'nın varsayılanı kullanılır.
+- en: |-
+    Path to the configuration file. Defaults to config.yaml in this machine's configuration directory, under terraform-provider-dtcloud.
+  tr: |-
+    Yapılandırma dosyasının yolu. Varsayılan olarak bu makinenin yapılandırma dizininde, terraform-provider-dtcloud altındaki config.yaml dosyasıdır.
+- en: |-
+    Which account in the configuration file to use. Defaults to the file's `default_profile`, then to `default`.
+  tr: |-
+    Yapılandırma dosyasındaki hangi hesabın kullanılacağı. Varsayılan olarak dosyanın `default_profile` değeri, o da yoksa `default` kullanılır.
+- en: |-
+    Region / server id, sent as the serverId query parameter on every request.
+  tr: |-
+    Bölge / sunucu kimliği; her istekte serverId sorgu parametresi olarak gönderilir.
+- en: |-
+    API secret key, sent as the x-api-secret-key header.
+  tr: |-
+    API gizli anahtarı; x-api-secret-key başlığıyla gönderilir.
+- en: |-
+    What this provider manages
+  tr: |-
+    Bu sağlayıcının yönettikleri
+- en: |-
+    Resources
+  tr: |-
+    Kaynaklar
+- en: |-
+    Data sources
+  tr: |-
+    Veri kaynakları
+- en: |-
+    Every page carries its own examples, behaviour notes and import instructions.
+  tr: |-
+    Her sayfa kendi örneklerini, davranış notlarını ve içe aktarma yönergelerini taşır.

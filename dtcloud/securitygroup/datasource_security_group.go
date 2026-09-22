@@ -10,15 +10,11 @@ import (
 )
 
 // DataSourceDtcloudSecurityGroup looks up one security group, by id or by name.
-//
-// Name lookup exists because a security group id is the one value a VM cannot
-// do without — `security_groups` is required on every network interface — and
-// hand-copying a uuid out of the web panel is how that field gets filled today.
-//
-// Names are not unique on the platform, so a name that matches more than one
-// group is an error rather than an arbitrary pick.
+// Names are not unique, so one matching more than one group is an error.
 func DataSourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one security group, by id or by name.",
+
 		ReadContext: dataSourceDtcloudSecurityGroupRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

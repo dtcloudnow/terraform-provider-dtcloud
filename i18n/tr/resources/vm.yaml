@@ -1,0 +1,244 @@
+- en: |-
+    Manages a virtual machine.
+  tr: |-
+    Bir sanal makineyi yönetir.
+- en: |-
+    This resource builds the machine, renames it, resizes it, changes its power state and destroys it. Interfaces and volumes added after boot belong to `dtcloud_vm_network_interface` and `dtcloud_vm_volume_attachment`.
+  tr: |-
+    Bu kaynak makineyi oluşturur, yeniden adlandırır, yeniden boyutlandırır, güç durumunu değiştirir ve yok eder. Önyüklemeden sonra eklenen arayüzler ve diskler `dtcloud_vm_network_interface` ile `dtcloud_vm_volume_attachment`'a aittir.
+- en: |-
+    Interfaces declared here are created with the machine and live and die with it. Add one afterwards with dtcloud_vm_network_interface instead.
+  tr: |-
+    Burada tanımlanan arayüzler makineyle birlikte oluşturulur ve makineyle birlikte silinir. Sonradan arayüz eklemek için bunun yerine dtcloud_vm_network_interface kullanın.
+- en: |-
+    The boot disk is boot_index 0.
+  tr: |-
+    Önyükleme diski boot_index 0'dır.
+- en: |-
+    **At least one of `key_name`, `user_data` or `script` is required.** They are the only ways credentials or a provisioning payload reach the guest. `user_data` and `script` cannot both be set: the platform builds cloud-init from `script` only when `user_data` is absent, so the plan refuses the combination instead of silently dropping the script.
+  tr: |-
+    **`key_name`, `user_data` ya da `script` değerlerinden en az biri zorunludur.** Kimlik bilgilerinin ya da bir hazırlama yükünün misafir işletim sistemine ulaşmasının tek yolları bunlardır. `user_data` ile `script` birlikte ayarlanamaz: platform cloud-init'i yalnızca `user_data` yokken `script`'ten oluşturur; bu yüzden plan, betiği sessizce yok saymak yerine bu birleşimi reddeder.
+- en: |-
+    On a Linux image, set `username`, `hostname` and `disable_root` in `script`. They are optional only because Windows template images ignore them, and the apply warns when a Linux `script` leaves any of them out.
+  tr: |-
+    Linux imajında `script` içinde `username`, `hostname` ve `disable_root` değerlerini ayarlayın. Yalnızca Windows şablon imajları onları yok saydığı için isteğe bağlıdırlar ve bir Linux `script`'i bunlardan birini eksik bıraktığında apply uyarı verir.
+- en: |-
+    Leave `fixed_ip` out for the usual case: the provider asks for one address and the platform allocates it. The addresses actually assigned are reported back into the `network` blocks.
+  tr: |-
+    Olağan durum için `fixed_ip`'yi yazmayın: sağlayıcı tek bir adres ister ve platform onu ayırır. Gerçekte atanan adresler `network` bloklarına geri bildirilir.
+- en: |-
+    ID of the flavor (sizing). Changing this resizes the instance in place. Unless enable_hot_plug is true the platform requires the instance to be stopped first, so the provider stops it, resizes and returns it to the configured power state — a plan that does this is the one where `status` also shows as (known after apply).
+  tr: |-
+    Flavor'ın (boyutlandırma) kimliği. Bunu değiştirmek makineyi yerinde yeniden boyutlandırır. enable_hot_plug true değilse platform makinenin önce durdurulmasını ister; bu yüzden sağlayıcı onu durdurur, yeniden boyutlandırır ve yapılandırılmış güç durumuna geri döndürür. Bunu yapan plan, `status` değerinin de (known after apply) olarak göründüğü plandır.
+- en: |-
+    Name of the virtual machine. Can be changed in place.
+  tr: |-
+    Sanal makinenin adı. Yerinde değiştirilebilir.
+- en: |-
+    Block devices to attach at boot. The boot disk is the entry with boot_index 0. At least one is required.
+  tr: |-
+    Önyüklemede bağlanacak blok cihazları. Önyükleme diski boot_index değeri 0 olan girdidir. En az bir tane zorunludur.
+- en: |-
+    Allow live vCPU/memory resize on the instance. With this on, changing flavor_id does not power-cycle the instance. Can be toggled after creation.
+  tr: |-
+    Makinede canlı vCPU/bellek yeniden boyutlandırmasına izin verir. Açıkken flavor_id'yi değiştirmek makineyi kapatıp açmaz. Oluşturulduktan sonra açılıp kapatılabilir.
+- en: |-
+    When stopping, ask the guest to shut down (softStop) instead of cutting power (hardStop).
+  tr: |-
+    Durdururken gücü kesmek (hardStop) yerine misafir işletim sisteminin kendini kapatmasını ister (softStop).
+- en: |-
+    Set when booting a GPU image.
+  tr: |-
+    Bir GPU imajı önyüklenirken ayarlanır.
+- en: |-
+    Name of an existing SSH key to inject, e.g. a dtcloud_ssh_key resource's name.
+  tr: |-
+    Eklenecek mevcut bir SSH anahtarının adı, örn. bir dtcloud_ssh_key kaynağının adı.
+- en: |-
+    Network interfaces to attach at boot. At least one is required.
+  tr: |-
+    Önyüklemede bağlanacak ağ arayüzleri. En az bir tane zorunludur.
+- en: |-
+    Initial credentials applied to the guest at first boot. On a Linux image, set username, hostname and disable_root as well — they are optional only because Windows template images ignore them.
+  tr: |-
+    İlk önyüklemede misafir işletim sistemine uygulanan başlangıç kimlik bilgileri. Linux imajında username, hostname ve disable_root değerlerini de ayarlayın; yalnızca Windows şablon imajları onları yok saydığı için isteğe bağlıdırlar.
+- en: |-
+    Desired power state: running, stopped or shelved. Shelving releases compute resources while keeping the VM and its disks.
+  tr: |-
+    İstenen güç durumu: running, stopped ya da shelved. Shelve işlemi sanal makineyi ve disklerini korurken bilişim kaynaklarını serbest bırakır.
+- en: |-
+    Cloud-init user data, written as it should reach the guest. The API only accepts it base64-encoded and the provider encodes it, so passing base64encode() output here would encode it twice and the guest would receive the encoded text.
+  tr: |-
+    Cloud-init kullanıcı verisi; misafir sisteme ulaşması gereken hâliyle yazılır. API bunu yalnızca base64 kodlanmış olarak kabul eder ve kodlamayı sağlayıcı yapar; bu yüzden buraya `base64encode()` çıktısı vermek veriyi iki kez kodlar ve misafire cloud-config yerine kodlanmış metin ulaşır.
+- en: |-
+    Written as it should reach the guest; the provider base64-encodes it, which is the only form the API accepts. Encoding it here too would double-encode it.
+  tr: |-
+    Misafir sisteme ulaşması gereken hâliyle yazılır; API yalnızca base64 kodlanmış hâlini kabul ettiği için kodlamayı sağlayıcı yapar. Burada da kodlamak veriyi iki kez kodlar.
+- en: |-
+    Metadata the platform attaches to the instance, e.g. ha_enabled.
+  tr: |-
+    Platformun makineye eklediği meta veri, örn. ha_enabled.
+- en: |-
+    Boot order. The boot disk is 0.
+  tr: |-
+    Önyükleme sırası. Önyükleme diski 0'dır.
+- en: |-
+    Whether the device is deleted with the VM.
+  tr: |-
+    Cihazın sanal makineyle birlikte silinip silinmediği.
+- en: |-
+    One of: volume, local.
+  tr: |-
+    Şunlardan biri: volume, local.
+- en: |-
+    One of: cdrom, disk.
+  tr: |-
+    Şunlardan biri: cdrom, disk.
+- en: |-
+    Where the device comes from. One of: blank, image, volume, backup.
+  tr: |-
+    Cihazın nereden geldiği. Şunlardan biri: blank, image, volume, backup.
+- en: |-
+    Size in GB (1-8192). Can be increased in place; decreasing is not supported.
+  tr: |-
+    GB cinsinden boyut (1-8192). Yerinde artırılabilir; azaltma desteklenmez.
+- en: |-
+    Storage policy / volume type the disk is created on. Can be changed in place.
+  tr: |-
+    Diskin oluşturulduğu depolama politikası / disk tipi. Yerinde değiştirilebilir.
+- en: |-
+    ID of the source image, volume or backup. Omitted for blank devices.
+  tr: |-
+    Kaynak imajın, diskin ya da yedeğin kimliği. Boş cihazlar için verilmez.
+- en: |-
+    ID of the network to attach to.
+  tr: |-
+    Bağlanılacak ağın kimliği.
+- en: |-
+    Fixed IPs on this interface. Omit to have one address allocated. Can be changed in place.
+  tr: |-
+    Bu arayüzdeki sabit IP'ler. Tek bir adres ayrılması için yazmayın. Yerinde değiştirilebilir.
+- en: |-
+    Whether port security (and therefore security groups) applies to this interface. Defaults to the network's own setting.
+  tr: |-
+    Bu arayüze bağlantı noktası güvenliğinin (dolayısıyla güvenlik gruplarının) uygulanıp uygulanmadığı. Varsayılan olarak ağın kendi ayarıdır.
+- en: |-
+    Security group IDs bound to this interface. Can be changed in place. Defaults to the project's default group.
+  tr: |-
+    Bu arayüze bağlı güvenlik grubu kimlikleri. Yerinde değiştirilebilir. Varsayılan olarak projenin varsayılan grubudur.
+- en: |-
+    Specific address to request. Allocated by the platform when omitted, and reported back here either way.
+  tr: |-
+    İstenecek belirli adres. Verilmezse platform ayırır; her iki durumda da buraya geri bildirilir.
+- en: |-
+    IP version, 4 or 6. Advisory on write — the platform allocates from the attached network; pin ip_address to choose an address. Reported back from the assigned address.
+  tr: |-
+    IP sürümü, 4 ya da 6. Yazarken yalnızca yol göstericidir: platform bağlı ağdan ayırır; bir adres seçmek için ip_address değerini sabitleyin. Atanan adresten geri bildirilir.
+- en: |-
+    Guest OS family. One of: linux, windows.
+  tr: |-
+    Misafir işletim sistemi ailesi. Şunlardan biri: linux, windows.
+- en: |-
+    Initial password for the guest account.
+  tr: |-
+    Misafir hesabı için başlangıç parolası.
+- en: |-
+    Disable direct root login. Required in practice on Linux images; ignored by Windows template images.
+  tr: |-
+    Doğrudan root girişini devre dışı bırakır. Linux imajlarında pratikte zorunludur; Windows şablon imajları yok sayar.
+- en: |-
+    Hostname to set inside the guest. Required in practice on Linux images; ignored by Windows template images.
+  tr: |-
+    Misafir işletim sistemi içinde ayarlanacak ana bilgisayar adı. Linux imajlarında pratikte zorunludur; Windows şablon imajları yok sayar.
+- en: |-
+    Account to create. Required in practice on Linux images; ignored by Windows template images.
+  tr: |-
+    Oluşturulacak hesap. Linux imajlarında pratikte zorunludur; Windows şablon imajları yok sayar.
+- en: |-
+    **What changes in place.** `name`, `flavor_id`, `state`, `enable_hot_plug`, and inside the blocks `network.security_groups`, `network.fixed_ip`, `block_device.volume_size` (increase only) and `block_device.volume_type`. Adding or removing a whole `network` or `block_device` block, `network.uuid`, `network.port_security_enabled`, the other `block_device` fields and the boot-time arguments `key_name`, `user_data`, `script` and `is_gpu_image` build a new machine.
+  tr: |-
+    **Yerinde değişenler.** `name`, `flavor_id`, `state`, `enable_hot_plug` ve blokların içinde `network.security_groups`, `network.fixed_ip`, `block_device.volume_size` (yalnızca artırma) ile `block_device.volume_type`. Bütün bir `network` ya da `block_device` bloğu eklemek veya kaldırmak, `network.uuid`, `network.port_security_enabled`, diğer `block_device` alanları ve önyükleme zamanı argümanları olan `key_name`, `user_data`, `script` ve `is_gpu_image` yeni bir makine oluşturur.
+- en: |-
+    **Resizing.** With `enable_hot_plug = true` the flavor changes while the machine keeps running. Without it the platform refuses to resize a running instance, so the provider stops it, resizes it and returns it to the configured `state`. In a plan, the resize that power-cycles the machine is the one where `status` also shows as known after apply, and the apply warns that the machine was restarted.
+  tr: |-
+    **Yeniden boyutlandırma.** `enable_hot_plug = true` ile flavor, makine çalışmaya devam ederken değişir. Bu olmadan platform çalışan bir makineyi yeniden boyutlandırmayı reddeder; bu yüzden sağlayıcı onu durdurur, yeniden boyutlandırır ve yapılandırılmış `state` durumuna döndürür. Bir planda makineyi kapatıp açan yeniden boyutlandırma, `status` değerinin de apply sonrasında bilinecek olarak göründüğü plandır ve apply, makinenin yeniden başlatıldığı konusunda uyarır.
+- en: |-
+    **Growing a disk does not grow the filesystem.** After `volume_size` increases, extend the partition and the filesystem inside the guest (`growpart` and `resize2fs`, or your filesystem's equivalent); the apply warns about it. `volume_size` cannot be decreased.
+  tr: |-
+    **Diski büyütmek dosya sistemini büyütmez.** `volume_size` arttıktan sonra misafir işletim sistemi içinde bölümü ve dosya sistemini genişletin (`growpart` ve `resize2fs` ya da dosya sisteminizin karşılığı); apply bu konuda uyarır. `volume_size` azaltılamaz.
+- en: |-
+    **The guest does not see a changed `fixed_ip` at once.** The address moves on the port, but the operating system keeps the old one until its DHCP lease renews, and for good if the interface is configured statically. Renew the lease or reboot; the apply warns about it.
+  tr: |-
+    **Misafir işletim sistemi değişen bir `fixed_ip`'yi hemen görmez.** Adres bağlantı noktasında taşınır, ancak işletim sistemi DHCP kirası yenilenene kadar eski adresi tutar; arayüz statik olarak yapılandırılmışsa kalıcı olarak tutar. Kirayı yenileyin ya da yeniden başlatın; apply bu konuda uyarır.
+- en: |-
+    **`port_security_enabled` has no default.** Left unset it is not sent, and the network decides. It cannot be `false` while `security_groups` is set on the same block.
+  tr: |-
+    **`port_security_enabled`'ın varsayılanı yoktur.** Ayarlanmazsa gönderilmez ve ağ karar verir. Aynı blokta `security_groups` ayarlıyken `false` olamaz.
+- en: |-
+    **Extra disks are matched by size and storage policy.** Beyond the boot disk the platform reports no order, so a `block_device` change is refused when two attached volumes look the same. Manage such disks with `dtcloud_vm_volume_attachment`.
+  tr: |-
+    **Ek diskler boyuta ve depolama politikasına göre eşleştirilir.** Önyükleme diskinin dışında platform bir sıra bildirmez; bu yüzden bağlı iki disk aynı göründüğünde bir `block_device` değişikliği reddedilir. Bu tür diskleri `dtcloud_vm_volume_attachment` ile yönetin.
+- en: |-
+    **What drift Terraform can see.** `name`, `flavor_id`, `state`, `key_name`, `enable_hot_plug`, the `network` blocks and the size, storage policy and delete-on-termination setting of each `block_device` are read back. `user_data`, `script` and `is_gpu_image` are not reported by any endpoint, so a change made to them outside Terraform stays invisible.
+  tr: |-
+    **Terraform hangi sapmayı görebilir.** `name`, `flavor_id`, `state`, `key_name`, `enable_hot_plug`, `network` blokları ve her `block_device`'ın boyutu, depolama politikası ve makineyle birlikte silinme ayarı geri okunur. `user_data`, `script` ve `is_gpu_image` hiçbir uç nokta tarafından bildirilmez, bu yüzden Terraform dışında bunlarda yapılan bir değişiklik görünmez kalır.
+- en: |-
+    **`network_interface` and `volume` are a snapshot** from the last refresh. Interfaces and volumes attached by other resources in the same apply appear after the next refresh.
+  tr: |-
+    **`network_interface` ve `volume` son yenilemeden alınmış bir anlık kopyadır.** Aynı apply'da başka kaynakların bağladığı arayüzler ve diskler bir sonraki yenilemeden sonra görünür.
+- en: |-
+    **One resource is one machine.** The API can create several machines in one call; this resource does not expose that. Use Terraform's `count` or `for_each`.
+  tr: |-
+    **Bir kaynak bir makinedir.** API tek bir çağrıda birden fazla makine oluşturabilir; bu kaynak bunu sunmaz. Terraform'un `count` ya da `for_each` özelliğini kullanın.
+- en: |-
+    `state` is the power state Terraform keeps the machine in; a machine always boots running first.
+  tr: |-
+    `state`, Terraform'un makineyi tuttuğu güç durumudur; bir makine her zaman önce çalışır durumda önyüklenir.
+- en: |-
+    From
+  tr: |-
+    Başlangıç
+- en: |-
+    To
+  tr: |-
+    Hedef
+- en: |-
+    What the provider does
+  tr: |-
+    Sağlayıcının yaptığı
+- en: |-
+    `softStop`, or `hardStop` when `graceful_shutdown = false`
+  tr: |-
+    `softStop`; `graceful_shutdown = false` ise `hardStop`
+- en: |-
+    any
+  tr: |-
+    herhangi biri
+- en: |-
+    `shelve`, which releases the compute resources and keeps the machine and its disks
+  tr: |-
+    bilişim kaynaklarını serbest bırakan, makineyi ve disklerini koruyan `shelve`
+- en: |-
+    `unshelve`, then stop
+  tr: |-
+    `unshelve`, ardından durdurma
+- en: |-
+    `create` defaults to 20 minutes, `update` to 10 minutes and `delete` to 15 minutes. Creating waits for the machine to reach `ACTIVE`, and a resize stops and restarts it, so an update can take several minutes. Override them with a `timeouts` block:
+  tr: |-
+    `create` için varsayılan süre 20 dakika, `update` için 10 dakika, `delete` için 15 dakikadır. Oluşturma makinenin `ACTIVE` durumuna gelmesini bekler ve yeniden boyutlandırma makineyi durdurup yeniden başlatır, bu yüzden bir güncelleme birkaç dakika sürebilir. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    user_data, script and is_gpu_image are not reported by any endpoint: read the import notes before the first apply.
+  tr: |-
+    user_data, script ve is_gpu_image hiçbir uç nokta tarafından bildirilmez: ilk apply'dan önce içe aktarma notlarını okuyun.
+- en: |-
+    Read back on import: `name`, `flavor_id`, `state`, `key_name`, `enable_hot_plug`, every interface as a `network` block, and the boot disk as a `block_device` block. The boot disk's `source_type`, `device_type` and `destination_type` are inferred, because the platform does not report them. Not read back: `user_data`, `script`, `is_gpu_image`, `graceful_shutdown`, and disks attached after boot.
+  tr: |-
+    İçe aktarmada geri okunanlar: `name`, `flavor_id`, `state`, `key_name`, `enable_hot_plug`, bir `network` bloğu olarak her arayüz ve bir `block_device` bloğu olarak önyükleme diski. Platform bildirmediği için önyükleme diskinin `source_type`, `device_type` ve `destination_type` değerleri tahmin edilir. Geri okunmayanlar: `user_data`, `script`, `is_gpu_image`, `graceful_shutdown` ve önyüklemeden sonra bağlanan diskler.
+- en: |-
+    `user_data`, `script` and `is_gpu_image` force a new machine, so if the configuration sets them the first plan after an import proposes a rebuild. Ignore them to keep the imported machine:
+  tr: |-
+    `user_data`, `script` ve `is_gpu_image` değiştirilince yeni bir makine gerektirir; bu yüzden yapılandırma bunları ayarlıyorsa içe aktarmadan sonraki ilk plan yeniden oluşturmayı önerir. İçe aktarılan makineyi korumak için bunları yok sayın:
+- en: |-
+    **Import a machine before attaching extra interfaces to it.** An import has no blocks to match against, so every interface the machine has becomes a `network` block. If some of them belong to `dtcloud_vm_network_interface` resources, the configuration declares fewer blocks than were imported, and the first plan proposes to replace the machine.
+  tr: |-
+    **Bir makineye ek arayüz bağlamadan önce onu içe aktarın.** İçe aktarmanın eşleştireceği bloklar yoktur, bu yüzden makinenin sahip olduğu her arayüz bir `network` bloğu olur. Bunlardan bazıları `dtcloud_vm_network_interface` kaynaklarına aitse yapılandırma içe aktarılandan daha az blok tanımlar ve ilk plan makineyi yeniden oluşturmayı önerir.

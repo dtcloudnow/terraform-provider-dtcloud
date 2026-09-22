@@ -8,9 +8,11 @@ import (
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/flavor"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/image"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/limit"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/loadbalancer"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/network"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/project"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/region"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/router"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/securitygroup"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/snapshot"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/sshkey"
@@ -41,7 +43,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DTCLOUD_API_URL", nil),
-				Description: "Base URL of the DT Cloud API, ending in /api/v1. If unset, the SDK default is used.",
+				Description: "Base URL of the DT Cloud API, ending in /api/v1. Required: it decides which environment resources are created in, and the provider will not guess. Can come from DTCLOUD_API_URL or the configuration file instead.",
 			},
 			"region_id": {
 				Type:        schema.TypeString,
@@ -95,6 +97,16 @@ func Provider() *schema.Provider {
 			"dtcloud_snapshot":  snapshot.DataSourceDtcloudSnapshot(),
 			"dtcloud_snapshots": snapshot.DataSourceDtcloudSnapshots(),
 
+			"dtcloud_router":               router.DataSourceDtcloudRouter(),
+			"dtcloud_routers":              router.DataSourceDtcloudRouters(),
+			"dtcloud_router_interfaces":    router.DataSourceDtcloudRouterInterfaces(),
+			"dtcloud_router_static_routes": router.DataSourceDtcloudRouterStaticRoutes(),
+
+			"dtcloud_lb":         loadbalancer.DataSourceDtcloudLB(),
+			"dtcloud_lbs":        loadbalancer.DataSourceDtcloudLBs(),
+			"dtcloud_lb_vms":     loadbalancer.DataSourceDtcloudLBVms(),
+			"dtcloud_lb_flavors": flavor.DataSourceDtcloudLBFlavors(),
+
 			"dtcloud_image":          image.DataSourceDtcloudImage(),
 			"dtcloud_images":         image.DataSourceDtcloudImages(),
 			"dtcloud_image_versions": image.DataSourceDtcloudImageVersions(),
@@ -122,6 +134,17 @@ func Provider() *schema.Provider {
 
 			"dtcloud_snapshot": snapshot.ResourceDtcloudSnapshot(),
 
+			"dtcloud_router":              router.ResourceDtcloudRouter(),
+			"dtcloud_router_interface":    router.ResourceDtcloudRouterInterface(),
+			"dtcloud_router_static_route": router.ResourceDtcloudRouterStaticRoute(),
+
+			"dtcloud_lb":                loadbalancer.ResourceDtcloudLB(),
+			"dtcloud_lb_listener":       loadbalancer.ResourceDtcloudLBListener(),
+			"dtcloud_lb_pool":           loadbalancer.ResourceDtcloudLBPool(),
+			"dtcloud_lb_member":         loadbalancer.ResourceDtcloudLBMember(),
+			"dtcloud_lb_health_monitor": loadbalancer.ResourceDtcloudLBHealthMonitor(),
+			"dtcloud_lb_balancing_pool": loadbalancer.ResourceDtcloudLBBalancingPool(),
+
 			"dtcloud_image": image.ResourceDtcloudImage(),
 		},
 	}
@@ -129,6 +152,9 @@ func Provider() *schema.Provider {
 	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		return providerConfigure(d)
 	}
+
+	// The docs are generated from this schema; see schema_docs.go.
+	annotateForceNew(p)
 
 	return p
 }

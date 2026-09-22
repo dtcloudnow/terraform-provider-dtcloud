@@ -1,0 +1,80 @@
+- en: |-
+    Manages the back-end pool attached to a listener, and how it spreads connections across its members.
+  tr: |-
+    Bir dinleyiciye bağlı arka uç havuzunu ve bağlantıları üyeleri arasında nasıl dağıttığını yönetir.
+- en: |-
+    Pin a client to the member it first reached.
+  tr: |-
+    İstemciyi ilk ulaştığı üyeye sabitler.
+- en: |-
+    Protocol used to reach the members. One of: HTTP, HTTPS, TCP, UDP.
+  tr: |-
+    Üyelere erişmek için kullanılan protokol. Şunlardan biri: HTTP, HTTPS, TCP, UDP.
+- en: |-
+    Port used to reach the members.
+  tr: |-
+    Üyelere erişmek için kullanılan port.
+- en: |-
+    Balancing algorithm. One of: LEAST_CONNECTIONS, ROUND_ROBIN, SOURCE_IP. Can be changed in place.
+  tr: |-
+    Dengeleme algoritması. Şunlardan biri: LEAST_CONNECTIONS, ROUND_ROBIN, SOURCE_IP. Yerinde değiştirilebilir.
+- en: |-
+    ID of the load balancer this pool belongs to.
+  tr: |-
+    Bu havuzun ait olduğu yük dengeleyicinin kimliği.
+- en: |-
+    ID of the listener that feeds this pool.
+  tr: |-
+    Bu havuzu besleyen dinleyicinin kimliği.
+- en: |-
+    Whether to pin a client to the member it first reached. Can be changed in place.
+  tr: |-
+    İstemcinin ilk ulaştığı üyeye sabitlenip sabitlenmeyeceği. Yerinde değiştirilebilir.
+- en: |-
+    Creation timestamp as reported by the API.
+  tr: |-
+    API'nin bildirdiği oluşturulma zamanı.
+- en: |-
+    ID of the health monitor attached to this pool, if any.
+  tr: |-
+    Varsa bu havuza bağlı sağlık denetiminin kimliği.
+- en: |-
+    IDs of the members currently in the pool.
+  tr: |-
+    Havuzda hâlihazırda bulunan üyelerin kimlikleri.
+- en: |-
+    Name assigned by the platform.
+  tr: |-
+    Platformun atadığı ad.
+- en: |-
+    Operating status.
+  tr: |-
+    Çalışma durumu.
+- en: |-
+    ID of the pool on its own, without the load balancer prefix.
+  tr: |-
+    Havuzun yük dengeleyici öneki olmadan kendi kimliği.
+- en: |-
+    Provisioning status.
+  tr: |-
+    Sağlama durumu.
+- en: |-
+    Last-update timestamp as reported by the API.
+  tr: |-
+    API'nin bildirdiği son güncelleme zamanı.
+- en: |-
+    **Only `lb_algorithm` and `sticky_session` change in place.** The protocol, the port and the owning listener are fixed at creation.
+  tr: |-
+    **Yalnızca `lb_algorithm` ve `sticky_session` yerinde değişir.** Protokol, port ve bağlı olunan dinleyici oluşturma anında sabitlenir.
+- en: |-
+    **`sticky_session` is write-only.** The pool list does not report it, so drift in it is invisible and it does not survive an import.
+  tr: |-
+    **`sticky_session` yalnızca yazılabilir.** Havuz listesi bunu bildirmez; bu yüzden sapması görünmez ve içe aktarmada geri gelmez.
+- en: |-
+    **The algorithm comes back as a display name.** The API answers `Round robin` where it was given `ROUND_ROBIN`; the provider maps it back so an imported pool does not look like it needs replacing.
+  tr: |-
+    **Algoritma görüntüleme adı olarak döner.** `ROUND_ROBIN` verilen yerde API `Round robin` yanıtlar; sağlayıcı bunu geri eşler, böylece içe aktarılan bir havuz yeniden kurulacakmış gibi görünmez.
+- en: |-
+    `create`, `update` and `delete` each default to 15 minutes.
+  tr: |-
+    `create`, `update` ve `delete` varsayılan olarak 15'er dakikadır.

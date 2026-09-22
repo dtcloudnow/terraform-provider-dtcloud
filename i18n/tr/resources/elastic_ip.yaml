@@ -1,0 +1,96 @@
+- en: |-
+    Allocates a public (elastic) IP address and, optionally, points it at a port.
+  tr: |-
+    Genel (elastik) bir IP adresi ayırır ve isteğe bağlı olarak onu bir bağlantı noktasına yönlendirir.
+- en: |-
+    The three verbs map onto Terraform directly: create allocates the address, update associates and disassociates it, delete releases it. `port_id` is the association and the only argument that writes it; there is no separate association resource. The API and the SDK call this a floating IP.
+  tr: |-
+    Üç işlem doğrudan Terraform'a karşılık gelir: create adresi ayırır, update onu ilişkilendirir ya da ilişkisini kaldırır, delete onu serbest bırakır. İlişkilendirmenin kendisi `port_id`'dir ve onu yazan tek argümandır; ayrı bir ilişkilendirme kaynağı yoktur. API ve SDK buna floating IP der.
+- en: |-
+    Allocate a public address and leave it unattached.
+  tr: |-
+    Genel bir adres ayırın ve hiçbir şeye bağlamadan bırakın.
+- en: |-
+    Allocate and point it at a machine's port. Moving the address to another port is an in-place update: the address itself is never released.
+  tr: |-
+    Ayırın ve bir makinenin bağlantı noktasına yönlendirin. Adresi başka bir bağlantı noktasına taşımak yerinde bir güncellemedir: adresin kendisi hiç serbest bırakılmaz.
+- en: |-
+    **Finding the external network.** `floating_network_id` is the external network, not the network your machine is on: it is the network your router's gateway is on. `dtcloud_router` reports it as `external_network_id` -- on the resource when you manage the router, through the data source when you do not -- and `dtctl router externals` prints the same thing.
+  tr: |-
+    **Dış ağı bulmak.** `floating_network_id` makinenizin bulunduğu ağ değil, dış ağdır: router'ınızın ağ geçidinin bulunduğu ağ. `dtcloud_router` bunu `external_network_id` olarak bildirir -- router'ı siz yönetiyorsanız kaynakta, yönetmiyorsanız data source üzerinden -- ve `dtctl router externals` de aynı bilgiyi yazdırır.
+- en: |-
+    ID of the external network to allocate the address from: the one your router's gateway is on, which `dtcloud_router` reports as `external_network_id`.
+  tr: |-
+    Adresin ayrılacağı dış ağın kimliği: router'ınızın ağ geçidinin bulunduğu ağ. `dtcloud_router` bunu `external_network_id` olarak bildirir.
+- en: |-
+    Which address on the port to map to, for a port that has several. The platform picks one when omitted.
+  tr: |-
+    Birden fazla adresi olan bir bağlantı noktasında hangi adrese eşleneceği. Verilmezse platform birini seçer.
+- en: |-
+    ID of the port to point the address at. Remove it to disassociate. A VM's ports are on its `network_interface` blocks: `dtcloud_vm.web.network_interface[0].port_id`.
+  tr: |-
+    Adresin yönlendirileceği bağlantı noktasının kimliği. İlişkiyi kaldırmak için silin. Bir sanal makinenin bağlantı noktaları `network_interface` bloklarındadır: `dtcloud_vm.web.network_interface[0].port_id`.
+- en: |-
+    ID of a specific subnet of the external network to take the address from. Only used when allocating, and never reported back — see the note on import.
+  tr: |-
+    Adresin alınacağı, dış ağa ait belirli bir alt ağın kimliği. Yalnızca ayırma sırasında kullanılır ve hiç geri bildirilmez; içe aktarma notuna bakın.
+- en: |-
+    Description of the address. Read-only: neither the create nor the update route accepts one, so this is only ever set for an address created outside Terraform.
+  tr: |-
+    Adresin açıklaması. Salt okunur: ne oluşturma ne de güncelleme yolu açıklama kabul eder, bu yüzden yalnızca Terraform dışında oluşturulmuş bir adreste dolu olur.
+- en: |-
+    ID of the resource behind the port — the virtual machine or load balancer this address currently reaches. Empty when the address is not associated.
+  tr: |-
+    Bağlantı noktasının arkasındaki kaynağın kimliği: bu adresin şu anda ulaştığı sanal makine ya da yük dengeleyici. Adres ilişkilendirilmemişse boştur.
+- en: |-
+    What kind of thing is behind the port, as the platform labels it, e.g. `compute:nova` for a VM. Empty when the address is not associated.
+  tr: |-
+    Platformun etiketlediği haliyle bağlantı noktasının arkasında ne tür bir şey olduğu, örn. bir sanal makine için `compute:nova`. Adres ilişkilendirilmemişse boştur.
+- en: |-
+    The public address that was allocated. This is the value to hand out.
+  tr: |-
+    Ayrılan genel adres. Paylaşılacak değer budur.
+- en: |-
+    ID of the router carrying the traffic, filled in once the address is associated.
+  tr: |-
+    Trafiği taşıyan yönlendiricinin kimliği; adres ilişkilendirildiğinde doldurulur.
+- en: |-
+    `ACTIVE` when the address is associated, `DOWN` when it is not. `DOWN` is a resting state, not a fault.
+  tr: |-
+    Adres ilişkilendirilmişse `ACTIVE`, değilse `DOWN`. `DOWN` bir arıza değil, kararlı bir durumdur.
+- en: |-
+    When the address was last changed, in RFC 3339 format.
+  tr: |-
+    Adresin son değiştirildiği zaman, RFC 3339 biçiminde.
+- en: |-
+    **Moving the address is an update, not a replacement.** Changing `port_id` points the same address somewhere else, so an address that is already in DNS or in a firewall rule is never given up. Only `floating_network_id` and `subnet_id` force a new address.
+  tr: |-
+    **Adresi taşımak yeniden oluşturma değil, güncellemedir.** `port_id`'yi değiştirmek aynı adresi başka bir yere yönlendirir; böylece zaten DNS'te ya da bir güvenlik duvarı kuralında bulunan bir adres asla kaybedilmez. Yalnızca `floating_network_id` ve `subnet_id` yeni bir adres gerektirir.
+- en: |-
+    **Disassociation is all-or-nothing.** The update endpoint has no partial mode: a request that names no port detaches the address. That is also why the association lives on this resource: two resources writing the same field through the same call would undo each other.
+  tr: |-
+    **İlişkiyi kaldırmak ya hep ya hiçtir.** Güncelleme uç noktasının kısmi bir modu yoktur: bağlantı noktası belirtmeyen bir istek adresi ayırır. İlişkilendirmenin bu kaynakta durmasının nedeni de budur: aynı alanı aynı çağrıyla yazan iki kaynak birbirinin yaptığını geri alırdı.
+- en: |-
+    **`DOWN` is a resting state.** An allocated address with nothing attached reports `DOWN`. It still occupies quota and is still billed; `dtcloud_elastic_ips` with `status = "DOWN"` finds these.
+  tr: |-
+    **`DOWN` kararlı bir durumdur.** Hiçbir şeye bağlı olmayan ayrılmış bir adres `DOWN` bildirir. Yine de kota tüketir ve faturalandırılır; bunları `status = "DOWN"` ile `dtcloud_elastic_ips` bulur.
+- en: |-
+    **`fixed_ip_address` needs `port_id`.** Setting it without a port is refused at plan time. Left out, it is never sent and the platform picks an address on the port, which is what lets the address move to a port that does not have the previous address.
+  tr: |-
+    **`fixed_ip_address` için `port_id` gerekir.** Bağlantı noktası olmadan ayarlanması plan aşamasında reddedilir. Verilmezse hiç gönderilmez ve platform bağlantı noktasında bir adres seçer; adresin, önceki adrese sahip olmayan bir bağlantı noktasına taşınabilmesini sağlayan budur.
+- en: |-
+    **A port with several IPv4 addresses needs `fixed_ip_address`.** The platform will not choose one for you, and what addresses a port has is only known when the call is made, so this fails at apply rather than at plan.
+  tr: |-
+    **Birden fazla IPv4 adresi olan bir bağlantı noktası `fixed_ip_address` gerektirir.** Platform sizin yerinize birini seçmez ve bir bağlantı noktasının hangi adreslere sahip olduğu ancak çağrı yapıldığında bilinir; bu yüzden hata plan aşamasında değil apply sırasında çıkar.
+- en: |-
+    **Changing `port_id` refreshes what the address reaches.** `status`, `device_id`, `device_owner` and `router_id` show as known after apply.
+  tr: |-
+    **`port_id`'yi değiştirmek adresin ulaştığı yeri yeniler.** `status`, `device_id`, `device_owner` ve `router_id` apply sonrasında bilinecek olarak görünür.
+- en: |-
+    `create`, `update` and `delete` each default to 10 minutes. Allocating and associating are asynchronous: the provider waits until the address reports the port it was asked for. Override them with a `timeouts` block:
+  tr: |-
+    `create`, `update` ve `delete` için varsayılan süre 10 dakikadır. Ayırma ve ilişkilendirme eşzamansızdır: sağlayıcı, adres kendisinden istenen bağlantı noktasını bildirene kadar bekler. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    `port_id`, `fixed_ip_address` and the read-only attributes are read back. `subnet_id` is not: the API never reports it, so an imported address has it empty. An empty value is not treated as a change, so no new address is proposed, but write it into the configuration if it matters which subnet the address came from.
+  tr: |-
+    `port_id`, `fixed_ip_address` ve salt okunur öznitelikler geri okunur. `subnet_id` okunmaz: API onu hiç bildirmez, bu yüzden içe aktarılan bir adreste boştur. Boş değer değişiklik sayılmaz, dolayısıyla yeni bir adres önerilmez; ancak adresin hangi alt ağdan geldiği önemliyse onu yapılandırmaya yazın.

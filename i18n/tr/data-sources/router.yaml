@@ -1,0 +1,68 @@
+- en: |-
+    Looks up one router by ID.
+  tr: |-
+    Tek bir yönlendiriciyi kimliğine göre arar.
+- en: |-
+    Lookup is by id. Use this for a router Terraform did not create -- declaring it as a resource would hand Terraform ownership, and a later destroy would take down everything behind it.
+  tr: |-
+    Arama kimliğe göredir. Bunu Terraform'un oluşturmadığı bir yönlendirici için kullanın — onu kaynak olarak tanımlamak sahipliği Terraform'a verir ve sonraki bir destroy arkasındaki her şeyi indirir.
+- en: |-
+    Attach a network to a router somebody else manages.
+  tr: |-
+    Başkasının yönettiği bir yönlendiriciye ağ bağlayın.
+- en: |-
+    ID of the router to look up.
+  tr: |-
+    Aranacak yönlendiricinin kimliği.
+- en: |-
+    Whether the router is administratively enabled.
+  tr: |-
+    Yönlendiricinin yönetimsel olarak etkin olup olmadığı.
+- en: |-
+    When the router was created, as the platform reports it.
+  tr: |-
+    Platformun bildirdiğine göre yönlendiricinin oluşturulma zamanı.
+- en: |-
+    Description held by the platform. There is no way to set one through this API, so it is reported but not managed.
+  tr: |-
+    Platformun tuttuğu açıklama. Bu API üzerinden açıklama ayarlamanın bir yolu yoktur; bu yüzden bildirilir ama yönetilmez.
+- en: |-
+    Whether the gateway masquerades traffic from the networks behind it.
+  tr: |-
+    Geçidin, arkasındaki ağlardan gelen trafiği maskeleyip maskelemeyeceği.
+- en: |-
+    Addresses the external network allocated to the gateway. The create endpoint always asks for IPv4 and never accepts a specific address, so these are read-only.
+  tr: |-
+    Dış ağın geçide tahsis ettiği adresler. Oluşturma uç noktası her zaman IPv4 ister ve belirli bir adresi asla kabul etmez; bu yüzden bunlar salt okunurdur.
+- en: |-
+    ID of the external network the router's gateway is on. Empty if the gateway was removed outside Terraform.
+  tr: |-
+    Yönlendiricinin geçidinin bulunduğu dış ağın kimliği. Geçit Terraform dışında kaldırıldıysa boştur.
+- en: |-
+    Name of the router.
+  tr: |-
+    Yönlendiricinin adı.
+- en: |-
+    ID of the project the router belongs to.
+  tr: |-
+    Yönlendiricinin ait olduğu projenin kimliği.
+- en: |-
+    Status reported by the platform. `ACTIVE` is the resting state.
+  tr: |-
+    Platformun bildirdiği durum. Kararlı durum `ACTIVE`'tir.
+- en: |-
+    When the router last changed.
+  tr: |-
+    Yönlendiricinin son değişiklik zamanı.
+- en: |-
+    **Use this for a router Terraform did not create** -- attaching a network to it, or reading the address its gateway holds. Declaring such a router as a resource instead would hand Terraform ownership, and a later destroy would take down everything behind it.
+  tr: |-
+    **Bunu Terraform'un oluşturmadığı bir yönlendirici için kullanın** — ona ağ bağlamak ya da geçidinin tuttuğu adresi okumak için. Böyle bir yönlendiriciyi kaynak olarak tanımlamak sahipliği Terraform'a verir ve sonraki bir destroy arkasındaki her şeyi indirir.
+- en: |-
+    **This reports the external network by id**, where `dtcloud_routers` reports it by name. The two read different endpoints and only this one is given the id.
+  tr: |-
+    **Bu, dış ağı kimlikle bildirir**; `dtcloud_routers` ise adla. İkisi farklı uç noktaları okur ve kimlik yalnızca buna verilir.
+- en: |-
+    **A router that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir yönlendirici hatadır**, boş sonuç değil.

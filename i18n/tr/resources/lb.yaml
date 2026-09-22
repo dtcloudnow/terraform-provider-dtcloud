@@ -1,0 +1,124 @@
+- en: |-
+    Manages a load balancer -- the front door that accepts connections and the object every listener, pool and member hangs off.
+  tr: |-
+    Bir yük dengeleyiciyi yönetir — bağlantıları kabul eden ön kapı ve her dinleyicinin, havuzun ve üyenin bağlı olduğu nesne.
+- en: |-
+    A load balancer owns listeners, a listener owns a pool, and a pool owns members and at most one health monitor. Each is a separate resource, so changing a health monitor does not disturb the members.
+  tr: |-
+    Bir yük dengeleyici dinleyicilere, bir dinleyici bir havuza, bir havuz da üyelere ve en fazla bir sağlık denetimine sahiptir. Her biri ayrı bir kaynaktır; bu yüzden sağlık denetimini değiştirmek üyeleri etkilemez.
+- en: |-
+    Pick the size by name rather than pasting an id. Every name is offered twice -- once without high availability and once with it -- so filter on both.
+  tr: |-
+    Boyutu kimlik yapıştırmak yerine adıyla seçin. Her ad iki kez sunulur — biri yüksek erişilebilirliksiz, diğeri yüksek erişilebilirlikli — bu yüzden ikisiyle birlikte süzün.
+- en: |-
+    Exactly one of vip_network_id, vip_subnet_id or vip_port_id decides where the VIP lives. The platform enforces the same rule.
+  tr: |-
+    VIP adresinin nerede duracağına vip_network_id, vip_subnet_id veya vip_port_id alanlarından tam olarak biri karar verir. Platform da aynı kuralı uygular.
+- en: |-
+    **The VIP anchor is exactly one of three.** `vip_network_id`, `vip_subnet_id` or `vip_port_id` decides where the address lives. Declaring the rule here turns a server-side rejection into a plan-time error.
+  tr: |-
+    **VIP dayanağı üçünden tam olarak biridir.** Adresin nerede duracağına `vip_network_id`, `vip_subnet_id` veya `vip_port_id` karar verir. Kuralı burada tanımlamak, sunucu tarafındaki bir reddi plan anında hataya çevirir.
+- en: |-
+    ID of the load balancer flavor (sizing).
+  tr: |-
+    Yük dengeleyici boyutunun (kapasitesinin) kimliği.
+- en: |-
+    Name of the load balancer. Can be changed in place.
+  tr: |-
+    Yük dengeleyicinin adı. Yerinde değiştirilebilir.
+- en: |-
+    Free-text description. Can be changed in place.
+  tr: |-
+    Serbest metin açıklama. Yerinde değiştirilebilir.
+- en: |-
+    Whether the load balancer is administratively enabled.
+  tr: |-
+    Yük dengeleyicinin yönetimsel olarak etkin olup olmadığı.
+- en: |-
+    External network used when a floating IP is requested.
+  tr: |-
+    Kayan IP istendiğinde kullanılan dış ağ.
+- en: |-
+    Floating IP to associate with the load balancer.
+  tr: |-
+    Yük dengeleyiciyle ilişkilendirilecek kayan IP.
+- en: |-
+    Network type. The API currently accepts only `Virtual`.
+  tr: |-
+    Ağ türü. API şu anda yalnızca `Virtual` kabul ediyor.
+- en: |-
+    Specific VIP address to request. Allocated by the platform when omitted.
+  tr: |-
+    İstenen belirli VIP adresi. Verilmezse platform tahsis eder.
+- en: |-
+    Network to place the VIP on.
+  tr: |-
+    VIP adresinin yerleştirileceği ağ.
+- en: |-
+    Existing port to use for the VIP.
+  tr: |-
+    VIP için kullanılacak mevcut port.
+- en: |-
+    Subnet to place the VIP on.
+  tr: |-
+    VIP adresinin yerleştirileceği alt ağ.
+- en: |-
+    Number of balancing pools configured on the load balancer.
+  tr: |-
+    Yük dengeleyici üzerinde yapılandırılmış dengeleme havuzlarının sayısı.
+- en: |-
+    When the load balancer was created, as reported by the API.
+  tr: |-
+    API'nin bildirdiğine göre yük dengeleyicinin oluşturulma zamanı.
+- en: |-
+    Human-readable name of the flavor.
+  tr: |-
+    Boyutun okunabilir adı.
+- en: |-
+    High-availability mode, reported as Enabled or Disabled. It is not settable here: HA is chosen by picking a flavor whose `ha` flag is true, so this reports back the flavor's setting.
+  tr: |-
+    Yüksek erişilebilirlik kipi; Enabled veya Disabled olarak bildirilir. Burada ayarlanamaz: yüksek erişilebilirlik, `ha` bayrağı true olan bir boyut seçilerek belirlenir; bu alan yalnızca o boyutun ayarını geri bildirir.
+- en: |-
+    Operating state of each member.
+  tr: |-
+    Her üyenin çalışma durumu.
+- en: |-
+    Total number of members across all pools.
+  tr: |-
+    Tüm havuzlardaki toplam üye sayısı.
+- en: |-
+    The network the load balancer's VIP sits on.
+  tr: |-
+    Yük dengeleyicinin VIP adresinin bulunduğu ağ.
+- en: |-
+    Provisioning status, e.g. ACTIVE or ERROR.
+  tr: |-
+    Sağlama durumu; örneğin ACTIVE veya ERROR.
+- en: |-
+    **Only `name`, `description` and `enabled` change in place.** The VIP placement and the flavor are fixed at creation; changing either rebuilds the load balancer and everything hanging off it.
+  tr: |-
+    **Yalnızca `name`, `description` ve `enabled` yerinde değişir.** VIP yerleşimi ve boyut oluşturma anında sabitlenir; ikisinden birini değiştirmek yük dengeleyiciyi ve ona bağlı her şeyi yeniden kurar.
+- en: |-
+    **High availability is a property of the flavor.** There is no separate switch: each size is offered twice, once with `ha = false` and once with `ha = true`, and they are different flavors with different ids. Pick the HA one from `dtcloud_lb_flavors`.
+  tr: |-
+    **Yüksek erişilebilirlik boyutun bir özelliğidir.** Ayrı bir anahtar yoktur: her boyut iki kez sunulur, biri `ha = false` diğeri `ha = true` ile, ve bunlar farklı kimliklere sahip farklı boyutlardır. Yüksek erişilebilirlikli olanı `dtcloud_lb_flavors` ile seçin.
+- en: |-
+    **The status vocabulary is the API's, not the raw platform's.** A load balancer reports one title-case word -- `Creating`, `Configuring`, `Active`, `Disabled`, `Deleting`, `Error` or `Unknown`. `Disabled` is a healthy load balancer with no listener yet, and `Unknown` is one with a pool but no health monitor; neither is a failure.
+  tr: |-
+    **Durum sözcükleri ham platformun değil API'nindir.** Bir yük dengeleyici tek bir sözcük bildirir: `Creating`, `Configuring`, `Active`, `Disabled`, `Deleting`, `Error` ya da `Unknown`. `Disabled`, henüz dinleyicisi olmayan sağlıklı bir yük dengeleyicidir; `Unknown` ise havuzu olup sağlık denetimi olmayandır. İkisi de hata değildir.
+- en: |-
+    **One change at a time.** The platform locks a load balancer while a change is in flight and refuses anything else until it settles. The provider waits for the lock and retries, which is what lets Terraform create a monitor and a member in parallel without either failing.
+  tr: |-
+    **Aynı anda tek bir değişiklik.** Bir değişiklik sürerken platform yük dengeleyiciyi kilitler ve o iş bitene kadar başka her şeyi reddeder. Sağlayıcı kilidi bekler ve yeniden dener; Terraform'un bir sağlık denetimiyle bir üyeyi paralel oluşturabilmesini sağlayan budur.
+- en: |-
+    **Do not mix the two styles.** Use the granular resources, or `dtcloud_lb_balancing_pool`, but not both on the same load balancer -- the granular resources would find objects they did not create.
+  tr: |-
+    **İki tarzı karıştırmayın.** Ya ayrıntılı kaynakları ya da `dtcloud_lb_balancing_pool` kullanın; aynı yük dengeleyicide ikisini birden kullanmayın — ayrıntılı kaynaklar kendi oluşturmadıkları nesnelerle karşılaşır.
+- en: |-
+    `create` defaults to 30 minutes, `update` and `delete` to 15. Creating, updating and deleting are all asynchronous: the API answers at once and the provider polls until the load balancer settles.
+  tr: |-
+    `create` varsayılan olarak 30 dakika, `update` ve `delete` 15 dakikadır. Oluşturma, güncelleme ve silme eşzamansızdır: API hemen yanıt verir, sağlayıcı yük dengeleyici kararlı duruma gelene kadar yoklar.
+- en: |-
+    `enabled` is not reported back, so an imported load balancer shows one in-place update that sets it to whatever the configuration says, and is quiet from then on. The VIP anchor is recovered as the network the address ended up on; if you anchored to a subnet or a port, say so in the configuration after importing.
+  tr: |-
+    `enabled` geri bildirilmez; bu yüzden içe aktarılan bir yük dengeleyicide onu yapılandırmanın söylediği değere ayarlayan tek bir yerinde güncelleme görünür, sonrasında sessizleşir. VIP dayanağı, adresin sonunda bulunduğu ağ olarak geri getirilir; alt ağa veya porta dayandırdıysanız içe aktardıktan sonra bunu yapılandırmada belirtin.

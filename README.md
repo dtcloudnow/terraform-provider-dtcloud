@@ -1,132 +1,138 @@
-# terraform-provider-dtcloud
+# Terraform Provider for DT Cloud
 
-Terraform provider for DT Cloud (CMP), built on the `dt-go` SDK.
+Manage DT Cloud (CMP) infrastructure with Terraform: virtual machines, networks, routers,
+security groups, elastic IPs, volumes, snapshots, images and load balancers, together with
+read-only data sources for the catalogue and your account.
 
-Current scope: SSH keys, virtual machines, networks, security groups, elastic IPs, volumes, snapshots, images, plus read-only
-catalogue and account data sources (flavors, regions, projects, quotas).
+The full reference for every resource and data source is on the
+[Terraform Registry](https://registry.terraform.io/providers/dtcloudnow/dtcloud/latest/docs).
 
-| Resources                      | Data sources               |
-|--------------------------------|----------------------------|
-| `dtcloud_ssh_key`              | `dtcloud_ssh_key`          |
-| `dtcloud_vm`                   | `dtcloud_ssh_keys`         |
-| `dtcloud_vm_volume_attachment` | `dtcloud_vm`               |
-| `dtcloud_vm_network_interface` | `dtcloud_vms`              |
-| `dtcloud_network`              | `dtcloud_vm_history`       |
-| `dtcloud_security_group`       | `dtcloud_vm_history_entry` |
-| `dtcloud_security_group_rule`  | `dtcloud_network`          |
-| `dtcloud_elastic_ip`           | `dtcloud_networks`         |
-| `dtcloud_volume`               | `dtcloud_security_group`   |
-| `dtcloud_snapshot`             | `dtcloud_security_groups`  |
-| `dtcloud_image`                | `dtcloud_my_ip`            |
-|                                | `dtcloud_elastic_ip`       |
-|                                | `dtcloud_elastic_ips`      |
-|                                | `dtcloud_volume`           |
-|                                | `dtcloud_volumes`          |
-|                                | `dtcloud_volume_snapshots` |
-|                                | `dtcloud_storage_policies` |
-|                                | `dtcloud_snapshot`         |
-|                                | `dtcloud_snapshots`        |
-|                                | `dtcloud_image`            |
-|                                | `dtcloud_images`           |
-|                                | `dtcloud_image_versions`   |
-|                                | `dtcloud_flavors`          |
-|                                | `dtcloud_regions`          |
-|                                | `dtcloud_projects`         |
-|                                | `dtcloud_project_quotas`   |
-|                                | `dtcloud_project_limits`   |
+## Requirements
 
-## Dependency chain
+- Terraform 1.0 or later
+- A DT Cloud account with an API access key and secret key
 
-```
-terraform-provider-dtcloud  ->  dt-go  ->  DT Cloud API
-```
+## Getting started
 
-## Local development build
-
-The remote `dt-go` is not yet API-aligned, so `go.mod` uses a `replace`
-directive pointing at the local `../dt-go` checkout. **Before pushing**, remove
-that replace and pin the published module version.
-
-```sh
-make build          # go install -> $GOPATH/bin/terraform-provider-dtcloud
-```
-
-Then register the local binary with Terraform via `~/.terraformrc`:
+Declare the provider:
 
 ```hcl
-provider_installation {
-  dev_overrides {
-    "dtcloudnow/dtcloud" = "/path/to/your/go/bin"   # go env GOPATH
+terraform {
+  required_providers {
+    dtcloud = {
+      source  = "dtcloudnow/dtcloud"
+      version = "~> 26.0.0"
+    }
   }
-  direct {}
+}
+
+provider "dtcloud" {}
+```
+
+`terraform init` downloads it. The provider is also its own setup command, so save your
+credentials once:
+
+```sh
+terraform-provider-dtcloud configure
+```
+
+It asks for your access key, secret key and region, checks them against the API before saving
+anything, and writes them to your user configuration directory with owner-only permissions.
+Every project on the machine then works with the empty `provider` block above. If the command is
+not on your `PATH`, run `terraform plan` without credentials: the error prints the full path to it.
+
+Then describe what you want and apply it:
+
+```hcl
+resource "dtcloud_ssh_key" "me" {
+  name       = "my-key"
+  public_key = file("~/.ssh/id_rsa.pub")
 }
 ```
 
-## Configuration
-
-Provider settings (all support environment-variable fallbacks):
-
-| Argument       | Env var             | Notes                                   |
-|----------------|---------------------|-----------------------------------------|
-| `access_key`   | `DTCLOUD_ACCESS_KEY`| Sent as `x-api-access-key`.             |
-| `secret_key`   | `DTCLOUD_SECRET_KEY`| Sensitive. Sent as `x-api-secret-key`.  |
-| `api_endpoint` | `DTCLOUD_API_URL`   | Base URL of your DT Cloud API.          |
-| `region_id`    | `DTCLOUD_REGION_ID` | Sent as the `serverId` query param.     |
-
-There are four ways to supply them, in precedence order, and **none needs a second tool
-installed**:
-
-1. **Let Terraform ask.** Declare `variable` blocks with no default and reference them from the
-   provider block — Terraform prompts for anything it does not have. Put the values in
-   `terraform.tfvars` (gitignored) to stop being asked on every run.
-2. **`terraform-provider-dtcloud configure`.** The provider binary doubles as its own setup
-   command: it prompts, verifies the credentials against the API before saving, and writes
-   `config.yaml` into the OS configuration directory. `provider "dtcloud" {}` then needs nothing
-   else. `-profile prod` writes a second account; flags make it scriptable.
-3. **Environment variables** — the table above. The right answer in CI, and they override the
-   file so a build agent never inherits a developer's account.
-4. **The configuration file**, written by hand if you prefer:
-
-```
-Linux    ~/.config/terraform-provider-dtcloud/config.yaml
-macOS    ~/Library/Application Support/terraform-provider-dtcloud/config.yaml
-Windows  %AppData%\terraform-provider-dtcloud\config.yaml
-```
-
-```yaml
-api:
-  access_key: "..."
-  secret_key: "..."
-  base_url: https://cms.dt.net.tr/api/v1
-region_id: 2
-```
-
-It holds a secret key, so keep it owner-readable only — `configure` does that for you, and the
-provider tightens a too-permissive file at its own default path. Never commit credentials to
-HCL. See `docs/index.md` for the full reference.
-
-## Try it
-
-See [`examples/ssh-key`](examples/ssh-key), [`examples/vm`](examples/vm),
-[`examples/network`](examples/network), [`examples/security-group`](examples/security-group)
-and [`examples/elastic-ip`](examples/elastic-ip). With
-the env vars exported and the `dev_overrides` in place — note there is no
-`terraform init`, since `dev_overrides` bypasses provider installation:
-
 ```sh
-cd examples/ssh-key
-terraform plan
 terraform apply
 ```
 
-## Tests
+## Credentials
 
-The acceptance tests run against fake API servers built into each service
-package, so they need no credentials and no network:
+| Argument       | Environment variable | Notes                                           |
+|----------------|----------------------|-------------------------------------------------|
+| `access_key`   | `DTCLOUD_ACCESS_KEY` |                                                 |
+| `secret_key`   | `DTCLOUD_SECRET_KEY` | Sensitive.                                      |
+| `api_endpoint` | `DTCLOUD_API_URL`    | Base URL of the API, ending in `/api/v1`.       |
+| `region_id`    | `DTCLOUD_REGION_ID`  | The region every call is made in.               |
 
-```sh
-TF_ACC=1 go test ./dtcloud/...
+All four are required. There are three ways to supply them; values resolve highest first from
+the `provider` block, the environment, and the configuration file. Whichever you use, keep
+credentials out of your `.tf` files, which end up in version control.
+
+### Save them once with `configure`
+
+The way shown in [Getting started](#getting-started): the values go to a file in your user
+configuration directory, and every project on the machine works with an empty `provider` block.
+`configure` targets production unless given `--api-url`, and `--profile <name>` saves a second
+account, selected with the `profile` argument or `DTCLOUD_PROFILE`.
+
+### Let Terraform ask, per project
+
+Declare the values as variables and pass them to the provider. Terraform asks for every variable
+that has no default and no value yet:
+
+```hcl
+variable "dtcloud_access_key" {
+  type = string
+}
+
+variable "dtcloud_secret_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "dtcloud_region_id" {
+  type = string
+}
+
+variable "dtcloud_api_url" {
+  type    = string
+  default = "https://console.dt.net.tr/api/v1"
+}
+
+provider "dtcloud" {
+  access_key   = var.dtcloud_access_key
+  secret_key   = var.dtcloud_secret_key
+  region_id    = var.dtcloud_region_id
+  api_endpoint = var.dtcloud_api_url
+}
 ```
 
-Without `TF_ACC=1` the SDK skips them and still prints `ok`, so use `-v` when
-you want to see what actually ran.
+The endpoint has a default, so only the other three are asked for; set `dtcloud_api_url` for any
+environment other than production. To stop being asked on every run, put the values in a
+`terraform.tfvars` next to your configuration and add that file to `.gitignore`:
+
+```hcl
+dtcloud_access_key = "..."
+dtcloud_secret_key = "..."
+dtcloud_region_id  = "2"
+```
+
+### Environment variables
+
+The right choice for CI. They override the configuration file, so a build agent never inherits a
+developer's account:
+
+```sh
+export DTCLOUD_ACCESS_KEY="..."
+export DTCLOUD_SECRET_KEY="..."
+export DTCLOUD_REGION_ID="2"
+export DTCLOUD_API_URL="https://console.dt.net.tr/api/v1"
+```
+
+## Examples
+
+[`examples/scenarios/`](examples/scenarios) holds complete configurations for each service, from a
+single SSH key to a load balancer in front of your virtual machines.
+
+## License
+
+[Apache License 2.0](LICENSE)

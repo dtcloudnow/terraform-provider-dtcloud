@@ -1,0 +1,80 @@
+- en: |-
+    Manages a disk image and the file behind it.
+  tr: |-
+    Bir disk imajını ve arkasındaki dosyayı yönetir.
+- en: |-
+    Creating one is two requests and a wait: the first opens an empty record, the second uploads the file, and the image is usable only once it reaches `active`. Both happen during apply, because an image with no data is a record no machine can boot from.
+  tr: |-
+    Oluşturmak iki istek ve bir bekleme demektir: ilki boş bir kayıt açar, ikincisi dosyayı yükler ve imaj ancak `active` durumuna geldiğinde kullanılabilir. İkisi de apply sırasında olur, çünkü verisi olmayan bir imaj hiçbir makinenin önyükleyemeyeceği bir kayıttır.
+- en: |-
+    Format of the file, such as `qcow2` or `iso`. The accepted values come from the platform's own configuration rather than from a list in the provider, so an unsupported one is refused by the API during apply. Not the same thing as the `type` attribute, which is a display category derived from it.
+  tr: |-
+    Dosyanın biçimi, örneğin `qcow2` ya da `iso`. Kabul edilen değerler sağlayıcıdaki bir listeden değil platformun kendi yapılandırmasından gelir; bu yüzden desteklenmeyen bir değer apply sırasında API tarafından reddedilir. Bundan türetilen bir görüntüleme kategorisi olan `type` özniteliğiyle aynı şey değildir.
+- en: |-
+    Name of the image. Can be changed in place. Names are not unique on the platform, which is why `dtcloud_image` prefers a lookup by id.
+  tr: |-
+    İmajın adı. Yerinde değiştirilebilir. Platformda adlar benzersiz değildir; `dtcloud_image`'ın kimlikle aramayı tercih etmesinin nedeni budur.
+- en: |-
+    **What changes in place.** `name`, `os_distro`, `min_disk` and `visibility`, one request each. Everything else builds a new image, the file included: no endpoint replaces the data of an existing image.
+  tr: |-
+    **Yerinde değişenler.** Her biri için ayrı bir istekle `name`, `os_distro`, `min_disk` ve `visibility`. Dosya dahil diğer her şey yeni bir imaj oluşturur: mevcut bir imajın verisini değiştiren bir uç nokta yoktur.
+- en: |-
+    **The file is sent during apply, in full.** A large image makes for a long apply, and the `create` timeout has to cover the transfer as well as the platform's own work afterwards. The file size is declared before the transfer starts, so an image too large for the platform is refused before anything is sent.
+  tr: |-
+    **Dosya apply sırasında eksiksiz gönderilir.** Büyük bir imaj uzun bir apply demektir ve `create` zaman aşımı, platformun sonrasındaki işinin yanı sıra aktarımı da kapsamalıdır. Dosya boyutu aktarım başlamadan bildirilir; bu yüzden platform için fazla büyük bir imaj daha hiçbir şey gönderilmeden reddedilir.
+- en: |-
+    **A failed upload leaves nothing behind.** The platform deletes an image whose upload fails. There is no half-built record to clean up, and the next apply creates the image again.
+  tr: |-
+    **Başarısız bir yükleme geride bir şey bırakmaz.** Platform, yüklemesi başarısız olan imajı siler. Temizlenecek yarım bir kayıt kalmaz ve sonraki apply imajı yeniden oluşturur.
+- en: |-
+    **Write-only arguments.** `min_ram` and `tags` are accepted when the image is created and reported by no endpoint, so they cannot drift and do not survive an import. `disk_format` is not read back either: the platform reports the derived `type` instead.
+  tr: |-
+    **Yalnızca yazılabilir argümanlar.** `min_ram` ve `tags` imaj oluşturulurken kabul edilir ve hiçbir uç nokta tarafından bildirilmez; bu yüzden sapma gösteremez ve içe aktarmada korunmaz. `disk_format` da geri okunmaz: platform onun yerine türetilmiş `type` değerini bildirir.
+- en: |-
+    **`protected` is deliberately not exposed.** The API accepts it when an image is created but cannot clear it afterwards, which would make the image impossible to destroy through this provider. If a destroy is refused because the image was marked protected elsewhere, the mark has to be cleared outside Terraform.
+  tr: |-
+    **`protected` bilerek sunulmaz.** API bunu imaj oluşturulurken kabul eder ama sonradan kaldıramaz; bu da imajı bu sağlayıcı üzerinden yok edilemez hale getirirdi. Bir destroy, imaj başka bir yerde korumalı olarak işaretlendiği için reddedilirse işaretin Terraform dışında kaldırılması gerekir.
+- en: |-
+    `create` defaults to 2 hours, `update` to 15 minutes and `delete` to 30 minutes. The `create` default covers the upload itself, which takes as long as sending the file over your connection; raise it for a large image on a slow link. Override them with a `timeouts` block:
+  tr: |-
+    `create` için varsayılan süre 2 saat, `update` için 15 dakika, `delete` için 30 dakikadır. `create` varsayılanı yüklemenin kendisini de kapsar; yükleme, dosyanın bağlantınız üzerinden gönderilmesi ne kadar sürüyorsa o kadar sürer. Yavaş bir bağlantıda büyük bir imaj için artırın. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    The file behind an image, its format, min_ram and tags are not reported by any endpoint: read the import notes before the first apply.
+  tr: |-
+    Bir imajın arkasındaki dosya, biçimi, min_ram ve tags hiçbir uç nokta tarafından bildirilmez: ilk apply'dan önce içe aktarma notlarını okuyun.
+- en: |-
+    `name`, `os_distro`, `min_disk`, `visibility` and `uefi` are read back. `source_file`, `source_file_hash`, `disk_format`, `min_ram` and `tags` are not reported by any endpoint, so they are empty after an import. All five force a new image, so the first plan proposes to rebuild it even when the configuration matches what was uploaded. To keep the imported image, ignore them:
+  tr: |-
+    `name`, `os_distro`, `min_disk`, `visibility` ve `uefi` geri okunur. `source_file`, `source_file_hash`, `disk_format`, `min_ram` ve `tags` hiçbir uç nokta tarafından bildirilmez, bu yüzden içe aktarmadan sonra boştur. Beşi de değiştirilince yeni bir imaj gerektirir; bu yüzden yapılandırma yüklenenle eşleşse bile ilk plan imajı yeniden oluşturmayı önerir. İçe aktarılan imajı korumak için bunları yok sayın:
+- en: |-
+    Volume to capture. Its contents at the moment of the call become the image; later writes to the volume do not reach it. The volume survives, and the image outlives it. There is no endpoint that replaces the data of an existing image, so pointing this at another volume builds a new one.
+  tr: |-
+    Yakalanacak disk. Çağrı anındaki içeriği imaj olur; diske sonradan yazılanlar imaja ulaşmaz. Disk varlığını sürdürür ve imaj diskten daha uzun yaşar. Var olan bir imajın verisini değiştiren bir uç nokta yoktur; bu yüzden burayı başka bir diske çevirmek yeni bir imaj kurar.
+- en: |-
+    Container wrapped around the disk data, `bare` unless you have a reason. Write-only: no endpoint reports it back.
+  tr: |-
+    Disk verisinin sarmalandığı kap; özel bir nedeniniz yoksa `bare`. Yalnızca yazılabilir: hiçbir uç nokta geri bildirmez.
+- en: |-
+    Smallest volume, in GB, a machine built from this image needs. The capture derives it from the size of the source volume; set it to override, on create or later. The API reports it as the text `20 GB`, which the provider parses back into a number.
+  tr: |-
+    Bu imajdan kurulacak bir makinenin ihtiyaç duyduğu en küçük disk, GB olarak. Yakalama bunu kaynak diskin boyutundan türetir; geçersiz kılmak için oluştururken ya da sonradan ayarlayın. API bunu `20 GB` metni olarak bildirir, sağlayıcı da sayıya geri çevirir.
+- en: |-
+    Distribution the image carries, such as `debian12`. The capture takes this from the source volume, so leaving it out inherits whatever the volume was built from. Set it to override, on create or later; the accepted values are the platform's and are checked by the API.
+  tr: |-
+    İmajın taşıdığı dağıtım; örneğin `debian12`. Yakalama bunu kaynak diskten alır, yani vermezseniz diskin kurulduğu dağıtım devralınır. Geçersiz kılmak için oluştururken ya da sonradan ayarlayın; kabul edilen değerler platformundur ve API tarafından denetlenir.
+- en: |-
+    Who can see the image: `private`, `shared` or `community`. Defaults to `shared`. Can be changed in place. `public` is not accepted: publishing needs the `publicize_image` permission, which customer accounts are not granted, and the platform answers 403 on both the capture and the update.
+  tr: |-
+    İmajı kimlerin görebileceği: `private`, `shared` veya `community`. Varsayılan `shared`. Yerinde değiştirilebilir. `public` kabul edilmez: yayımlamak `publicize_image` yetkisini gerektirir, bu yetki müşteri hesaplarına verilmez ve platform hem yakalamada hem güncellemede 403 döner.
+- en: |-
+    Size of the captured data, as the platform formats it — `1.2 GB` or `250 MB`. There is no endpoint that reports it as a number. An image with no data yet reads as `0 MB`.
+  tr: |-
+    Yakalanan verinin boyutu, platformun biçimlendirdiği gibi — `1.2 GB` ya da `250 MB`. Bunu sayı olarak bildiren bir uç nokta yok. Henüz verisi olmayan bir imaj `0 MB` görünür.
+- en: |-
+    Status reported by the platform. `active` is the only status a machine can be built from; `queued` and `saving` mean the data is not there yet, and `killed` means the capture failed.
+  tr: |-
+    Platformun bildirdiği durum. Bir makinenin kurulabileceği tek durum `active`'tir; `queued` ve `saving` verinin henüz orada olmadığı, `killed` ise yakalamanın başarısız olduğu anlamına gelir.
+- en: |-
+    Whether the image boots with UEFI firmware. Inherited from the source volume; there is no endpoint that sets it.
+  tr: |-
+    İmajın UEFI donanım yazılımıyla önyüklenip yüklenmeyeceği. Kaynak diskten devralınır; bunu ayarlayan bir uç nokta yoktur.

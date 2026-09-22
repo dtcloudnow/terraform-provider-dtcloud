@@ -1,0 +1,168 @@
+- en: |-
+    Builds a listener, its pool, a health monitor and the members in a single call. A create-only shortcut; prefer the granular resources.
+  tr: |-
+    Tek bir çağrıda bir dinleyici, havuzu, sağlık denetimi ve üyeleri kurar. Yalnızca oluşturmaya yönelik bir kısayol; ayrıntılı kaynakları tercih edin.
+- en: |-
+    The whole chain in one call: listener, pool, health monitor and members. Every argument is ForceNew -- changing one rebuilds all four objects.
+  tr: |-
+    Tüm zincir tek çağrıda: dinleyici, havuz, sağlık denetimi ve üyeler. Her argüman ForceNew'dur — birini değiştirmek dört nesneyi de yeniden kurar.
+- en: |-
+    Front end
+  tr: |-
+    Ön uç
+- en: |-
+    Back end
+  tr: |-
+    Arka uç
+- en: |-
+    Health monitor. `protocol` here is the probe type, not a network protocol.
+  tr: |-
+    Sağlık denetimi. Buradaki `protocol` bir ağ protokolü değil, yoklama türüdür.
+- en: |-
+    **Every argument here forces a new resource.** There is no update endpoint for the chain as a unit, so changing the probe interval recreates the listener and drops the members with it. Prefer `dtcloud_lb_listener`, `dtcloud_lb_pool`, `dtcloud_lb_member` and `dtcloud_lb_health_monitor` unless you specifically want the atomic shape, and never mix the two styles on one load balancer.
+  tr: |-
+    **Buradaki her argüman kaynağı yeniden kurdurur.** Zincirin bütünü için güncelleme uç noktası yoktur; bu yüzden yoklama aralığını değiştirmek dinleyiciyi yeniden oluşturur ve üyeleri de beraberinde götürür. Atomik biçimi özellikle istemiyorsanız `dtcloud_lb_listener`, `dtcloud_lb_pool`, `dtcloud_lb_member` ve `dtcloud_lb_health_monitor` kullanın; aynı yük dengeleyicide iki tarzı asla karıştırmayın.
+- en: |-
+    Protocol used to reach the members.
+  tr: |-
+    Üyelere erişmek için kullanılan protokol.
+- en: |-
+    Port used to reach the members.
+  tr: |-
+    Üyelere erişmek için kullanılan port.
+- en: |-
+    Consecutive successes before a member counts as healthy.
+  tr: |-
+    Bir üyenin sağlıklı sayılması için gereken ardışık başarı sayısı.
+- en: |-
+    Seconds between probes (5-300).
+  tr: |-
+    Yoklamalar arasındaki saniye (5-300).
+- en: |-
+    Balancing algorithm.
+  tr: |-
+    Dengeleme algoritması.
+- en: |-
+    ID of the load balancer.
+  tr: |-
+    Yük dengeleyicinin kimliği.
+- en: |-
+    Front-end port.
+  tr: |-
+    Ön uç portu.
+- en: |-
+    Front-end protocol. One of: HTTP, HTTPS, TCP, UDP, TERMINATED_HTTPS.
+  tr: |-
+    Ön uç protokolü. Şunlardan biri: HTTP, HTTPS, TCP, UDP, TERMINATED_HTTPS.
+- en: |-
+    Whether to pin a client to the member it first reached.
+  tr: |-
+    İstemcinin ilk ulaştığı üyeye sabitlenip sabitlenmeyeceği.
+- en: |-
+    Seconds to wait for a probe response (5-60).
+  tr: |-
+    Yoklama yanıtı için beklenecek saniye (5-60).
+- en: |-
+    Health probe type.
+  tr: |-
+    Sağlık yoklamasının türü.
+- en: |-
+    Consecutive failures before a member counts as unhealthy.
+  tr: |-
+    Bir üyenin sağlıksız sayılması için gereken ardışık başarısızlık sayısı.
+- en: |-
+    CIDRs permitted to reach the listener.
+  tr: |-
+    Dinleyiciye ulaşmasına izin verilen CIDR'ler.
+- en: |-
+    PEM certificate for TERMINATED_HTTPS.
+  tr: |-
+    TERMINATED_HTTPS için PEM sertifikası.
+- en: |-
+    Maximum number of concurrent connections. -1 means no limit.
+  tr: |-
+    Eşzamanlı bağlantı üst sınırı. -1 sınırsız demektir.
+- en: |-
+    Headers the listener injects into requests forwarded to members.
+  tr: |-
+    Dinleyicinin üyelere ilettiği isteklere eklediği başlıklar.
+- en: |-
+    Back-end members created together with the pool.
+  tr: |-
+    Havuzla birlikte oluşturulan arka uç üyeleri.
+- en: |-
+    PEM private key for TERMINATED_HTTPS.
+  tr: |-
+    TERMINATED_HTTPS için PEM özel anahtarı.
+- en: |-
+    Client inactivity timeout in SECONDS (note: dtcloud_lb_listener takes milliseconds).
+  tr: |-
+    İstemci hareketsizlik zaman aşımı, SANİYE (dikkat: dtcloud_lb_listener milisaniye alır).
+- en: |-
+    Member connect timeout in SECONDS (note: dtcloud_lb_listener takes milliseconds).
+  tr: |-
+    Üyeye bağlanma zaman aşımı, SANİYE (dikkat: dtcloud_lb_listener milisaniye alır).
+- en: |-
+    Member inactivity timeout in SECONDS (note: dtcloud_lb_listener takes milliseconds).
+  tr: |-
+    Üye hareketsizlik zaman aşımı, SANİYE (dikkat: dtcloud_lb_listener milisaniye alır).
+- en: |-
+    Path requested by HTTP and HTTPS probes.
+  tr: |-
+    HTTP ve HTTPS yoklamalarının istediği yol.
+- en: |-
+    ID of the balancing pool on its own, without the load balancer prefix.
+  tr: |-
+    Dengeleme havuzunun yük dengeleyici öneki olmadan kendi kimliği.
+- en: |-
+    ID of the health monitor the platform created.
+  tr: |-
+    Platformun oluşturduğu sağlık denetiminin kimliği.
+- en: |-
+    ID of the listener the platform created.
+  tr: |-
+    Platformun oluşturduğu dinleyicinin kimliği.
+- en: |-
+    Operating state of each member.
+  tr: |-
+    Her üyenin çalışma durumu.
+- en: |-
+    Number of members in the pool.
+  tr: |-
+    Havuzdaki üye sayısı.
+- en: |-
+    IP address of the member.
+  tr: |-
+    Üyenin IP adresi.
+- en: |-
+    ID of the VM behind this address.
+  tr: |-
+    Bu adresin arkasındaki sanal makinenin kimliği.
+- en: |-
+    Port the member listens on.
+  tr: |-
+    Üyenin dinlediği port.
+- en: |-
+    **The three listener timings are seconds here**, where `dtcloud_lb_listener` takes milliseconds. That asymmetry belongs to the API: this endpoint converts, the listener endpoint does not.
+  tr: |-
+    **Üç dinleyici süresi burada saniyedir**, `dtcloud_lb_listener` ise milisaniye alır. Bu asimetri API'ye aittir: bu uç nokta çevirir, dinleyici uç noktası çevirmez.
+- en: |-
+    **Left unset, the platform fills several values in** -- the timings, `url_path` and `connection_limit` -- and reports what it chose. They are Computed for that reason; without it an omitted value would disagree with the report and, being ForceNew, propose a rebuild on every plan.
+  tr: |-
+    **Verilmediğinde platform birkaç değeri doldurur** — süreler, `url_path` ve `connection_limit` — ve seçtiğini bildirir. Computed olmalarının nedeni budur; olmasaydı verilmemiş bir değer bildirimle çelişir ve ForceNew olduğu için her planda yeniden kurma önerirdi.
+- en: |-
+    **`health_monitor.protocol` is the probe type**, not a network protocol.
+  tr: |-
+    **`health_monitor.protocol` bir ağ protokolü değil**, yoklama türüdür.
+- en: |-
+    `create` and `delete` each default to 30 minutes. There is no update.
+  tr: |-
+    `create` ve `delete` varsayılan olarak 30'ar dakikadır. Güncelleme yoktur.
+- en: |-
+    <load-balancer-id>:<balancing-pool-id>. Import one only when it declares no `member` blocks: a member's port is reported by nothing, so declared members come back empty and the first plan proposes a rebuild.
+  tr: |-
+    <yük-dengeleyici-kimliği>:<dengeleme-havuzu-kimliği>. Bir tanesini yalnızca `member` bloğu tanımlamadığında içe aktarın: üyenin portunu hiçbir uç nokta bildirmez, bu yüzden tanımlanmış üyeler boş döner ve ilk plan yeniden kurma önerir.
+- en: |-
+    `member` blocks do not survive an import: nothing reports a member's port. Import a balancing pool only when it declares no members, or accept that the first apply rebuilds it.
+  tr: |-
+    `member` blokları içe aktarmada korunmaz: üyenin portunu hiçbir uç nokta bildirmez. Bir dengeleme havuzunu yalnızca üye tanımlamadığında içe aktarın ya da ilk apply'ın onu yeniden kuracağını kabul edin.

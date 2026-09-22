@@ -2,7 +2,6 @@ package securitygroup
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
@@ -13,19 +12,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// ResourceDtcloudSecurityGroup manages a security group.
+// ResourceDtcloudSecurityGroup manages a security group: a name and a
+// description, with its rules as dtcloud_security_group_rule resources.
 //
-// The group itself is only a name and a description; the rules inside it are
-// dtcloud_security_group_rule resources. Both arguments change in place — there
-// is a PUT — so nothing here is ForceNew, which matters: destroying a security
-// group that instances reference is refused by the platform, and a resource
-// that rebuilt itself over a rename would deadlock against that.
-//
-// `inbound_rule` and `outbound_rule` are a read-only snapshot of what the
-// platform displays, not something to configure. See the package comment for
-// why they cannot be anything else.
+// Nothing here is ForceNew — the platform refuses to destroy a group instances
+// reference, so rebuilding over a rename would deadlock. `inbound_rule` and
+// `outbound_rule` are a read-only display snapshot.
 func ResourceDtcloudSecurityGroup() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a security group -- the set of firewall rules applied to a machine's network interfaces.",
+
 		CreateContext: resourceDtcloudSecurityGroupCreate,
 		ReadContext:   resourceDtcloudSecurityGroupRead,
 		UpdateContext: resourceDtcloudSecurityGroupUpdate,
@@ -48,33 +44,15 @@ func ResourceDtcloudSecurityGroup() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validation.StringMatch(nameCharset, "description "+nameCharsetMessage),
-				Description: "Description of the security group. Can be changed in place, but see the note on " +
-					"clearing it: an existing description cannot be emptied.",
+				Description:  "Description of the security group. Can be changed in place, and removing it clears it.",
 			},
 
 			"inbound_rule":  cookedRuleSchema("Inbound rules as the platform displays them. Read-only; manage rules with dtcloud_security_group_rule."),
 			"outbound_rule": cookedRuleSchema("Outbound rules as the platform displays them. A new group starts with two, added by the platform: allow-all IPv4 and IPv6 egress."),
 		},
 
-		// The one rule the schema cannot express, and it exists because of an
-		// SDK limitation rather than an API one — see Update.
-		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
-			if d.Id() == "" {
-				return nil
-			}
-			old, new := d.GetChange("description")
-			if old.(string) != "" && new.(string) == "" {
-				return fmt.Errorf(
-					"description cannot be cleared once set: dt-go marks the field `omitempty`, so an empty " +
-						"description is dropped from the update request and the old one stays. Leaving this to be " +
-						"discovered at apply time would produce a plan that never converges. Set a new description, " +
-						"or recreate the group with `terraform taint`")
-			}
-			return nil
-		},
-
-		// Every call in this package is synchronous — no socketUtils, no status
-		// to poll. These bound a hung request rather than a slow rollout.
+		// Every call in this package is synchronous, so these bound a hung
+		// request rather than a slow rollout.
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(5 * time.Minute),
 			Update: schema.DefaultTimeout(5 * time.Minute),
@@ -113,8 +91,8 @@ func resourceDtcloudSecurityGroupRead(ctx context.Context, d *schema.ResourceDat
 		}
 		return diag.Errorf("Error retrieving security group %q: %s", d.Id(), err)
 	}
-	// Some endpoints answer 200 with a hollow object rather than a 404; an id
-	// that did not come back means the group is gone either way.
+	// Some endpoints answer 200 with a hollow object rather than a 404; an id that
+	// did not come back means the group is gone either way.
 	if details.ID == "" {
 		d.SetId("")
 		return nil
@@ -131,12 +109,13 @@ func resourceDtcloudSecurityGroupRead(ctx context.Context, d *schema.ResourceDat
 func resourceDtcloudSecurityGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	// `name` goes every time, not only when it changed: the update route
-	// validates with Joi and marks name required, so a description-only edit
-	// sent on its own is refused with a 406.
+	// `name` goes every time: the update route marks it required. `description`
+	// is sent by pointer so clearing it reaches the API as an empty string
+	// instead of being dropped by omitempty, which would leave the old text.
+	description := d.Get("description").(string)
 	params := dtgo.UpdateSecurityGroupParams{
 		Name:        d.Get("name").(string),
-		Description: d.Get("description").(string),
+		Description: &description,
 	}
 
 	if _, _, err := client.SecurityGroup.UpdateSecurityGroup(ctx, d.Id(), params, nil); err != nil {
@@ -149,11 +128,9 @@ func resourceDtcloudSecurityGroupUpdate(ctx context.Context, d *schema.ResourceD
 func resourceDtcloudSecurityGroupDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*config.CombinedConfig).DTClient()
 
-	// A group still bound to a port is refused by Neutron, which is correct and
-	// should surface. Terraform orders the destroy itself when the VM's
-	// `security_groups` references this resource; a group referenced by a
-	// hand-written id has no such edge and will fail here until the instance
-	// using it is gone.
+	// A group still bound to a port is refused, and that refusal should surface.
+	// Terraform orders the destroy itself when a VM references this resource; a
+	// group referenced by a hand-written id has no such edge.
 	if _, err := client.SecurityGroup.DeleteSecurityGroup(ctx, d.Id(), nil); err != nil {
 		if !dterr.IsNotFound(err) {
 			return diag.Errorf("Error deleting security group %q: %s", d.Id(), err)

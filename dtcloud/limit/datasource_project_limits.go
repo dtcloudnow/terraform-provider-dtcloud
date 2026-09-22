@@ -1,5 +1,4 @@
-// Package limit exposes a project's raw OpenStack quota table.
-//
+// Package limit exposes a project's raw quota table.
 // Read-only, and the only endpoint the service has.
 package limit
 
@@ -17,20 +16,14 @@ import (
 )
 
 // DataSourceDtcloudProjectLimits reports every quota the platform tracks for a
-// project.
+// project — limits only; `dtcloud_project_quotas` has usage alongside.
 //
-// This is the full OpenStack table — around forty entries covering compute,
-// network, volume and VPN limits. It is the counterpart to
-// `dtcloud_project_quotas`, which reports a handful of headline figures *with
-// current usage*. This one reports limits only: what you are allowed, not what
-// you are using.
-//
-// The keys are OpenStack's own (`cores`, `instances`, `security_group_rules`,
-// …) and the platform can add more without warning, so they arrive as a map
-// rather than a fixed set of attributes. Index it by name:
+// The keys are the platform's and it can add more, so they arrive as a map:
 // `data.dtcloud_project_limits.mine.quotas["cores"]`.
 func DataSourceDtcloudProjectLimits() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reports every quota the platform tracks for a project.",
+
 		ReadContext: dataSourceDtcloudProjectLimitsRead,
 		Schema: map[string]*schema.Schema{
 			"project_id": {
@@ -43,7 +36,7 @@ func DataSourceDtcloudProjectLimits() *schema.Resource {
 				Type:     schema.TypeMap,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
-				Description: "Every quota the platform reports, keyed by its OpenStack name. " +
+				Description: "Every quota the platform reports, keyed by the name the platform uses. " +
 					"Values are numbers as text, or the word \"Unlimited\" where the platform " +
 					"reports no limit. Terraform maps hold one type, and the API mixes numbers " +
 					"with that word, so everything is rendered as text — use `tonumber()` when " +
@@ -102,11 +95,9 @@ func dataSourceDtcloudProjectLimitsRead(ctx context.Context, d *schema.ResourceD
 	return nil
 }
 
-// formatQuota renders a quota value as text.
-//
-// dt-go hands back either a float64 or the string "Unlimited" — it substitutes
-// that word for the API's -1. Whole numbers are printed without a decimal point
-// so that `cores` reads as "48" rather than "48.000000".
+// formatQuota renders a quota value as text. dt-go hands back a float64 or the
+// string "Unlimited", which it substitutes for the API's -1. Whole numbers
+// print without a decimal point, so `cores` reads as "48".
 func formatQuota(v interface{}) string {
 	switch n := v.(type) {
 	case string:

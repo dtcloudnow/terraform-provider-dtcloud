@@ -12,9 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// checkTerraformOwnedGone asserts that everything this provider created has
-// been destroyed. Snapshots seeded into the fake are skipped by name: they
-// stand in for infrastructure Terraform does not own.
+// checkTerraformOwnedGone asserts everything this provider created is gone.
+// Seeded snapshots are skipped by name — Terraform does not own them.
 func checkTerraformOwnedGone(api *fakeSnapshotAPI) func(*terraform.State) error {
 	return func(*terraform.State) error {
 		api.mu.Lock()
@@ -31,8 +30,7 @@ func checkTerraformOwnedGone(api *fakeSnapshotAPI) func(*terraform.State) error 
 	}
 }
 
-// snapshotConfig is the whole surface of the package in one configuration: the
-// resource, both data sources, and the plural one filtered by volume.
+// snapshotConfig is the whole surface of the package in one configuration.
 func snapshotConfig(endpoint, name, volumeID, description string) string {
 	desc := ""
 	if description != "" {
@@ -59,9 +57,9 @@ data "dtcloud_snapshots" "by_volume" {
 `, name, volumeID, desc, volumeID)
 }
 
-// bareSnapshotConfig is the resource on its own. The data sources are left out
-// where a step removes the snapshot underneath Terraform, since dtcloud_snapshot
-// errors on a missing id and would fail the step for the wrong reason.
+// bareSnapshotConfig is the resource on its own, for steps that remove the
+// snapshot underneath Terraform — the data sources would fail for the wrong
+// reason.
 func bareSnapshotConfig(endpoint, name, volumeID, description string) string {
 	desc := ""
 	if description != "" {
@@ -76,11 +74,8 @@ resource "dtcloud_snapshot" "test" {
 }
 
 // TestAccDtcloudSnapshot_lifecycle drives create → read → re-plan → in-place
-// rename → import → destroy, with both data sources reading along.
-//
-// Create is a two-step operation: the endpoint accepts no description, so one
-// arrives by a follow-up update. The fake fails loudly if a description is ever
-// sent to create, so taking the shortcut cannot pass quietly.
+// rename → import → destroy. Create is two steps: the endpoint accepts no
+// description, so one arrives by a follow-up update.
 func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
@@ -106,8 +101,7 @@ func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_snapshot.test", "storage_policy", "standard"),
 					resource.TestCheckResourceAttrSet("dtcloud_snapshot.test", "id"),
 
-					// The singular data source reads the same endpoint, so it
-					// reports the description too.
+					// The singular data source reads the same endpoint, description included.
 					resource.TestCheckResourceAttr("data.dtcloud_snapshot.test", "name", "tf-acc-snap"),
 					resource.TestCheckResourceAttr("data.dtcloud_snapshot.test", "description", "nightly copy"),
 					resource.TestCheckResourceAttr("data.dtcloud_snapshot.test", "size", "20"),
@@ -117,8 +111,8 @@ func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("data.dtcloud_snapshots.all", "snapshots.0.name", "tf-acc-snap"),
 					resource.TestCheckResourceAttr("data.dtcloud_snapshots.all", "snapshots.0.volume_id", "vol-0001"),
 					resource.TestCheckResourceAttr("data.dtcloud_snapshots.all", "snapshots.0.size", "20"),
-					// The list reports the id; the provider resolves the name so
-					// the two data sources cannot disagree.
+					// The list reports the id; the provider resolves the name, so the two
+					// data sources cannot disagree.
 					resource.TestCheckResourceAttr("data.dtcloud_snapshots.all", "snapshots.0.volume_type_id", "type-0001"),
 					resource.TestCheckResourceAttr("data.dtcloud_snapshots.all", "snapshots.0.storage_policy", "standard"),
 					// updated_at is null until something is written.
@@ -129,8 +123,7 @@ func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 					func(*terraform.State) error {
 						api.mu.Lock()
 						defer api.mu.Unlock()
-						// Exactly one follow-up PUT to carry the description
-						// the create route cannot take.
+						// Exactly one follow-up PUT for the description.
 						if api.updates != 1 {
 							return fmt.Errorf("expected one update call to set the description, saw %d", api.updates)
 						}
@@ -139,18 +132,14 @@ func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Nothing changed, so nothing may be planned. Catches a Read
-				// that invents a value.
+				// Nothing changed, so nothing may be planned.
 				Config:   snapshotConfig(server.URL, "tf-acc-snap", "vol-0001", "nightly copy"),
 				PlanOnly: true,
 			},
 			{
-				// Rename alone. The fake holds the old name for several reads
-				// while the status never leaves `available`, so a waiter
-				// watching the status would return early.
-				//
-				// The description is untouched on purpose; the next step is the
-				// mirror image, so neither half can cover for the other.
+				// Rename alone: the fake holds the old name while the status never leaves
+				// `available`. The description is untouched, so the next step is the mirror
+				// image and neither half can cover for the other.
 				Config: snapshotConfig(server.URL, "tf-acc-snap-renamed", "vol-0001", "nightly copy"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_snapshot.test", "name", "tf-acc-snap-renamed"),
@@ -178,13 +167,8 @@ func TestAccDtcloudSnapshot_lifecycle(t *testing.T) {
 }
 
 // TestAccDtcloudSnapshot_createWaitsForAvailable pins the one thing every other
-// test here lets slip: create must not return while the snapshot is still
-// being written.
-//
-// It needs its own test because any configuration carrying a description has a
-// second wait after create, and the status settles behind that wait — so a
-// create wait that returned too early would be invisible. There is no
-// description here and the status is asserted directly.
+// test here lets slip. It needs its own test: a configuration with a description
+// has a second wait after create, behind which an early create wait is invisible.
 func TestAccDtcloudSnapshot_createWaitsForAvailable(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
@@ -207,8 +191,7 @@ func TestAccDtcloudSnapshot_createWaitsForAvailable(t *testing.T) {
 }
 
 // TestAccDtcloudSnapshot_volumeIDForcesNew pins that pointing a snapshot at
-// another volume is a replacement, not an update: nothing re-points an existing
-// snapshot, so an in-place plan would promise what the API cannot do.
+// another volume is a replacement: nothing re-points an existing snapshot.
 func TestAccDtcloudSnapshot_volumeIDForcesNew(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
@@ -227,8 +210,8 @@ func TestAccDtcloudSnapshot_volumeIDForcesNew(t *testing.T) {
 				Config: snapshotConfig(server.URL, "tf-acc-forcenew", "vol-0002", ""),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("dtcloud_snapshot.test", "volume_id", "vol-0002"),
-					// The new snapshot inherits the new volume's size, which is
-					// how a replacement is told apart from an update.
+					// The new snapshot inherits the new volume's size, which is how a
+					// replacement is told apart from an update.
 					resource.TestCheckResourceAttr("dtcloud_snapshot.test", "size", "40"),
 					func(*terraform.State) error {
 						api.mu.Lock()
@@ -244,12 +227,9 @@ func TestAccDtcloudSnapshot_volumeIDForcesNew(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudSnapshot_descriptionCanBeCleared pins the clear-by-null path.
-//
-// The API removes a description only when sent an explicit JSON null; an empty
-// string is rejected and an absent field leaves the value alone. The fake
-// enforces all three, so a provider that sent the empty string, or nothing at
-// all, fails here.
+// TestAccDtcloudSnapshot_descriptionCanBeCleared pins the clear-by-null path: a
+// description is removed only by an explicit null, an empty string is rejected,
+// and an absent field leaves the value alone.
 func TestAccDtcloudSnapshot_descriptionCanBeCleared(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
@@ -293,9 +273,8 @@ func TestAccDtcloudSnapshot_descriptionCanBeCleared(t *testing.T) {
 				PlanOnly: true,
 			},
 			{
-				// The other spelling of the same thing: `description = ""` and
-				// no description argument both mean "no description", so
-				// neither may error and neither may diff against the other.
+				// `description = ""` and no description argument both mean "no
+				// description", so neither may error and neither may diff against the other.
 				Config: acctest.ProviderConfig(server.URL) + fmt.Sprintf(`
 resource "dtcloud_snapshot" "test" {
   name        = %q
@@ -310,19 +289,15 @@ resource "dtcloud_snapshot" "test" {
 }
 
 // TestAccDtcloudSnapshot_outOfBandDescriptionIsReconciled covers a description
-// added outside Terraform on a snapshot whose configuration has none: it is
-// removed, because the configuration is the truth, and the snapshot then
-// destroys without complaint.
-//
-// The explicit Destroy step matters — the framework's own teardown does not
-// refresh, so state and reality would never disagree during it.
+// added outside Terraform where the configuration has none: it is removed. The
+// explicit Destroy step matters — the framework's own teardown does not refresh.
 func TestAccDtcloudSnapshot_outOfBandDescriptionIsReconciled(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
 	defer server.Close()
 
-	// The configuration never mentions a description. The platform grows one
-	// underneath it, standing in for somebody using the web console.
+	// The configuration never mentions a description; the platform grows one
+	// underneath it.
 	noDescription := bareSnapshotConfig(server.URL, "tf-acc-destroy", "vol-0001", "")
 
 	resource.UnitTest(t, resource.TestCase{
@@ -369,9 +344,8 @@ func TestAccDtcloudSnapshot_outOfBandDescriptionIsReconciled(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudSnapshot_storagePolicyLookupIsBestEffort pins that resolving
-// the policy name is a convenience, not a dependency: when it cannot be read
-// the name is left empty and everything else is still reported.
+// TestAccDtcloudSnapshot_storagePolicyLookupIsBestEffort pins that resolving the
+// policy name is a convenience: when it cannot be read the name is left empty.
 func TestAccDtcloudSnapshot_storagePolicyLookupIsBestEffort(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	api.policiesFail = true
@@ -398,9 +372,8 @@ func TestAccDtcloudSnapshot_storagePolicyLookupIsBestEffort(t *testing.T) {
 }
 
 // TestAccDtcloudSnapshot_deletedOutsideTerraform pins the not-found path: a
-// snapshot removed elsewhere is dropped from state so the next apply takes a
-// new one. The fake answers with the API's nested error shape, so this
-// exercises the structured branch of dterr.IsNotFound rather than its fallback.
+// snapshot removed elsewhere is dropped from state. The fake answers with the
+// nested error shape, exercising the structured branch of dterr.IsNotFound.
 func TestAccDtcloudSnapshot_deletedOutsideTerraform(t *testing.T) {
 	api := newFakeSnapshotAPI()
 	server := httptest.NewServer(api)
@@ -428,8 +401,7 @@ func TestAccDtcloudSnapshot_deletedOutsideTerraform(t *testing.T) {
 				},
 			},
 			{
-				// The refresh fails to find it, the resource leaves state, and
-				// the plan proposes creating it again.
+				// The refresh fails to find it, so the plan proposes creating it again.
 				Config:             config,
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,

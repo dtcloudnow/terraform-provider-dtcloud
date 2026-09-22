@@ -11,14 +11,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// DataSourceDtcloudVMs lists the VMs in the active region and project.
-//
-// The list endpoint returns a lighter record than the details endpoint — no
-// image, no SSH key, no timestamps — so this exposes what a list actually
-// carries. Use the singular `dtcloud_vm` data source for the full picture of
-// one instance.
+// DataSourceDtcloudVMs lists the VMs in the active region and project. The list
+// endpoint returns a lighter record than the details one — no image, SSH key or
+// timestamps — so use the singular data source for the full picture.
 func DataSourceDtcloudVMs() *schema.Resource {
 	return &schema.Resource{
+		Description: "Lists the virtual machines in the active region and project.",
+
 		ReadContext: dataSourceDtcloudVMsRead,
 		Schema: map[string]*schema.Schema{
 			"status": {
@@ -45,7 +44,7 @@ func DataSourceDtcloudVMs() *schema.Resource {
 						"id":           {Type: schema.TypeString, Computed: true, Description: "ID of the virtual machine."},
 						"name":         {Type: schema.TypeString, Computed: true, Description: "Name of the virtual machine."},
 						"status":       {Type: schema.TypeString, Computed: true, Description: "Current state."},
-						"task_state":   {Type: schema.TypeString, Computed: true, Description: "In-flight OpenStack task."},
+						"task_state":   {Type: schema.TypeString, Computed: true, Description: "In-flight platform task."},
 						"ip_addresses": {Type: schema.TypeList, Computed: true, Elem: &schema.Schema{Type: schema.TypeString}, Description: "Addresses assigned to the VM."},
 						"vcpus":        {Type: schema.TypeInt, Computed: true, Description: "Number of virtual CPUs."},
 						"ram":          {Type: schema.TypeString, Computed: true, Description: "Memory as reported by the API."},

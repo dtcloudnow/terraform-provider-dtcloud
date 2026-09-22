@@ -1,0 +1,72 @@
+- en: |-
+    Looks up one volume by id.
+  tr: |-
+    Tek bir diski kimliğine göre bulur.
+- en: |-
+    Use it to reference a volume Terraform did not create, such as an existing disk to attach to a new machine. Declaring it as a resource instead would hand Terraform ownership of it, and a later `terraform destroy` would delete the volume and its snapshots.
+  tr: |-
+    Terraform'un oluşturmadığı bir diske başvurmak için kullanın; örneğin yeni bir makineye bağlanacak mevcut bir disk. Onu kaynak olarak tanımlamak sahipliğini Terraform'a verir ve sonraki bir `terraform destroy` diski ve anlık görüntülerini siler.
+- en: |-
+    ID of the volume to look up.
+  tr: |-
+    Aranacak diskin kimliği.
+- en: |-
+    Name of the VM this volume is attached to.
+  tr: |-
+    Bu diskin bağlı olduğu sanal makinenin adı.
+- en: |-
+    ID of the VM this volume is attached to.
+  tr: |-
+    Bu diskin bağlı olduğu sanal makinenin kimliği.
+- en: |-
+    Status of the VM this volume is attached to.
+  tr: |-
+    Bu diskin bağlı olduğu sanal makinenin durumu.
+- en: |-
+    Whether the volume can be booted from.
+  tr: |-
+    Diskten önyükleme yapılıp yapılamayacağı.
+- en: |-
+    When the volume was created.
+  tr: |-
+    Diskin oluşturulduğu zaman.
+- en: |-
+    Details of the image this volume was created from. Empty for a blank volume.
+  tr: |-
+    Bu diskin oluşturulduğu imajın ayrıntıları. Boş bir disk için boştur.
+- en: |-
+    Whether the platform will allow this volume to be detached.
+  tr: |-
+    Platformun bu diskin ayrılmasına izin verip vermeyeceği.
+- en: |-
+    When the volume last changed.
+  tr: |-
+    Diskin son değiştiği zaman.
+- en: |-
+    Name of the volume.
+  tr: |-
+    Diskin adı.
+- en: |-
+    Size in GB.
+  tr: |-
+    GB cinsinden boyut.
+- en: |-
+    Status reported by the platform.
+  tr: |-
+    Platformun bildirdiği durum.
+- en: |-
+    Storage policy backing the volume.
+  tr: |-
+    Diski destekleyen depolama politikası.
+- en: |-
+    HDD, or CD-ROM when the volume holds an ISO.
+  tr: |-
+    HDD; disk bir ISO tutuyorsa CD-ROM.
+- en: |-
+    **There is no `description`.** The API accepts one when writing but never reports it back, so there is nothing for this data source to read.
+  tr: |-
+    **`description` yoktur.** API yazarken bir açıklama kabul eder ama onu hiç geri bildirmez; bu yüzden bu veri kaynağının okuyacağı bir şey yoktur.
+- en: |-
+    **A volume that does not exist is an error**, not an empty result.
+  tr: |-
+    **Var olmayan bir disk hatadır**, boş bir sonuç değil.

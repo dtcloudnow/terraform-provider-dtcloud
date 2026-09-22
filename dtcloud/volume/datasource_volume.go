@@ -12,12 +12,13 @@ import (
 
 // DataSourceDtcloudVolume looks up one volume by id.
 //
-// Use it to reference a volume Terraform did not create — attaching an existing
-// disk to a new VM, for instance. Declaring it as a resource instead would hand
-// Terraform ownership of it, and a later `terraform destroy` would delete the
-// volume and its snapshots along with everything else.
+// For volumes this configuration does not own — attaching an existing disk to a
+// new VM, say. As a resource, a later destroy would take the volume and its
+// snapshots with it.
 func DataSourceDtcloudVolume() *schema.Resource {
 	return &schema.Resource{
+		Description: "Looks up one volume by id.",
+
 		ReadContext: dataSourceDtcloudVolumeRead,
 		Schema: map[string]*schema.Schema{
 			"id": {

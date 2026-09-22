@@ -1,0 +1,56 @@
+- en: |-
+    Manages a security group -- the set of firewall rules applied to a machine's network interfaces.
+  tr: |-
+    Bir güvenlik grubunu, yani bir makinenin ağ arayüzlerine uygulanan güvenlik duvarı kuralları kümesini yönetir.
+- en: |-
+    The group is only a name and a description. The rules inside it are separate `dtcloud_security_group_rule` resources, so adding or removing one rule leaves the group and every other rule untouched.
+  tr: |-
+    Grup yalnızca bir ad ve bir açıklamadan ibarettir. İçindeki kurallar ayrı `dtcloud_security_group_rule` kaynaklarıdır; böylece bir kural eklemek ya da kaldırmak gruba ve diğer kurallara dokunmaz.
+- en: |-
+    Rules are separate resources, so adding or removing one leaves the group and every other rule untouched.
+  tr: |-
+    Kurallar ayrı kaynaklardır; bu yüzden birini eklemek ya da kaldırmak gruba ve diğer kurallara dokunmaz.
+- en: |-
+    **Reference the group by `.id` from the machines that use it.** That tells Terraform the machine depends on the group, so `terraform destroy` removes the machine first. A group written as a copied id has no such dependency, and deleting it fails while something still uses it.
+  tr: |-
+    **Grubu, onu kullanan makinelerden `.id` ile referans verin.** Bu, Terraform'a makinenin gruba bağlı olduğunu söyler; böylece `terraform destroy` önce makineyi kaldırır. Kopyalanmış bir kimlikle yazılan bir grubun böyle bir bağımlılığı yoktur ve bir şey onu kullanırken silinmesi başarısız olur.
+- en: |-
+    Name of the security group. Can be changed in place. Names are not required to be unique.
+  tr: |-
+    Güvenlik grubunun adı. Yerinde değiştirilebilir. Adların benzersiz olması gerekmez.
+- en: |-
+    Description of the security group. Can be changed in place, and removing it clears it.
+  tr: |-
+    Güvenlik grubunun açıklaması. Yerinde değiştirilebilir; kaldırılırsa temizlenir.
+- en: |-
+    Inbound rules as the platform displays them. Read-only; manage rules with dtcloud_security_group_rule.
+  tr: |-
+    Platformun gösterdiği haliyle gelen trafik kuralları. Salt okunur; kuralları dtcloud_security_group_rule ile yönetin.
+- en: |-
+    Outbound rules as the platform displays them. A new group starts with two, added by the platform: allow-all IPv4 and IPv6 egress.
+  tr: |-
+    Platformun gösterdiği haliyle giden trafik kuralları. Yeni bir grup, platformun eklediği iki kuralla başlar: tüm IPv4 ve IPv6 çıkışına izin veren kurallar.
+- en: |-
+    **Nothing here forces replacement.** Both arguments change in place, and removing `description` from the configuration clears it. That matters because the platform refuses to delete a group that is still in use, so a rebuild could never complete.
+  tr: |-
+    **Buradaki hiçbir şey yeniden oluşturma gerektirmez.** İki argüman da yerinde değişir ve `description`'ı yapılandırmadan kaldırmak onu temizler. Bu önemlidir, çünkü platform hâlâ kullanımdaki bir grubu silmeyi reddeder; yani bir yeniden oluşturma asla tamamlanamazdı.
+- en: |-
+    **`inbound_rule` and `outbound_rule` are a display snapshot.** The details endpoint reports rules the way the web panel shows them: a protocol display name, the port range as text, and a referenced group by its name rather than its id. None of that can be turned back into a rule, which is why rules are their own resource and are read from a different endpoint. The snapshot is from this resource's last read, so rules created in the same apply appear after the next refresh.
+  tr: |-
+    **`inbound_rule` ve `outbound_rule` bir görüntü anlık kopyasıdır.** Ayrıntı uç noktası kuralları web panelinin gösterdiği gibi bildirir: protokolün görünen adı, metin olarak bağlantı noktası aralığı ve referans verilen grubun kimliği yerine adı. Bunların hiçbiri tekrar bir kurala dönüştürülemez; kuralların ayrı bir kaynak olmasının ve farklı bir uç noktadan okunmasının nedeni budur. Anlık kopya bu kaynağın son okumasına aittir, bu yüzden aynı apply'da oluşturulan kurallar bir sonraki yenilemeden sonra görünür.
+- en: |-
+    **A new group is not empty.** The platform adds two allow-all egress rules, one for IPv4 and one for IPv6. Terraform does not own them. To remove one, import it as a `dtcloud_security_group_rule`, then delete that resource from the configuration.
+  tr: |-
+    **Yeni bir grup boş değildir.** Platform biri IPv4, biri IPv6 için olmak üzere tüm çıkışa izin veren iki kural ekler. Bunların sahibi Terraform değildir. Birini kaldırmak için onu bir `dtcloud_security_group_rule` olarak içe aktarın, ardından o kaynağı yapılandırmadan silin.
+- en: |-
+    **A group in use cannot be deleted.** The platform's refusal is passed through as it is. Destroy or detach whatever uses the group first.
+  tr: |-
+    **Kullanımdaki bir grup silinemez.** Platformun reddi olduğu gibi aktarılır. Önce grubu kullanan her şeyi yok edin ya da ayırın.
+- en: |-
+    `create`, `update` and `delete` each default to 5 minutes. These calls are synchronous, so the timeouts bound a hung request rather than a wait. Override them with a `timeouts` block:
+  tr: |-
+    `create`, `update` ve `delete` için varsayılan süre 5 dakikadır. Bu çağrılar eşzamanlıdır, bu yüzden zaman aşımları bir beklemeyi değil takılı kalmış bir isteği sınırlar. Bunları bir `timeouts` bloğuyla değiştirin:
+- en: |-
+    `name` and `description` are read back. The rules are not part of the import: each one is its own `dtcloud_security_group_rule` and is imported separately, the two the platform created included.
+  tr: |-
+    `name` ve `description` geri okunur. Kurallar içe aktarmaya dahil değildir: her biri kendi başına bir `dtcloud_security_group_rule`'dur ve platformun oluşturduğu iki kural dahil ayrı ayrı içe aktarılır.

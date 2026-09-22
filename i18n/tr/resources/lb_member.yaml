@@ -1,0 +1,100 @@
+- en: |-
+    Manages one back-end member of a pool: a machine, the port it serves on, and its share of the traffic.
+  tr: |-
+    Bir havuzun tek bir arka uç üyesini yönetir: makine, hizmet verdiği port ve aldığı trafik payı.
+- en: |-
+    One resource per member rather than the platform's batch endpoint, which replaces the whole member set in one call and would leave two resources owning the same list.
+  tr: |-
+    Platformun toplu uç noktası yerine üye başına bir kaynak; o uç nokta tüm üye kümesini tek çağrıda değiştirir ve iki kaynağın aynı listeye sahip çıkmasına yol açardı.
+- en: |-
+    The machines on the pool's network that can be added as members.
+  tr: |-
+    Havuzun ağındaki, üye olarak eklenebilecek makineler.
+- en: |-
+    One resource per member: each is created and deleted on its own.
+  tr: |-
+    Üye başına bir kaynak: her biri kendi başına oluşturulur ve silinir.
+- en: |-
+    **`dtcloud_lb_vms` lists the machines eligible to be members** on a given network, with their addresses. It is what makes a `for_each` member set possible without pasting ids.
+  tr: |-
+    **`dtcloud_lb_vms`, belirli bir ağda üye olabilecek makineleri** adresleriyle birlikte listeler. Kimlik yapıştırmadan `for_each` ile üye kümesi kurmayı mümkün kılan budur.
+- en: |-
+    IP address of the member.
+  tr: |-
+    Üyenin IP adresi.
+- en: |-
+    ID of the VM behind this address.
+  tr: |-
+    Bu adresin arkasındaki sanal makinenin kimliği.
+- en: |-
+    ID of the load balancer.
+  tr: |-
+    Yük dengeleyicinin kimliği.
+- en: |-
+    ID of the pool this member belongs to.
+  tr: |-
+    Bu üyenin ait olduğu havuzun kimliği.
+- en: |-
+    Whether this member only receives traffic once the others are down.
+  tr: |-
+    Bu üyenin yalnızca diğerleri devre dışı kaldığında trafik alıp almayacağı.
+- en: |-
+    Whether the member is administratively enabled.
+  tr: |-
+    Üyenin yönetimsel olarak etkin olup olmadığı.
+- en: |-
+    Address the health monitor probes, when it differs from address.
+  tr: |-
+    address'ten farklı olduğunda sağlık denetiminin yokladığı adres.
+- en: |-
+    Port the health monitor probes, when it differs from protocol_port.
+  tr: |-
+    protocol_port'tan farklı olduğunda sağlık denetiminin yokladığı port.
+- en: |-
+    Name of the member. Write-only: it is stored by the platform but never reported back, so it cannot be imported and drift in it is invisible. See vm_name for the name the API does report.
+  tr: |-
+    Üyenin adı. Yalnızca yazılabilir: platform saklar ama geri bildirmez; bu yüzden içe aktarılamaz ve sapması görünmez. API'nin bildirdiği ad için vm_name alanına bakın.
+- en: |-
+    Port the member listens on. Defaults to the pool's port when omitted.
+  tr: |-
+    Üyenin dinlediği port. Verilmediğinde havuzun portu kullanılır.
+- en: |-
+    Relative share of traffic this member receives.
+  tr: |-
+    Bu üyenin aldığı göreli trafik payı.
+- en: |-
+    ID of the member on its own, without the load balancer and pool prefixes.
+  tr: |-
+    Üyenin yük dengeleyici ve havuz önekleri olmadan kendi kimliği.
+- en: |-
+    Operating state reported by the platform.
+  tr: |-
+    Platformun bildirdiği çalışma durumu.
+- en: |-
+    Name of the VM behind this member, as reported by the API.
+  tr: |-
+    API'nin bildirdiğine göre bu üyenin arkasındaki sanal makinenin adı.
+- en: |-
+    **The member list reports only id, name, state and address.** `weight`, the monitor overrides and `backup` are write-only: they are sent on create and update but never read back, so drift in them is invisible.
+  tr: |-
+    **Üye listesi yalnızca kimlik, ad, durum ve adres bildirir.** `weight`, denetim geçersiz kılmaları ve `backup` yalnızca yazılabilir: oluşturma ve güncellemede gönderilir ama hiç geri okunmaz, bu yüzden sapmaları görünmez.
+- en: |-
+    **`name` is write-only too, for a subtler reason.** The platform stores it, but the list reports the name of the machine behind the member instead. Reading that back into `name` would give every member a permanent diff, so the reported value is kept under `vm_name`, where it is true.
+  tr: |-
+    **`name` de yalnızca yazılabilir, ama daha ince bir nedenle.** Platform onu saklar, ancak liste bunun yerine üyenin arkasındaki makinenin adını bildirir. Bunu `name` alanına geri okumak her üyeye kalıcı bir fark verirdi; bu yüzden bildirilen değer, doğru olduğu yerde, `vm_name` altında tutulur.
+- en: |-
+    **`protocol_port` is fixed at creation.** Import a member only when its port matches the pool's, since nothing reports it and an imported member whose configuration names one will be replaced.
+  tr: |-
+    **`protocol_port` oluşturma anında sabitlenir.** Bir üyeyi yalnızca portu havuzunkiyle eşleştiğinde içe aktarın; onu hiçbir uç nokta bildirmediği için yapılandırmasında port belirten içe aktarılmış bir üye yeniden kurulur.
+- en: |-
+    **A machine can hold several addresses on one network.** `address` names which one receives traffic.
+  tr: |-
+    **Bir makine tek bir ağda birden çok adres tutabilir.** Hangisinin trafik alacağını `address` belirler.
+- en: |-
+    `create`, `update` and `delete` each default to 15 minutes.
+  tr: |-
+    `create`, `update` ve `delete` varsayılan olarak 15'er dakikadır.
+- en: |-
+    `compute_server_id` is recovered indirectly: the candidate lookup lists every machine with a port on the network along with its addresses, and the member's address is known. That costs two extra calls and happens on import only.
+  tr: |-
+    `compute_server_id` dolaylı olarak geri getirilir: aday araması, ağda portu olan her makineyi adresleriyle birlikte listeler ve üyenin adresi bilinir. Bu iki ek çağrıya mal olur ve yalnızca içe aktarmada yapılır.

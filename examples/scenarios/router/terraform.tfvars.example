@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+# The external network the router's gateway sits on. There is no flag on the
+# network list that identifies it, so it has to be given explicitly: ask your
+# operator, or read `external_network` off an existing router with the
+# dtcloud_routers data source.
+external_network_id = "00000000-0000-0000-0000-000000000000"
+
+cidr = "10.98.0.0/24"

@@ -1,0 +1,32 @@
+- en: |-
+    Reports every quota the platform tracks for a project.
+  tr: |-
+    Platformun bir proje için izlediği tüm kotaları bildirir.
+- en: |-
+    This is the full quota table, covering compute, network, volume and VPN limits. It reports allowances only; `dtcloud_project_quotas` reports a few headline figures with current usage beside them.
+  tr: |-
+    Bu, bilişim, ağ, disk ve VPN sınırlarını kapsayan tam kota tablosudur. Yalnızca izin verilen miktarları bildirir; `dtcloud_project_quotas` ise birkaç temel değeri güncel kullanımla yan yana bildirir.
+- en: |-
+    The full quota table. The platform can add keys without warning, so they arrive as a map: index it by name.
+  tr: |-
+    Tam kota tablosu. Platform uyarmadan yeni anahtarlar ekleyebilir, bu yüzden değerler harita olarak gelir: ada göre erişin.
+- en: |-
+    ID of the project, from dtcloud_projects.
+  tr: |-
+    Projenin kimliği, dtcloud_projects'ten.
+- en: |-
+    The quota names, sorted. Useful for discovering what the platform tracks.
+  tr: |-
+    Sıralanmış kota adları. Platformun neyi izlediğini keşfetmek için kullanışlıdır.
+- en: |-
+    Every quota the platform reports, keyed by the name the platform uses. Values are numbers as text, or the word "Unlimited" where the platform reports no limit. Terraform maps hold one type, and the API mixes numbers with that word, so everything is rendered as text — use `tonumber()` when you need arithmetic.
+  tr: |-
+    Platformun bildirdiği tüm kotalar, platformun kullandığı adlarla anahtarlanmış. Değerler metin olarak yazılmış sayılardır ya da platformun sınır bildirmediği yerlerde "Unlimited" sözcüğüdür. Terraform haritaları tek bir tip tutar ve API sayıları bu sözcükle karıştırır; bu yüzden her şey metin olarak verilir. Aritmetik gerektiğinde `tonumber()` kullanın.
+- en: |-
+    **The values are text, including the numbers.** A Terraform map holds one type, and the API mixes numbers with the word `Unlimited`, so every value is a string. Check for `"Unlimited"` before converting with `tonumber()`:
+  tr: |-
+    **Değerler, sayılar dahil metindir.** Terraform haritası tek bir tip tutar ve API sayıları `Unlimited` sözcüğüyle karıştırır; bu yüzden her değer bir dizedir. `tonumber()` ile dönüştürmeden önce `"Unlimited"` olup olmadığını kontrol edin:
+- en: |-
+    **The keys are the platform's own**, such as `cores`, `instances` and `security_group_rules`, and the platform can add more without warning. That is why this is a map rather than a fixed set of attributes: a new quota appears without a provider release. `names` lists what is there.
+  tr: |-
+    **Anahtarlar platformun kendi anahtarlarıdır**; örneğin `cores`, `instances` ve `security_group_rules`. Platform uyarmadan yenilerini ekleyebilir. Sabit bir öznitelik kümesi yerine harita olmasının nedeni budur: yeni bir kota, sağlayıcının yeni bir sürümü gerekmeden görünür. Mevcut olanları `names` listeler.

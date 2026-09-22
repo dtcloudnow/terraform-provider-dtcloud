@@ -19,22 +19,22 @@ import (
 )
 
 // The API emits timestamps without a timezone. Keeping that exact shape here is
-// the point of these tests: it is what used to make dt-go abandon the rest of
-// the keypair, taking user_id and deleted with it.
+// the point of these tests: a bad timestamp used to discard the rest of the
+// keypair, taking user_id and deleted with it.
 const fakeCreatedAt = acctest.FakeCreatedAt
 
-// fakeUserID mirrors the DEV project id seen in real responses.
+// fakeUserID mirrors the project id seen in real responses.
 const fakeUserID = "82c57cfbb429442989a5695a2a9780f3"
 
-// fakeAPI is a stand-in for cloud-web-api's /openstack/sshkeys routes, good
-// enough to drive the provider through a full Terraform lifecycle offline.
+// fakeAPI stands in for the SSH key routes, good enough to drive the provider
+// through a full Terraform lifecycle offline.
 type fakeAPI struct {
 	mu     sync.Mutex
 	keys   map[string]string // name -> public key
 	nextID int
 
 	// requests records "METHOD /path" for every call that arrived, so tests can
-	// assert the provider actually round-tripped through the API.
+	// assert the provider really round-tripped through the API.
 	requests []string
 }
 
@@ -54,8 +54,8 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.requests = append(f.requests, r.Method+" "+r.URL.Path)
 	f.mu.Unlock()
 
-	// Every call must carry the API key pair and the region as serverId; a real
-	// request without them is rejected, so the fake rejects them too.
+	// Every call must carry the API key pair and the region as serverId, so the
+	// fake rejects a request without them the way a real one is rejected.
 	if r.Header.Get("x-api-access-key") == "" || r.Header.Get("x-api-secret-key") == "" {
 		acctest.WriteJSON(w, http.StatusUnauthorized, map[string]any{"errorMessage": "missing api key headers"})
 		return
@@ -82,9 +82,8 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// list answers the way the real endpoint does: name and created, nothing else.
-// Fingerprints and public keys are details-only, which is exactly why the
-// plural data source cannot report them.
+// list answers the way the real endpoint does: name and created, nothing else,
+// which is why the plural data source cannot report fingerprints or keys.
 func (f *fakeAPI) list(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -162,11 +161,9 @@ func (f *fakeAPI) delete(w http.ResponseWriter, name string) {
 	acctest.WriteJSON(w, http.StatusOK, map[string]any{"message": "deleted"})
 }
 
-// The keypair payloads are declared as structs rather than maps on purpose:
-// encoding/json sorts map keys alphabetically, which would put created_at
-// first and no longer match the API. Field order matters here, because the
-// original bug was precisely that a bad timestamp discards everything declared
-// after it — so the fake has to reproduce the real ordering to be a fair test.
+// The keypair payloads are structs rather than maps so the field order is the
+// API's: a bad timestamp discards everything declared after it, so the ordering
+// has to be reproduced for this to be a fair test.
 
 type createKeypair struct {
 	Name        string `json:"name"`
@@ -217,14 +214,13 @@ data "dtcloud_ssh_keys" "all" {
 }
 
 const (
-	testPublicKey    = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCoriginal terraform-poc"
-	testPublicKeyAlt = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCreplaced terraform-poc"
+	testPublicKey    = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCoriginal terraform-example"
+	testPublicKeyAlt = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCreplaced terraform-example"
 )
 
-// TestAccDtcloudSSHKey_lifecycle drives create -> read -> ForceNew replace ->
-// destroy against the fake API, and asserts that created_at and user_id reach
-// state. Those two are the regression guard: they sit after created_at in the
-// API response, so before the dtgo.Time fix they arrived empty.
+// TestAccDtcloudSSHKey_lifecycle drives create → read → ForceNew replace →
+// destroy, and asserts created_at and user_id reach state. Those two sit after
+// created_at in the response, which is what makes them the regression guard.
 func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 	api := newFakeAPI()
 	server := httptest.NewServer(api)
@@ -244,9 +240,8 @@ func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 			{
 				Config: testConfig(server.URL, keyName, testPublicKey),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// The plural data source: the list endpoint reports a name
-					// and a created timestamp and nothing else, so anything more
-					// has to come from the singular lookup.
+					// The plural data source: the list endpoint reports a name and a
+					// timestamp, so anything more has to come from the singular lookup.
 					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "ssh_keys.#", "1"),
 					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "ssh_keys.0.name", keyName),
 					resource.TestCheckResourceAttr("data.dtcloud_ssh_keys.all", "names.0", keyName),
@@ -254,8 +249,7 @@ func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "name", keyName),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "public_key", testPublicKey),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "fingerprint", fingerprintFor(keyName)),
-					// Parsed from the timezone-less "2026-07-08T10:35:17.781065"
-					// and re-rendered as RFC 3339 by formatTime.
+					// Parsed from the timezone-less form and re-rendered as RFC 3339.
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "created_at", "2026-07-08T10:35:17Z"),
 					resource.TestCheckResourceAttr("dtcloud_ssh_key.test", "user_id", fakeUserID),
 
@@ -274,8 +268,7 @@ func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 				),
 			},
 			{
-				// Re-applying the identical config must be a no-op: this is the
-				// "re-plan shows no changes" check, i.e. Read round-trips cleanly.
+				// Re-applying the identical config must be a no-op, so Read round-trips.
 				Config:   testConfig(server.URL, keyName, testPublicKey),
 				PlanOnly: true,
 			},
@@ -298,8 +291,8 @@ func TestAccDtcloudSSHKey_lifecycle(t *testing.T) {
 }
 
 // TestAccDtcloudSSHKey_disappears checks the drift path: a key deleted outside
-// Terraform must be dropped from state rather than erroring, leaving a plan
-// that recreates it.
+// Terraform is dropped from state rather than erroring, leaving a plan that
+// recreates it.
 func TestAccDtcloudSSHKey_disappears(t *testing.T) {
 	api := newFakeAPI()
 	server := httptest.NewServer(api)
@@ -330,19 +323,16 @@ func TestAccDtcloudSSHKey_disappears(t *testing.T) {
 	})
 }
 
-// TestAccDtcloudSSHKey_missingCredentials pins the fail-fast behaviour of
-// providerConfigure: no key pair means a clear error, not a confusing API
-// failure later on.
+// TestAccDtcloudSSHKey_missingCredentials pins fail-fast in providerConfigure:
+// no key pair means a clear error, not a confusing API failure later on.
 func TestAccDtcloudSSHKey_missingCredentials(t *testing.T) {
-	// The schema falls back to these, so clear them for the duration of the test
-	// in case the developer running it has real credentials exported.
+	// The schema falls back to these, so clear them for the duration of the test.
 	t.Setenv("DTCLOUD_ACCESS_KEY", "")
 	t.Setenv("DTCLOUD_SECRET_KEY", "")
 
-	// And the provider falls back to a configuration file after the environment,
-	// so point it at an empty one. Without this the test passes on a machine with
-	// no credentials configured and fails on a machine that has some — which is
-	// the developer's own machine, every time.
+	// And the provider falls back to a configuration file after the environment, so
+	// point it at an empty one — otherwise the result depends on whether the machine
+	// running the test happens to have credentials configured.
 	empty := filepath.Join(t.TempDir(), "empty.yaml")
 	if err := os.WriteFile(empty, nil, 0o600); err != nil {
 		t.Fatal(err)
