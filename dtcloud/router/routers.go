@@ -17,6 +17,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -49,14 +50,6 @@ func formatTime(t dtgo.Time) string {
 	}
 	return t.Format(time.RFC3339)
 }
-
-// Poll pacing shared by the waiters below. Variables rather than constants so
-// the offline tests can shorten them: against a fake API every wait still pays
-// the full delay, and this package makes more of them than any other.
-var (
-	waitDelay      = 2 * time.Second
-	waitMinTimeout = 3 * time.Second
-)
 
 // waitForRouter blocks until the router is at rest and `settled` agrees the
 // requested change has landed. Both are needed: a write is acknowledged before
@@ -92,8 +85,8 @@ func waitForRouter(ctx context.Context, client *dtgo.Client, id string, timeout 
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      waitDelay,
-		MinTimeout: waitMinTimeout,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 		// Two readings in a row, so a poll landing between a request being accepted
 		// and the router leaving ACTIVE cannot end the wait.
 		ContinuousTargetOccurence: 2,
@@ -125,8 +118,8 @@ func waitForRouterGone(ctx context.Context, client *dtgo.Client, id string, time
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      waitDelay,
-		MinTimeout: waitMinTimeout,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
@@ -149,8 +142,8 @@ func waitForCondition(ctx context.Context, timeout time.Duration, check func() (
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      waitDelay,
-		MinTimeout: waitMinTimeout,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err

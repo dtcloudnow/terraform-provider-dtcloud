@@ -1,4 +1,4 @@
-package router_test
+package elasticip_test
 
 import (
 	"os"

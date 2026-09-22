@@ -9,6 +9,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -429,8 +430,8 @@ func waitForVMStatus(ctx context.Context, client *dtgo.Client, vmID string, targ
 			return details, "pending", nil
 		},
 		Timeout:    timeout,
-		Delay:      5 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(5 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 		// Require the target twice: the status can briefly read as the pre-transition
 		// one right after an action completes.
 		ContinuousTargetOccurence: 2,
@@ -468,8 +469,8 @@ func waitForVMGone(ctx context.Context, client *dtgo.Client, vmID string, timeou
 			return details, "present", nil
 		},
 		Timeout:    timeout,
-		Delay:      3 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(3 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -588,8 +589,8 @@ func waitForCondition(ctx context.Context, timeout time.Duration, check func() (
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 2 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(2 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err

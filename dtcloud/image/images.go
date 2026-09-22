@@ -18,6 +18,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -162,8 +163,8 @@ func waitForImage(ctx context.Context, client *dtgo.Client, id string, timeout t
 			return "done", "done", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 		// Two readings in a row, so a poll that lands between a request being
 		// accepted and the image leaving its resting status cannot end the wait.
 		ContinuousTargetOccurence: 2,
@@ -197,8 +198,8 @@ func waitForImageGone(ctx context.Context, client *dtgo.Client, id string, timeo
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err

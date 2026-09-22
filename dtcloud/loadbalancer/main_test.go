@@ -1,4 +1,4 @@
-package router_test
+package loadbalancer_test
 
 import (
 	"os"

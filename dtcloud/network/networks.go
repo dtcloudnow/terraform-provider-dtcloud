@@ -14,6 +14,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -85,8 +86,8 @@ func waitForNetwork(ctx context.Context, client *dtgo.Client, id string, timeout
 			return "done", "done", nil
 		},
 		Timeout:                   timeout,
-		Delay:                     2 * time.Second,
-		MinTimeout:                3 * time.Second,
+		Delay:                     wait.Pace(2 * time.Second),
+		MinTimeout:                wait.Pace(3 * time.Second),
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -113,8 +114,8 @@ func waitForNetworkGone(ctx context.Context, client *dtgo.Client, id string, tim
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(3 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err

@@ -4,12 +4,12 @@
 # dtcloud/provider.go, or examples/provider/provider.tf, then run `make docs`.
 page_title: "dtcloud Provider"
 description: |-
-  Manage DT Cloud (CCE) infrastructure with Terraform.
+  Manage DT Cloud (CMP) infrastructure with Terraform.
 ---
 
 # dtcloud Provider
 
-Manage DT Cloud (CCE) resources with Terraform: describe the infrastructure you want in a
+Manage DT Cloud (CMP) resources with Terraform: describe the infrastructure you want in a
 configuration file, run `terraform apply`, and the provider makes the platform match it.
 
 The provider talks to the DT Cloud API through the [`dt-go`](https://github.com/dtcloudnow/dt-go)
@@ -65,7 +65,7 @@ terraform {
   required_providers {
     dtcloud = {
       source  = "dtcloudnow/dtcloud"
-      version = "~> 0.1"
+      version = "~> 26.0.0"
     }
   }
 }

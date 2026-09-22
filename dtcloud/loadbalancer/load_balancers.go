@@ -16,6 +16,7 @@ import (
 
 	dtgo "github.com/dtcloudnow/dt-go/v26"
 	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/dterr"
+	"github.com/dtcloudnow/terraform-provider-dtcloud/dtcloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -130,8 +131,8 @@ func waitForLBActive(ctx context.Context, client *dtgo.Client, lbID string, time
 			return details, "pending", nil
 		},
 		Timeout:                   timeout,
-		Delay:                     5 * time.Second,
-		MinTimeout:                3 * time.Second,
+		Delay:                     wait.Pace(5 * time.Second),
+		MinTimeout:                wait.Pace(3 * time.Second),
 		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
@@ -171,8 +172,8 @@ func waitForCondition(ctx context.Context, timeout time.Duration, check func() (
 			return "waiting", "waiting", nil
 		},
 		Timeout:    timeout,
-		Delay:      2 * time.Second,
-		MinTimeout: 2 * time.Second,
+		Delay:      wait.Pace(2 * time.Second),
+		MinTimeout: wait.Pace(2 * time.Second),
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
@@ -229,6 +230,7 @@ func insertHeadersSchema(forceNew bool) *schema.Schema {
 			Schema: map[string]*schema.Schema{
 				"x_forwarded_for":         field(),
 				"x_forwarded_port":        field(),
+				"x_forwarded_proto":       field(),
 				"x_ssl_client_cn":         field(),
 				"x_ssl_client_dn":         field(),
 				"x_ssl_client_has_cert":   field(),
@@ -250,6 +252,7 @@ func expandInsertHeaders(raw []interface{}) dtgo.InsertHeaders {
 	return dtgo.InsertHeaders{
 		XForwardedFor:       m["x_forwarded_for"].(string),
 		XForwardedPort:      m["x_forwarded_port"].(string),
+		XForwardedProto:     m["x_forwarded_proto"].(string),
 		XSSLClientCN:        m["x_ssl_client_cn"].(string),
 		XSSLClientDN:        m["x_ssl_client_dn"].(string),
 		XSSLClientHasCert:   m["x_ssl_client_has_cert"].(string),
@@ -269,6 +272,7 @@ func flattenInsertHeaders(h dtgo.InsertHeaders) []interface{} {
 	return []interface{}{map[string]interface{}{
 		"x_forwarded_for":         h.XForwardedFor,
 		"x_forwarded_port":        h.XForwardedPort,
+		"x_forwarded_proto":       h.XForwardedProto,
 		"x_ssl_client_cn":         h.XSSLClientCN,
 		"x_ssl_client_dn":         h.XSSLClientDN,
 		"x_ssl_client_has_cert":   h.XSSLClientHasCert,
