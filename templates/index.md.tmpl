@@ -101,7 +101,7 @@ that supplies it:
    too-permissive file at its own default path and warns about one elsewhere.
 
 The provider binary doubles as its own setup command: `terraform-provider-dtcloud configure`
-prompts for the four values, verifies them against the API before saving, and writes the file
+prompts for the access key, secret key and region, verifies them against the API before saving, and writes the file
 with the right permissions. `-profile prod` writes a second account, selectable with the
 `profile` argument or `DTCLOUD_PROFILE`.
 

@@ -15,13 +15,13 @@
   tr: |-
     Ayırın ve bir makinenin bağlantı noktasına yönlendirin. Adresi başka bir bağlantı noktasına taşımak yerinde bir güncellemedir: adresin kendisi hiç serbest bırakılmaz.
 - en: |-
-    **Finding the external network.** `floating_network_id` is the external network, not the network your machine is on. `GET /openstack/routers/externals` reports, for each of your networks, the external network it is routed to; `dtctl router externals` prints the same thing.
+    **Finding the external network.** `floating_network_id` is the external network, not the network your machine is on: it is the network your router's gateway is on. `dtcloud_router` reports it as `external_network_id` -- on the resource when you manage the router, through the data source when you do not -- and `dtctl router externals` prints the same thing.
   tr: |-
-    **Dış ağı bulmak.** `floating_network_id` makinenizin bulunduğu ağ değil, dış ağdır. `GET /openstack/routers/externals` her ağınız için yönlendirildiği dış ağı bildirir; `dtctl router externals` de aynı bilgiyi yazdırır.
+    **Dış ağı bulmak.** `floating_network_id` makinenizin bulunduğu ağ değil, dış ağdır: router'ınızın ağ geçidinin bulunduğu ağ. `dtcloud_router` bunu `external_network_id` olarak bildirir -- router'ı siz yönetiyorsanız kaynakta, yönetmiyorsanız data source üzerinden -- ve `dtctl router externals` de aynı bilgiyi yazdırır.
 - en: |-
-    ID of the external network to allocate the address from. `GET /openstack/routers/externals` reports which external network each of your networks is routed to.
+    ID of the external network to allocate the address from: the one your router's gateway is on, which `dtcloud_router` reports as `external_network_id`.
   tr: |-
-    Adresin ayrılacağı dış ağın kimliği. `GET /openstack/routers/externals` her ağınızın hangi dış ağa yönlendirildiğini bildirir.
+    Adresin ayrılacağı dış ağın kimliği: router'ınızın ağ geçidinin bulunduğu ağ. `dtcloud_router` bunu `external_network_id` olarak bildirir.
 - en: |-
     Which address on the port to map to, for a port that has several. The platform picks one when omitted.
   tr: |-

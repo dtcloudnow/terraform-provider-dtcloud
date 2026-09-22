@@ -15,7 +15,7 @@ terraform {
 provider "dtcloud" {}
 
 resource "dtcloud_ssh_key" "default" {
-  name       = "terraform-poc"
+  name       = "terraform-example"
   public_key = file("~/.ssh/id_rsa.pub")
 }
 

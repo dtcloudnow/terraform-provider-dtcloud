@@ -18,7 +18,7 @@ provider "dtcloud" {}
 
 variable "external_network_id" {
   type        = string
-  description = "External network to allocate addresses from. GET /openstack/routers/externals reports which external network each of your networks is routed to; `dtctl router externals` prints the same thing."
+  description = "External network to allocate addresses from: the one your router's gateway is on. The dtcloud_router data source reports it as external_network_id; `dtctl router externals` prints the same thing."
 }
 
 variable "port_id" {

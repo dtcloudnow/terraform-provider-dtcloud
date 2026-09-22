@@ -214,8 +214,8 @@ data "dtcloud_ssh_keys" "all" {
 }
 
 const (
-	testPublicKey    = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCoriginal terraform-poc"
-	testPublicKeyAlt = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCreplaced terraform-poc"
+	testPublicKey    = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCoriginal terraform-example"
+	testPublicKeyAlt = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCreplaced terraform-example"
 )
 
 // TestAccDtcloudSSHKey_lifecycle drives create → read → ForceNew replace →
