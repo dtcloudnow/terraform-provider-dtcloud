@@ -70,15 +70,22 @@ variable "dtcloud_region_id" {
   type = string
 }
 
+variable "dtcloud_api_url" {
+  type    = string
+  default = "https://console.dt.net.tr/api/v1"
+}
+
 provider "dtcloud" {
-  access_key = var.dtcloud_access_key
-  secret_key = var.dtcloud_secret_key
-  region_id  = var.dtcloud_region_id
+  access_key   = var.dtcloud_access_key
+  secret_key   = var.dtcloud_secret_key
+  region_id    = var.dtcloud_region_id
+  api_endpoint = var.dtcloud_api_url
 }
 ```
 
-Put the values in `terraform.tfvars` once you tire of typing them, and add that file to your
-`.gitignore`.
+The endpoint has a default, so only the other three are asked for; set `dtcloud_api_url` for any
+environment other than production. Put the values in `terraform.tfvars` once you tire of typing
+them, and add that file to your `.gitignore`.
 
 ### Or environment variables, which is what CI should use
 
@@ -86,6 +93,7 @@ Put the values in `terraform.tfvars` once you tire of typing them, and add that 
 export DTCLOUD_ACCESS_KEY="..."
 export DTCLOUD_SECRET_KEY="..."
 export DTCLOUD_REGION_ID="2"
+export DTCLOUD_API_URL="https://console.dt.net.tr/api/v1"
 ```
 
 These override the configuration file, so a build agent never picks up a developer's account.

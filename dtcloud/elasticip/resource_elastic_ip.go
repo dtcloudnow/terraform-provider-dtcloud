@@ -36,8 +36,8 @@ func ResourceDtcloudElasticIP() *schema.Resource {
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
-				Description: "ID of the external network to allocate the address from. " +
-					"`GET /openstack/routers/externals` reports which external network each of your networks is routed to.",
+				Description: "ID of the external network to allocate the address from: the one your router's " +
+					"gateway is on, which `dtcloud_router` reports as `external_network_id`.",
 			},
 			"subnet_id": {
 				Type:     schema.TypeString,

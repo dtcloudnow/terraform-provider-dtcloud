@@ -9,14 +9,13 @@ import (
 	"testing"
 )
 
-// TestIndexListsEveryType keeps the hand-written tables of resources and data
-// sources in step with the provider. Neither table can be generated -- a page
-// template only sees its own type -- so both are written out by hand, and this
-// is what stops them going stale when a service is added.
+// TestIndexListsEveryType keeps the landing page's table of resources and data
+// sources in step with the provider. The table cannot be generated -- a page
+// template only sees its own type -- so it is written out by hand in
+// templates/index.md.tmpl, and this is what stops it going stale.
 func TestIndexListsEveryType(t *testing.T) {
 	for _, path := range [][]string{
 		{"..", "templates", "index.md.tmpl"},
-		{"..", "README.md"},
 	} {
 		name := filepath.Join(path...)
 		t.Run(name, func(t *testing.T) {

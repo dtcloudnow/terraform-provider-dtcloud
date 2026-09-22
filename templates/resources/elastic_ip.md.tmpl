@@ -27,8 +27,9 @@ writes it; there is no separate association resource. The API and the SDK call t
 {{ tffile .ExampleFile }}
 
 -> **Finding the external network.** `floating_network_id` is the external network, not the network
-your machine is on. `GET /openstack/routers/externals` reports, for each of your networks, the
-external network it is routed to; `dtctl router externals` prints the same thing.
+your machine is on: it is the network your router's gateway is on. `dtcloud_router` reports it as
+`external_network_id` -- on the resource when you manage the router, through the data source when
+you do not -- and `dtctl router externals` prints the same thing.
 
 {{ .SchemaMarkdown | trimspace }}
 

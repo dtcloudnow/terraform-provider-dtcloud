@@ -11,9 +11,9 @@
   tr: |-
     Sağlayıcı DT Cloud API'siyle [`dt-go`](https://github.com/dtcloudnow/dt-go) SDK'sı üzerinden konuşur. Bu, [`dtctl`](https://docs.dtcloudnow.com/dtctl) komut satırı aracının kullandığı SDK'nın aynısıdır; bu yüzden iki araç da aynı API'yi görür ve aynı şekilde davranır.
 - en: |-
-    Credentials are prompted for by Terraform: a variable with no default is asked for on every run that does not already have it. Put the values in a gitignored terraform.tfvars, or export DTCLOUD_ACCESS_KEY / DTCLOUD_SECRET_KEY instead.
+    Terraform asks for every variable that has no default and no value yet. Put the values in a terraform.tfvars you do not commit, or use the DTCLOUD_* environment variables instead. The endpoint defaults to production; set it for any other environment.
   tr: |-
-    Kimlik bilgilerini Terraform sorar: varsayılanı olmayan bir değişken, değeri henüz verilmemiş her çalıştırmada sorulur. Değerleri git'e girmeyen bir terraform.tfvars dosyasına koyun ya da bunun yerine DTCLOUD_ACCESS_KEY / DTCLOUD_SECRET_KEY ortam değişkenlerini tanımlayın.
+    Terraform, varsayılanı ve henüz değeri olmayan her değişkeni sorar. Değerleri commit etmediğiniz bir terraform.tfvars dosyasına koyun ya da bunun yerine DTCLOUD_* ortam değişkenlerini kullanın. Adresin varsayılanı üretim ortamıdır; başka her ortam için değerini verin.
 - en: |-
     Every request carries an access key and a secret key, and is scoped to one region. The provider takes each of `access_key`, `secret_key`, `api_endpoint` and `region_id` from the first source that supplies it:
   tr: |-
@@ -55,9 +55,9 @@
   tr: |-
     Dosya bir gizli anahtar tutar, bu yüzden yalnızca sahibi tarafından okunabilir olmalıdır. Sağlayıcı kendi varsayılan yolundaki fazla izinli bir dosyanın izinlerini daraltır, başka bir yerdeki için uyarı verir.
 - en: |-
-    The provider binary doubles as its own setup command: `terraform-provider-dtcloud configure` prompts for the four values, verifies them against the API before saving, and writes the file with the right permissions. `-profile prod` writes a second account, selectable with the `profile` argument or `DTCLOUD_PROFILE`.
+    The provider binary doubles as its own setup command: `terraform-provider-dtcloud configure` prompts for the access key, secret key and region, verifies them against the API before saving, and writes the file with the right permissions. `-profile prod` writes a second account, selectable with the `profile` argument or `DTCLOUD_PROFILE`.
   tr: |-
-    Sağlayıcının çalıştırılabilir dosyası aynı zamanda kendi kurulum komutudur: `terraform-provider-dtcloud configure` dört değeri sorar, kaydetmeden önce onları API'ye karşı doğrular ve dosyayı doğru izinlerle yazar. `-profile prod` ikinci bir hesap yazar; bu hesap `profile` argümanıyla ya da `DTCLOUD_PROFILE` ile seçilir.
+    Sağlayıcının çalıştırılabilir dosyası aynı zamanda kendi kurulum komutudur: `terraform-provider-dtcloud configure` access key, secret key ve bölgeyi sorar, kaydetmeden önce onları API'ye karşı doğrular ve dosyayı doğru izinlerle yazar. `-profile prod` ikinci bir hesap yazar; bu hesap `profile` argümanıyla ya da `DTCLOUD_PROFILE` ile seçilir.
 - en: |-
     API access key, sent as the x-api-access-key header.
   tr: |-
