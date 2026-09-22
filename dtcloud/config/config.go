@@ -120,7 +120,7 @@ func (c *Config) Client() (client *CombinedConfig, warnings []string, err error)
 				"     It prompts, checks the credentials against the API, and writes\n"+
 				"     %s\n\n"+
 				"  2. Export them, which is what CI should do:\n\n"+
-				"       DTCLOUD_ACCESS_KEY, DTCLOUD_SECRET_KEY, DTCLOUD_REGION_ID\n\n"+
+				"       DTCLOUD_ACCESS_KEY, DTCLOUD_SECRET_KEY, DTCLOUD_REGION_ID, DTCLOUD_API_URL\n\n"+
 				"  3. Put them in the provider block, ideally through variables so they stay\n"+
 				"     out of version control.",
 			setupCommand(), path)

@@ -63,6 +63,10 @@
   tr: |-
     Değerleri varsayılanı olmayan değişkenler olarak tanımlayın; Terraform ilk `plan`'da onları sorar:
 - en: |-
+    The endpoint has a default, so only the other three are asked for; set `dtcloud_api_url` for any environment other than production.
+  tr: |-
+    Adresin varsayılan değeri olduğu için yalnızca diğer üçü sorulur; üretim dışındaki her ortam için `dtcloud_api_url` değerini verin.
+- en: |-
     Put the values in `terraform.tfvars` once you tire of typing them, and add that file to your `.gitignore`.
   tr: |-
     Yazmaktan yorulduğunuzda değerleri `terraform.tfvars` dosyasına koyun ve o dosyayı `.gitignore`'a ekleyin.
